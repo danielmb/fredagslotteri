@@ -1,12 +1,12 @@
 /* Fredagslotteriet – «Keiservarden Grand Prix»: kuleløp fra Keiservarden ned til Bodø havn.
-   Løpet simuleres først (keiser-physics.js). Kula som faktisk kom først får nummeret til den som ble trukket som vinner. */
+   Løpet simuleres først (keiser-physics.js). Kula som faktisk kom først får nummeret til den som ble trukket som vinner.
+   Løypa er originalen eller en godkjent egen løype fra løypedesigneren – den lagres med trekningen, så reprisen blir lik. */
 (function () {
   'use strict';
   const FL = window.FL;
-  const u = FL.u, Ev = FL.Events, Store = FL.Store, P = FL.KPhys;
-  const { Eng, ABORT } = FL.Engine;
+  const u = FL.u, Ev = FL.Events, Store = FL.Store, P = FL.KPhys, D = FL.KDraw;
+  const { Eng } = FL.Engine;
   const S = () => FL.Audio;
-  const R = P.R;
   const NAMES = ['Kari Nordmann', 'Ola Nordmann', 'Tor-Erik', 'Siv', 'Bjørnar', 'Hanne', 'Frode', 'Mona', 'Geir', 'Lise', 'Arnt', 'Trine', 'Rune', 'Ingrid', 'Stig', 'Unni', 'Kjell-Ove', 'Randi', 'Svein', 'Gunn', 'Per', 'Oda'];
   const CAUSE_SAY = {
     k_vind: (n) => ['Bodø-vind!', `Å nei! ${n} blåste ned i Juvet!`],
@@ -15,8 +15,20 @@
     k_glimt: (n) => ['Glimt-hjulet!', `${n} ble slått rett ut av Glimt-hjulet!`],
     k_kant: (n) => ['Utfor kanten!', `${n} trillet utfor kanten. Det e langt ned.`],
     k_fast: (n) => ['Snøfonna', `${n} satt fast i ei snøfonn.`],
+    k_hull: (n, pn) => ['Ned i hullet!', `${n} falt ned i ${u.esc(pn || 'et hull')}!`],
   };
-  const darker = (hex, k) => { const n = parseInt(hex.slice(1), 16); const f = (c) => Math.round(c * k); return `rgb(${f(n >> 16)},${f((n >> 8) & 255)},${f(n & 255)})`; };
+
+  /* Løypa som er valgt for trekningen: en godkjent egen løype, ellers originalen (null) */
+  function activeDef() {
+    const id = Store.courseId;
+    if (!id || id === P.ORIGINAL.id) return null;
+    const c = Store.getCourse(id);
+    const def = c && P.normalize(c);
+    return def && c.ok && c.ok === P.hash(def) ? def : null;
+  }
+  function approved() {
+    return Store.courses.map((c) => { const def = P.normalize(c); return def && c.ok === P.hash(def) ? def : null; }).filter(Boolean);
+  }
 
   class Keiser {
     constructor(stage) {
@@ -30,13 +42,13 @@
         pax: u.$('#paxList', stage), log: u.$('#logList', stage), paxCount: u.$('#paxCount', stage), logCount: u.$('#logCount', stage),
         start: u.$('#startOverlay', stage), end: u.$('#endOverlay', stage), sideBody: u.$('.side-body', stage),
       };
-      this.cam = { x: 800, y: 160, vh: 620 };
       this.cw = 0; this.ch = 0; this.dpr = 1;
-      this.C = P.course(1);
+      this.def = null; this.courseKey = '';
+      this.C = P.course(1, null);
+      this.cam = this.homeCam();
       this.token = 0; this.active = false; this.running = false; this.playing = false;
       this.t = 0; this.texts = []; this.time = 0;
-      const r = u.mulberry32(42);
-      this.stars = Array.from({ length: 120 }, () => [r(), r() * 0.8, 0.4 + r() * 1.2, r() * 6]);
+      this.stars = D.stars(42);
       this.resize();
       if ('ResizeObserver' in window) new ResizeObserver(() => this.resize()).observe(this.canvas);
       this.bind();
@@ -50,6 +62,15 @@
       this.canvas.height = Math.round(r.height * this.dpr);
     }
     view() { const vh = this.cam.vh, vw = vh * (this.cw / Math.max(1, this.ch)); return { x: this.cam.x - vw / 2, y: this.cam.y - vh / 2, w: vw, h: vh }; }
+    homeCam() { return { x: this.C.start.x, y: this.C.start.y - 130, vh: 620 }; }
+    /* bytt til løypa som er valgt i Store (bare når ingenting kjører) */
+    syncCourse(force) {
+      const def = activeDef();
+      const key = def ? `${def.id}:${P.hash(def)}` : 'original';
+      if (!force && key === this.courseKey) return;
+      this.courseKey = key; this.def = def;
+      if (!this.running) { this.C = P.course(1, def); this.cam = this.homeCam(); }
+    }
 
     /* ---------- Avspilling ---------- */
     pos(i, t) {
@@ -66,7 +87,6 @@
       this.infoCard(icon, title, text, 'Kommentator · Keiservarden GP');
     }
     float(text, x, y, color = '#fff', size = 30) { this.texts.push({ text, x, y, color, size, t0: this.time }); }
-    marble(i) { return this.mar[i]; }
     handle(e, quiet) {
       const m = this.mar[e.i];
       if (e.type === 'bump') {
@@ -86,9 +106,9 @@
           if (!quiet) {
             this.announce(`${rank}. plass`, `${p.name} · kule ${p.label}`, 2200);
             const close = rank > 1 && e.t - this.res.tDone[this.finished[rank - 2]] < 0.35;
-            this.say(['🥇', '🥈', '🥉'][rank - 1] || '🏁', close ? 'FOTOFINISH!' : `${rank}. plass!`, rank === 1 ? `${u.esc(p.name)} vinner Keiservarden Grand Prix!` : `${u.esc(p.name)} (kule ${u.esc(p.label)}) e i mål som nummer ${rank}!`, 5);
+            this.say(['🥇', '🥈', '🥉'][rank - 1] || '🏁', close ? 'FOTOFINISH!' : `${rank}. plass!`, rank === 1 ? `${u.esc(p.name)} vinner ${u.esc(this.raceName())}!` : `${u.esc(p.name)} (kule ${u.esc(p.label)}) e i mål som nummer ${rank}!`, 5);
             if (rank === 1) { S().fanfare(); this.fx.confetti(160); } else S().ding();
-            this.fx.sparkles(e.x || 1310, 3420, 30, '#ffe08a');
+            this.fx.sparkles(e.x || this.C.finish.x0 + 20, this.C.fin.y + 90, 30, '#ffe08a');
           }
           if (rank === this.W) this.winT = e.t;
         } else {
@@ -100,12 +120,13 @@
       if (e.type === 'out') {
         m.state = 'out'; m.cause = e.cause;
         const ev = Ev.EVENTS[e.cause] || Ev.EVENTS.k_kant;
+        const said = CAUSE_SAY[e.cause] || CAUSE_SAY.k_kant;
         this.setRow(p, ev.icon, true);
         this.out++;
         this.updateCounts();
-        this.logLine(ev.icon, (CAUSE_SAY[e.cause] || CAUSE_SAY.k_kant)(`<b>${u.esc(p.name)}</b>`)[1]);
+        this.logLine(ev.icon, said(`<b>${u.esc(p.name)}</b>`, e.pn)[1]);
         if (quiet) return;
-        const [title, line] = (CAUSE_SAY[e.cause] || CAUSE_SAY.k_kant)(`<b>${u.esc(p.name)}</b> (${u.esc(p.label)})`);
+        const [title, line] = said(`<b>${u.esc(p.name)}</b> (${u.esc(p.label)})`, e.pn);
         this.say(ev.icon, title, line, 3);
         const [x, y] = this.pos(e.i, this.t);
         if (e.cause === 'k_orna') S().screech();
@@ -113,11 +134,12 @@
         else { S().whoosh(); this.float('NEEI!', x, y - 34, '#9fd6ff', 26); }
       }
     }
+    raceName() { return this.courseName ? `«${this.courseName}»` : 'Keiservarden Grand Prix'; }
     setRow(p, icon, out) { if (!p || !p.row) return; p.row.querySelector('.px-st').textContent = icon; if (out) p.row.classList.add('is-out'); }
     logLine(icon, html) {
       const li = document.createElement('li');
       li.className = 'lg';
-      li.innerHTML = `<span>${icon}</span><div><small>Keiservarden · ${this.t.toFixed(1)} s</small>${html}</div>`;
+      li.innerHTML = `<span>${icon}</span><div><small>${u.esc(this.courseName || 'Keiservarden')} · ${this.t.toFixed(1)} s</small>${html}</div>`;
       const first = this.el.log.querySelector('.side-empty'); if (first) first.remove();
       this.el.log.prepend(li);
       this.logN++;
@@ -128,9 +150,17 @@
       this.t += dt;
       const G = P.GATE_T;
       [[0.6, '3'], [1.6, '2'], [2.6, '1']].forEach(([at, txt]) => { if (prev < at && this.t >= at) { this.announce(txt, 'Keiservarden Grand Prix', 900); S().pop(); } });
-      if (prev < G && this.t >= G) { this.announce('KJØR!', 'Porten e åpen', 1300); S().horn(0.9); this.say('🎙️', 'Og de e i gang!', 'Porten på Keiservarden e åpen – kulene stuper ned mot Bodø!', 2); }
-      for (const g of this.C.wind.gusts) if (prev < g.t0 && this.t >= g.t0 && this.leaderY > 900 && this.leaderY < 1700) { S().wind(); this.say('🌬️', 'Vindkast!', 'Kraftig kast i Bodø-vind – nå gjelder det å holde farta!', 1); break; }
-      for (const s of this.C.eagle.swoops) if (prev < s && this.t >= s && this.leaderY > 2500) { S().screech(); break; }
+      if (prev < G && this.t >= G) { this.announce('KJØR!', 'Porten e åpen', 1300); S().horn(0.9); this.say('🎙️', 'Og de e i gang!', this.courseName ? `Porten e åpen – kulene stuper utfor ${u.esc(this.raceName())}!` : 'Porten på Keiservarden e åpen – kulene stuper ned mot Bodø!', 2); }
+      let gust = false;
+      for (const Z of this.C.winds) {
+        for (const g of Z.gusts) if (prev < g.t0 && this.t >= g.t0 && this.leaderY > Z.y0 - 280 && this.leaderY < Z.y1 + 280) { S().wind(); this.say('🌬️', 'Vindkast!', this.courseName ? 'Kraftig vindkast – nå gjelder det å holde farta!' : 'Kraftig kast i Bodø-vind – nå gjelder det å holde farta!', 1); gust = true; break; }
+        if (gust) break;
+      }
+      for (const E of this.C.eagles) {
+        let heard = false;
+        for (const s of E.swoops) if (prev < s && this.t >= s && this.leaderY > Math.min(E.ay, E.by) - 490) { S().screech(); heard = true; break; }
+        if (heard) break;
+      }
       while (this.ei < this.res.events.length && this.res.events[this.ei].t <= this.t) this.handle(this.res.events[this.ei++], false);
       // leder
       let best = -1, by = -1e9;
@@ -143,9 +173,10 @@
       if (this.playing && ((this.winT != null && this.t >= this.winT + 3.8) || this.t >= this.res.duration)) this.wrapUp();
     }
     updateCamera(dt) {
-      let tx = 800, ty = 170, tvh = 620;
+      const C = this.C;
+      let tx = C.start.x, ty = C.start.y - 130, tvh = 620;
       if (this.res && this.t > 0.2) {
-        if (this.t > this.firstFinT - 1.4) { tx = 1240; ty = 3420; tvh = 660; }
+        if (this.t > this.firstFinT - 1.4) { tx = C.fin.x - 50; ty = C.fin.y + 90; tvh = 660; }
         else if (this.t >= P.GATE_T - 0.4) {
           const live = [];
           for (let i = 0; i < this.n; i++) if (!this.mar[i].state) live.push(this.pos(i, this.t));
@@ -164,8 +195,8 @@
       const k = 1 - Math.exp(-dt * 2.6);
       this.cam.x += (tx - this.cam.x) * k; this.cam.y += (ty - this.cam.y) * k; this.cam.vh += (tvh - this.cam.vh) * k;
       const vw = this.cam.vh * (this.cw / Math.max(1, this.ch));
-      this.cam.x = vw >= 1600 ? 800 : u.clamp(this.cam.x, vw / 2, 1600 - vw / 2);
-      this.cam.y = u.clamp(this.cam.y, this.cam.vh / 2 - 140, 3760 - this.cam.vh / 2);
+      this.cam.x = vw >= C.W ? C.W / 2 : u.clamp(this.cam.x, vw / 2, C.W - vw / 2);
+      this.cam.y = u.clamp(this.cam.y, C.top + this.cam.vh / 2, C.H + 40 - this.cam.vh / 2);
     }
     frame(d, dtReal) {
       if (!this.active || !this.cw) return;
@@ -184,151 +215,13 @@
       const cw = this.cw, ch = this.ch, dpr = this.dpr;
       const v = this.view(), s = cw / v.w;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      const g = ctx.createLinearGradient(0, 0, 0, ch);
-      const deep = u.clamp(v.y / 3400, 0, 1);
-      g.addColorStop(0, '#02060f'); g.addColorStop(0.6, deep > 0.85 ? '#0c1a34' : '#081530'); g.addColorStop(1, '#122347');
-      ctx.fillStyle = g; ctx.fillRect(0, 0, cw, ch);
-      ctx.globalAlpha = 1 - deep * 0.6;
-      for (const [x, y, r, ph] of this.stars) { ctx.globalAlpha = (0.35 + 0.35 * Math.sin(this.time * 1.3 + ph)) * (1 - deep * 0.6); ctx.fillStyle = '#fff'; ctx.fillRect(x * cw, y * ch - (v.y * 0.03) % ch, r, r); }
-      ctx.globalAlpha = 1;
-      for (let k = 0; k < 3; k++) {
-        ctx.strokeStyle = k === 1 ? 'rgba(138,125,255,.07)' : 'rgba(94,242,181,.08)'; ctx.lineWidth = 60 + k * 30;
-        ctx.beginPath();
-        const yy = ch * (0.18 + k * 0.08) - v.y * 0.02;
-        ctx.moveTo(-50, yy + Math.sin(this.time * 0.3 + k) * 20);
-        ctx.bezierCurveTo(cw * 0.3, yy - 60 + Math.sin(this.time * 0.4 + k * 2) * 30, cw * 0.6, yy + 50, cw + 50, yy - 20 + Math.cos(this.time * 0.35) * 25);
-        ctx.stroke();
-      }
+      D.sky(ctx, cw, ch, v, this.time, this.stars, this.C);
       ctx.setTransform(dpr * s, 0, 0, dpr * s, -v.x * s * dpr, -v.y * s * dpr);
-      this.drawMountain(v);
-      this.drawCity();
-      this.drawTrack();
-      this.drawMoving();
-      this.drawSigns();
+      D.scene(ctx, this.C, v, this.res ? this.t : this.time, this.time, { flash: this.res ? (b) => this.bumpHit(b) : null, cage: this.rec && this.rec.leftBehind });
       this.drawMarbles();
       this.drawTexts();
     }
-    drawMountain(v) {
-      const { ctx } = this;
-      const g = ctx.createLinearGradient(0, -200, 0, 3700);
-      g.addColorStop(0, '#2a3a5c'); g.addColorStop(0.08, '#16233b'); g.addColorStop(0.6, '#0f1a2c'); g.addColorStop(1, '#0b1422');
-      ctx.fillStyle = g;
-      ctx.beginPath();
-      ctx.moveTo(-600, 3700); ctx.lineTo(-600, 600); ctx.lineTo(120, 120); ctx.lineTo(420, -40); ctx.lineTo(800, -170); ctx.lineTo(1180, -40); ctx.lineTo(1500, 140); ctx.lineTo(2200, 700); ctx.lineTo(2200, 3700); ctx.closePath();
-      ctx.fill();
-      ctx.fillStyle = 'rgba(235,242,255,.85)';
-      ctx.beginPath(); ctx.moveTo(800, -170); ctx.lineTo(880, -110); ctx.lineTo(840, -100); ctx.lineTo(790, -120); ctx.lineTo(730, -96); ctx.lineTo(700, -110); ctx.closePath(); ctx.fill();
-      ctx.fillStyle = 'rgba(255,255,255,.03)';
-      for (let k = 0; k < 18; k++) { const y = 200 + k * 190; ctx.beginPath(); ctx.ellipse(800 + Math.sin(k * 7.3) * 600, y, 160 + (k % 3) * 60, 30, Math.sin(k) * 0.4, 0, Math.PI * 2); ctx.fill(); }
-    }
-    drawCity() {
-      const { ctx } = this;
-      if (this.view().y + this.view().h < 3150) return;
-      ctx.fillStyle = '#0a1a2e'; ctx.fillRect(-400, 3618, 2400, 400);
-      ctx.fillStyle = 'rgba(255,214,140,.10)'; for (let k = 0; k < 10; k++) ctx.fillRect(200 + k * 130, 3630 + (k % 3) * 18, 70, 3);
-      const r = u.mulberry32(77);
-      for (let x = -300; x < 1300; x += 46 + r() * 30) {
-        const h = 60 + r() * 120, w = 38 + r() * 26;
-        ctx.fillStyle = r() < 0.5 ? '#14203a' : '#1a2742'; ctx.fillRect(x, 3610 - h, w, h);
-        ctx.fillStyle = '#ffd27a';
-        for (let wy = 3610 - h + 8; wy < 3600; wy += 14) for (let wx = x + 6; wx < x + w - 8; wx += 11) if (r() < 0.4) { ctx.globalAlpha = 0.5 + r() * 0.5; ctx.fillRect(wx, wy, 5, 6); }
-        ctx.globalAlpha = 1;
-      }
-      ctx.fillStyle = '#e9e4da'; ctx.fillRect(1380, 3630, 220, 26); ctx.fillStyle = '#15181d'; ctx.fillRect(1370, 3652, 250, 22); ctx.fillStyle = '#c62828'; ctx.fillRect(1470, 3602, 22, 28);
-      // BODØ-skiltet står på stolper over målkurva, så kulene som lander ikke dekker det
-      ctx.fillStyle = '#2a3346'; ctx.fillRect(1394, 3438, 6, 142); ctx.fillRect(1512, 3438, 6, 142);
-      ctx.font = '900 64px Fraunces, Georgia, serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = '#fff6dc'; ctx.shadowColor = 'rgba(246,189,71,.8)'; ctx.shadowBlur = 18;
-      ctx.fillText('BODØ', 1456, 3434); ctx.shadowBlur = 0;
-    }
-    drawTrack() {
-      const { ctx } = this, C = this.C;
-      ctx.lineCap = 'round';
-      // groper
-      ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.fillRect(898, 1342, 112, 198); ctx.fillRect(860, 2606, 100, 164);
-      for (const sg of C.S) { ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.lineWidth = sg.t * 2; ctx.beginPath(); ctx.moveTo(sg.ax + 3, sg.ay + 5); ctx.lineTo(sg.bx + 3, sg.by + 5); ctx.stroke(); }
-      for (const sg of C.S) {
-        ctx.strokeStyle = sg.kind === 'pit' ? '#6e5d4c' : sg.kind === 'wall' ? '#c9bda5' : '#e9dfc9';
-        ctx.lineWidth = sg.t * 2; ctx.beginPath(); ctx.moveTo(sg.ax, sg.ay); ctx.lineTo(sg.bx, sg.by); ctx.stroke();
-        if (sg.kind === 'track' || sg.kind === 'hopper') { ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(sg.ax, sg.ay - sg.t + 2); ctx.lineTo(sg.bx, sg.by - sg.t + 2); ctx.stroke(); }
-      }
-      for (const p of C.pegs) { ctx.fillStyle = '#dbe3ec'; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#5f7891'; ctx.lineWidth = 1.5; ctx.stroke(); }
-      for (const b of C.bumpers) {
-        const hit = this.res ? this.mar.some((m, i) => m.bumpT != null && this.t - m.bumpT < 0.15 && Math.hypot(this.pos(i, this.t)[0] - b.x, this.pos(i, this.t)[1] - b.y) < 60) : false;
-        const rr = b.r * (hit ? 1.15 : 1);
-        ctx.fillStyle = '#ee4a2f'; ctx.beginPath(); ctx.arc(b.x, b.y, rr, 0, Math.PI * 2); ctx.fill();
-        ctx.strokeStyle = '#fff'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(b.x, b.y, rr - 6, 0, Math.PI * 2); ctx.stroke();
-        ctx.fillStyle = '#fff'; ctx.font = '800 13px "JetBrains Mono", monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('TUT', b.x, b.y + 1);
-      }
-      // mål
-      const f = C.finish;
-      for (let k = 0; k < 10; k++) for (let j = 0; j < 2; j++) { ctx.fillStyle = (k + j) % 2 ? '#111' : '#fff'; ctx.fillRect(f.x0 + 4 + j * 14, 3330 + k * 12, 14, 12); }
-      ctx.fillStyle = '#c9bda5'; ctx.fillRect(f.x0, 3300, 4, 160);
-      ctx.font = '900 34px Fraunces, Georgia, serif'; ctx.fillStyle = '#ffe08a'; ctx.textAlign = 'center'; ctx.fillText('MÅL', f.x0 + 18, 3292);
-      // de som ikke betalte: fast i porten
-      if (this.rec && this.rec.leftBehind && this.rec.leftBehind.length) {
-        ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(1170, 150, 220, 120);
-        this.rec.leftBehind.slice(0, 12).forEach((p, k) => this.ball(1190 + (k % 6) * 34, 248 - Math.floor(k / 6) * 34, '#7d8794', p.nums && p.nums[0] ? String(p.nums[0]) : u.initials(p.name), 0, 0.85));
-        ctx.strokeStyle = '#9aa6b4'; ctx.lineWidth = 3; for (let x = 1172; x <= 1388; x += 18) { ctx.beginPath(); ctx.moveTo(x, 152); ctx.lineTo(x, 268); ctx.stroke(); }
-        ctx.font = '700 15px "JetBrains Mono", monospace'; ctx.fillStyle = '#f6bd47'; ctx.textAlign = 'center'; ctx.fillText('IKKE BETALT · FAST I PORTEN', 1280, 140);
-      }
-    }
-    drawMoving() {
-      const { ctx } = this, C = this.C, t = this.res ? this.t : this.time;
-      // startport
-      if (!P.kin.gateOpen(t)) { ctx.strokeStyle = '#ee4a2f'; ctx.lineWidth = 14; ctx.beginPath(); ctx.moveTo(C.gate.ax, C.gate.ay); ctx.lineTo(C.gate.bx, C.gate.by); ctx.stroke(); }
-      else { ctx.strokeStyle = '#ee4a2f'; ctx.lineWidth = 10; ctx.beginPath(); ctx.moveTo(C.gate.ax, C.gate.ay); ctx.lineTo(C.gate.ax - 12, C.gate.ay + 58); ctx.stroke(); }
-      // Glimt-hjulet
-      const W = C.wheel, wa = P.kin.wheelAngle(C, t);
-      for (let a = 0; a < W.arms; a++) { const an = wa + (a * Math.PI * 2) / W.arms; ctx.strokeStyle = '#111'; ctx.lineWidth = W.t * 2 + 4; ctx.beginPath(); ctx.moveTo(W.cx, W.cy); ctx.lineTo(W.cx + Math.cos(an) * W.len, W.cy + Math.sin(an) * W.len); ctx.stroke(); ctx.strokeStyle = '#ffd400'; ctx.lineWidth = W.t * 2; ctx.stroke(); }
-      ctx.fillStyle = '#ffd400'; ctx.beginPath(); ctx.arc(W.cx, W.cy, 24, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#111'; ctx.lineWidth = 4; ctx.stroke();
-      ctx.fillStyle = '#111'; ctx.font = '900 10px "JetBrains Mono", monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('GLIMT', W.cx, W.cy + 1);
-      // vippa
-      const Pp = C.seesaw, sa = P.kin.seesawAngle(C, t), c = Math.cos(sa), sn = Math.sin(sa);
-      ctx.fillStyle = '#8a9bb0'; ctx.beginPath(); ctx.moveTo(Pp.px, Pp.py); ctx.lineTo(Pp.px - 18, Pp.py + 34); ctx.lineTo(Pp.px + 18, Pp.py + 34); ctx.closePath(); ctx.fill();
-      ctx.strokeStyle = '#b07a45'; ctx.lineWidth = Pp.t * 2; ctx.beginPath(); ctx.moveTo(Pp.px - c * Pp.half, Pp.py - sn * Pp.half); ctx.lineTo(Pp.px + c * Pp.half, Pp.py + sn * Pp.half); ctx.stroke();
-      // Ørnes-luka
-      const T = C.trap;
-      if (!P.kin.trapOpen(C, t)) {
-        ctx.strokeStyle = '#ee4a2f'; ctx.lineWidth = T.t * 2; ctx.beginPath(); ctx.moveTo(T.ax, T.ay); ctx.lineTo(T.bx, T.by); ctx.stroke();
-        ctx.strokeStyle = '#fff'; ctx.lineWidth = T.t * 2; ctx.setLineDash([10, 10]); ctx.beginPath(); ctx.moveTo(T.ax, T.ay); ctx.lineTo(T.bx, T.by); ctx.stroke(); ctx.setLineDash([]);
-      } else { ctx.strokeStyle = '#ee4a2f'; ctx.lineWidth = T.t * 2; ctx.beginPath(); ctx.moveTo(T.ax, T.ay); ctx.lineTo(T.ax + 8, T.ay + 70); ctx.stroke(); }
-      // Bodø-vind
-      const wa2 = P.kin.windAccel(C, t), Z = C.wind;
-      const n = Math.round(4 + wa2 / 30);
-      ctx.strokeStyle = 'rgba(220,235,255,.35)'; ctx.lineWidth = 2;
-      for (let k = 0; k < n; k++) { const ph = ((this.time * (0.6 + wa2 / 500) + k * 0.37) % 1); const x = Z.x1 - ph * (Z.x1 - Z.x0); const y = Z.y0 + 30 + ((k * 53) % (Z.y1 - Z.y0 - 60)); ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 40 + wa2 / 10, y); ctx.stroke(); }
-      ctx.font = '42px "Segoe UI Emoji", "Apple Color Emoji", sans-serif'; ctx.textAlign = 'center'; ctx.fillText('🌬️', Z.x1 + 30, Z.y0 + 40);
-      ctx.font = '700 14px "JetBrains Mono", monospace'; ctx.fillStyle = wa2 > 200 ? '#ff9a7a' : '#cfe6ff'; ctx.fillText(`${Math.round(6 + wa2 / 22)} m/s`, Z.x1 + 30, Z.y0 + 80);
-      // ørna
-      const cl = C.eagle.at(t);
-      if (cl) { ctx.save(); ctx.translate(cl.x, cl.y - 18); ctx.scale(-1, 1); ctx.font = '64px "Segoe UI Emoji", "Apple Color Emoji", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('🦅', 0, 0); ctx.restore(); }
-    }
-    drawSigns() {
-      const { ctx } = this;
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      for (const sg of this.C.signs) {
-        ctx.font = '800 15px "JetBrains Mono", monospace';
-        const w = ctx.measureText(sg.text).width + 26;
-        ctx.fillStyle = '#3a2a1d'; ctx.fillRect(sg.x - 3, sg.y + 14, 6, 34);
-        ctx.fillStyle = '#5a3d27'; ctx.fillRect(sg.x - w / 2, sg.y - 16, w, 32);
-        ctx.strokeStyle = '#8a6440'; ctx.lineWidth = 2; ctx.strokeRect(sg.x - w / 2, sg.y - 16, w, 32);
-        ctx.fillStyle = '#f3ecdf'; ctx.fillText(sg.text, sg.x, sg.y + 1);
-      }
-    }
-    ball(x, y, color, label, ang, alpha = 1, ring) {
-      const { ctx } = this;
-      ctx.globalAlpha = alpha;
-      const gr = ctx.createRadialGradient(x - R * 0.35, y - R * 0.4, R * 0.15, x, y, R);
-      gr.addColorStop(0, '#ffffff'); gr.addColorStop(0.3, color); gr.addColorStop(1, color.startsWith('#') ? darker(color, 0.55) : color);
-      ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(x, y, R, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = 'rgba(255,255,255,.4)'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(x, y, R * 0.68, ang, ang + 1.3); ctx.stroke();
-      if (ring) { ctx.strokeStyle = ring; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x, y, R + 4, 0, Math.PI * 2); ctx.stroke(); }
-      const fs = label.length >= 3 ? 8 : 10;
-      ctx.font = `800 ${fs}px "JetBrains Mono", monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(10,20,30,.75)'; ctx.strokeText(label, x, y + 0.5);
-      ctx.fillStyle = '#fff'; ctx.fillText(label, x, y + 0.5);
-      ctx.globalAlpha = 1;
-    }
+    bumpHit(b) { return this.mar.some((m, i) => m.bumpT != null && this.t - m.bumpT < 0.15 && Math.hypot(this.pos(i, this.t)[0] - b.x, this.pos(i, this.t)[1] - b.y) < 60); }
     drawMarbles() {
       if (!this.res) return;
       const v = this.view();
@@ -343,7 +236,7 @@
         const out = m.state === 'out' && m.cause !== 'k_orna';
         const rank = m.state === 'fin' ? this.finished.indexOf(i) + 1 : 0;
         const ring = rank && rank <= this.W ? ['#ffd34d', '#dfe6ee', '#e0a070'][rank - 1] || '#ffd34d' : (i === this.leader && !m.state ? '#5ef2b5' : null);
-        this.ball(x, y, out ? '#6b7480' : p.color, p.label, ang, out ? 0.55 : 1, ring);
+        D.ball(this.ctx, x, y, out ? '#6b7480' : p.color, p.label, ang, out ? 0.55 : 1, ring);
       }
     }
     drawTexts() {
@@ -396,24 +289,39 @@
     deactivate() { this.abort(); this.active = false; }
     idle() {
       this.res = null; this.rec = null; this.playing = false; this.winT = null;
-      this.cam = { x: 800, y: 170, vh: 620 };
+      this.syncCourse(true);
+      this.cam = this.homeCam();
       this.fx.clear();
       this.el.ev.innerHTML = ''; this.el.an.innerHTML = '';
       this.el.route.innerHTML = '';
-      this.el.pax.innerHTML = '<li class="side-empty">Kulene står klare i porten på Keiservarden.</li>';
+      this.el.pax.innerHTML = '<li class="side-empty">Kulene står klare i porten på toppen.</li>';
       this.el.log.innerHTML = '<li class="side-empty">Kommentatoren varmer opp stemmen.</li>';
       this.el.paxCount.textContent = '0'; this.el.logCount.textContent = '0';
       this.renderStart();
     }
     prepare(d) {
       const n = d.tickets.length;
-      const res = d.physSeed != null ? P.simulate(n, d.physSeed) : P.race(n, u.randInt(0x7fffffff), Math.min(d.winners.length, n));
+      const need = Math.min(d.winners.length, n);
+      let res;
+      if (d.physSeed != null) res = P.simulate(n, d.physSeed, d.course || null);
+      else {
+        res = P.race(n, u.randInt(0x7fffffff), need, d.course || null, d.course ? 16 : 8);
+        if (d.course && res.finishers < need) { // egen løype slapp for få gjennom – originalen tar over
+          u.toast(`«${d.course.name}» slapp for få kuler gjennom – kjører originalløypa i stedet.`, 4200);
+          d.course = null;
+          res = P.race(n, u.randInt(0x7fffffff), need, null);
+        }
+      }
       d.physSeed = res.seed;
       const crypto = d.winners.concat(d.elim.slice().reverse());
       const ticketOf = new Array(n);
       res.rank.forEach((mi, k) => { ticketOf[mi] = crypto[k]; });
       if (!d.beats || !d.beats.length) {
-        d.beats = res.events.filter((e) => e.type === 'out').map((e) => ({ at: +(e.t / res.duration).toFixed(4), place: 'kei', ev: e.cause, v: [ticketOf[e.i]], t: 0 }));
+        d.beats = res.events.filter((e) => e.type === 'out').map((e) => {
+          const b = { at: +(e.t / res.duration).toFixed(4), place: 'kei', ev: e.cause, v: [ticketOf[e.i]], t: 0 };
+          if (e.pn) b.pn = e.pn;
+          return b;
+        });
       }
       return { res, ticketOf };
     }
@@ -424,6 +332,7 @@
       const { res, ticketOf } = prepared || this.prepare(draw);
       if (token !== this.token) return;
       this.res = res; this.n = res.n; this.C = res.C;
+      this.courseName = draw.course ? draw.course.name : null;
       this.W = Math.min(draw.winners.length, this.n);
       this.mar = ticketOf.map((no) => ({ no, state: null, cause: null, bumpT: null }));
       this.pax = new Map();
@@ -432,6 +341,7 @@
       this.firstFinT = ff ? ff.t : Infinity;
       this.finished = []; this.out = 0; this.logN = 0; this.ei = 0; this.t = 0; this.leader = -1; this.leaderY = 0; this.winT = null;
       this.sayPrio = 0; this.texts = [];
+      this.cam = this.homeCam();
       this.buildManifest();
       this.el.log.innerHTML = '';
       this.el.ev.innerHTML = '';
@@ -441,7 +351,8 @@
       this.stage.classList.add('is-running');
       S().unlock();
       const left = draw.leftBehind || [];
-      this.say('🎙️', 'Velkommen til Keiservarden!', `${this.n} kuler i porten på toppen, 366 meter over Bodø. Bare <b>${u.numberWord(this.W)}</b> kommer først ned til havna.${left.length ? ` ${u.esc(u.joinNames(left.map((p) => p.name)))} har ikke betalt og sitter fast i porten.` : ''}`, 2);
+      const where = this.courseName ? `i porten på toppen av ${u.esc(this.raceName())}` : 'i porten på toppen, 366 meter over Bodø';
+      this.say('🎙️', this.courseName ? `Velkommen til ${u.esc(this.raceName())}!` : 'Velkommen til Keiservarden!', `${this.n} kuler ${where}. Bare <b>${u.numberWord(this.W)}</b> kommer først ned til havna.${left.length ? ` ${u.esc(u.joinNames(left.map((p) => p.name)))} har ikke betalt og sitter fast i porten.` : ''}`, 2);
       if (left.length) this.logLine('🚧', `Satt fast i startporten (ikke betalt): ${u.joinNames(left.map((p) => `<b>${u.esc(p.name)}</b>`))}`);
     }
     wrapUp() {
@@ -471,21 +382,35 @@
     }
 
     /* ---------- Overlays ---------- */
+    courseRow() {
+      const list = approved();
+      const cur = this.def ? this.def.id : P.ORIGINAL.id;
+      const opts = [`<option value="${P.ORIGINAL.id}">Keiservarden (original)</option>`]
+        .concat(list.map((c) => `<option value="${u.esc(c.id)}"${c.id === cur ? ' selected' : ''}>${u.esc(c.name)}</option>`)).join('');
+      const stale = Store.courseId && Store.courseId !== P.ORIGINAL.id && !this.def ? Store.getCourse(Store.courseId) : null;
+      return `<div class="ov-course"><label class="ov-course-pick"><span>Løype</span><select data-course aria-label="Velg løype">${opts}</select></label>
+        <a class="btn btn-ghost btn-small" href="designer.html">✏️ Løypedesigner</a>
+        ${stale ? `<p class="ov-course-note">«${u.esc(stale.name)}» er endret og må godkjennes på nytt i designeren. Originalen brukes så lenge.</p>` : ''}</div>`;
+    }
     renderStart() {
       if (this.running || !this.active) return;
+      this.syncCourse();
       const t = Store.totals();
       const W = Store.settings.winners;
+      const name = this.def ? this.def.name : 'Keiservarden';
       let html;
       if (!t.tickets) {
-        html = `<div class="ov-card"><p class="ov-kicker">Keiservarden · 366 moh</p><h3 class="ov-title">Ingen har <em>betalt</em></h3>
+        html = `<div class="ov-card"><p class="ov-kicker">Keiservarden GP · ${u.esc(name)}</p><h3 class="ov-title">Ingen har <em>betalt</em></h3>
           <p class="ov-sub">${t.people ? 'Bekreft betaling i påmeldingen – bare de som har betalt får en kule i porten.' : 'Legg inn passasjerer og bekreft betaling i påmeldingen først.'}</p>
+          ${this.courseRow()}
           <div class="ov-btns"><a class="btn btn-primary" href="pamelding.html">Til påmeldingen</a><button class="btn btn-ghost" type="button" data-act="demo">🏔️ Prøveløp</button></div>
           <p class="ov-fine">Prøveløp lagres ikke i skipsloggen.</p></div>`;
       } else {
         const left = Store.leftBehind();
-        html = `<div class="ov-card"><p class="ov-kicker">Keiservarden · 366 moh · fysikk-kuleløp</p><h3 class="ov-title">Keiservarden <em>Grand Prix</em></h3>
-          <p class="ov-sub">${t.tickets} kuler slippes fra toppen av Keiservarden. De <b>${u.numberWord(Math.min(W, t.paidPeople))}</b> første ned til Bodø havn vinner.</p>
+        html = `<div class="ov-card"><p class="ov-kicker">Keiservarden · fysikk-kuleløp</p><h3 class="ov-title">${this.def ? `<em>${u.esc(this.def.name)}</em>` : 'Keiservarden <em>Grand Prix</em>'}</h3>
+          <p class="ov-sub">${t.tickets} kuler slippes fra toppen. De <b>${u.numberWord(Math.min(W, t.paidPeople))}</b> første ned til Bodø havn vinner.</p>
           <div class="ov-facts"><span><b>${t.paidPeople}</b> betalt</span><span><b>${t.tickets}</b> kuler</span><span><b>${u.kr(t.pot)}</b> i potten</span></div>
+          ${this.courseRow()}
           <div class="ov-btns"><button class="btn btn-primary" type="button" data-act="go">🏁 Slipp kulene!</button><button class="btn btn-ghost" type="button" data-act="demo">Prøveløp først</button></div>
           ${left.length ? `<p class="ov-warn">🚧 ${u.esc(u.joinNames(left.slice(0, 6).map((p) => p.name)))}${left.length > 6 ? ` og ${left.length - 6} til` : ''} har ikke betalt og sitter fast i porten.</p>` : ''}
           <p class="ov-fine">Ekte fysikk: løpet kjøres usynlig først, og vinnerne – trukket med kryptografisk tilfeldighet – får kulene som faktisk kom først. Alt låses i skipsloggen før løpet vises.</p></div>`;
@@ -499,8 +424,8 @@
       const podOrder = ws.length >= 3 ? [ws[1], ws[0], ws[2]].concat(ws.slice(3)) : (ws.length === 2 ? [ws[1], ws[0]] : ws);
       const pods = podOrder.map(({ p, rank }) => `<div class="pod p${rank <= 3 ? rank : 'n'}"><div class="pod-av" style="background:${p.color}">${u.esc(p.label)}</div><div class="pod-name">${u.esc(p.name)}</div><div class="pod-tix">kule ${u.esc(p.label)}</div><div class="pod-block">${rank}</div></div>`).join('');
       const badge = this.mode === 'demo' ? '<span class="ov-badge">Prøveløp</span>' : (this.mode === 'replay' ? '<span class="ov-badge">Reprise</span>' : '');
-      this.el.end.innerHTML = `<div class="ov-card">${badge}<p class="ov-kicker">Bodø havn · målgang · ${u.esc(u.dfLong.format(new Date(d.date)))}</p>
-        <h3 class="ov-title">Først ned <em>Keiservarden!</em></h3>
+      this.el.end.innerHTML = `<div class="ov-card">${badge}<p class="ov-kicker">${this.courseName ? `${u.esc(this.courseName)} · ` : 'Bodø havn · '}målgang · ${u.esc(u.dfLong.format(new Date(d.date)))}</p>
+        <h3 class="ov-title">Først ned <em>${this.courseName ? 'til havna!' : 'Keiservarden!'}</em></h3>
         <div class="podium">${pods}</div>
         <p class="ov-sub">Vinnerne velger premie i rekkefølge. Premiene er, som kjent, urelatert.</p>
         <div class="ov-btns">${this.mode === 'live' ? '<a class="btn btn-primary" href="historikk.html">Se skipsloggen</a>' : '<button class="btn btn-primary" type="button" data-act="close">Tilbake til toppen</button>'}
@@ -526,13 +451,18 @@
       };
       this.el.start.addEventListener('click', onAct);
       this.el.end.addEventListener('click', onAct);
+      this.el.start.addEventListener('change', (e) => {
+        const sel = e.target.closest('[data-course]');
+        if (sel && mine()) Store.setCourse(sel.value); // Store varsler → renderStart → ny løype tegnes
+      });
     }
     busy(msg) { this.el.start.innerHTML = `<div class="ov-card"><p class="ov-kicker">Keiservarden</p><h3 class="ov-title">${msg}</h3></div>`; this.el.start.hidden = false; }
+    snapshot(draw) { const def = activeDef(); if (def) draw.course = { id: def.id, name: def.name, pieces: def.pieces }; return draw; }
     startLive() {
       const people = Store.participants();
       if (!people.length) { u.toast('Ingen har betalt ennå – bekreft betaling i påmeldingen.'); return; }
       S().unlock();
-      const draw = Ev.createDraw(people, Store.settings, { game: 'keiser', leftBehind: Store.leftBehind() });
+      const draw = this.snapshot(Ev.createDraw(people, Store.settings, { game: 'keiser', leftBehind: Store.leftBehind() }));
       this.busy('Preparerer <em>løypa…</em>');
       setTimeout(() => {
         const prepared = this.prepare(draw); // fysikken kjøres – resultatet låses før noe vises
@@ -547,7 +477,7 @@
       const pool = u.shuffle(Array.from({ length: 99 }, (_, i) => i + 1));
       const people = u.shuffle(NAMES).slice(0, 16 + u.randInt(6)).map((nm) => { const t = 1 + u.randInt(max); return { name: nm, nums: pool.splice(0, t), tickets: t }; });
       const left = people.splice(0, 2 + u.randInt(2)).map((p) => ({ name: p.name, nums: p.nums }));
-      const draw = Ev.createDraw(people, Store.settings, { game: 'keiser', demo: true, leftBehind: left });
+      const draw = this.snapshot(Ev.createDraw(people, Store.settings, { game: 'keiser', demo: true, leftBehind: left }));
       this.busy('Preparerer <em>løypa…</em>');
       setTimeout(() => this.start(draw, 'demo'), 40);
     }

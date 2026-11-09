@@ -117,6 +117,7 @@ code { font-family: var(--ff-mono); font-size: .9em; }
 .page-title em { font-style: italic; font-weight: 350; color: var(--aurora); font-variation-settings: "opsz" 144, "SOFT" 100, "WONK" 1; }
 .page-lede { margin: 18px 0 0; max-width: 56ch; font-size: clamp(16px, 1.5vw, 19px); color: var(--muted); }
 .page-lede b { color: var(--text); }
+.page-lede a { color: var(--aurora); text-underline-offset: 3px; }
 .empty { padding: 32px 24px; margin-bottom: 18px; text-align: center; border: 1px dashed var(--line-2); border-radius: var(--r); color: var(--muted); }
 .empty b { display: block; margin-bottom: 4px; font-family: var(--ff-display); font-size: 24px; font-weight: 600; color: var(--text); }
 .empty a { color: var(--aurora); }

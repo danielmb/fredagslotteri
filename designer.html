@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="nb">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Løypedesigner · Fredagslotteriet</title>
+<meta name="theme-color" content="#07111d">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%2307111d'/%3E%3Cpath d='M8 40 L52 39 Q58 40 60 44 L56 50 L10 50 Z' fill='%23f3ecdf'/%3E%3Cpath d='M20 39 L20 28 Q20 26 22 26 L42 26 Q46 26 49 30 L52 39 Z' fill='%23f3ecdf'/%3E%3Cpath d='M8 45 L59 44 L58 46 L8 47 Z' fill='%23ee4a2f'/%3E%3Ccircle cx='46' cy='15' r='5' fill='%235ef2b5'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,100..900,0..100,0..1;1,9..144,100..900,0..100,0..1&family=JetBrains+Mono:wght@400;500;700&family=Schibsted+Grotesk:ital,wght@0,400..900;1,400..900&display=swap">
+<link rel="stylesheet" href="css/base.css?v=7">
+<link rel="stylesheet" href="css/designer.css?v=7">
+</head>
+<body data-page="designer">
+<div class="grain" aria-hidden="true"></div>
+<header class="topbar" id="topbar"></header>
+
+<main class="dz-page">
+  <div class="dz-bar">
+    <div class="dz-title">
+      <a class="dz-back" href="trekning.html">← Til trekningen</a>
+      <p class="eyebrow">Keiservarden GP · løypedesigner</p>
+      <div class="dz-name-row">
+        <input class="dz-name" id="dzName" type="text" maxlength="40" spellcheck="false" autocomplete="off" aria-label="Navn på løypa">
+        <span class="dz-state" id="dzState"></span>
+      </div>
+    </div>
+    <div class="dz-acts">
+      <select class="dz-select dz-open" id="dzOpen" aria-label="Åpne en løype"></select>
+      <button class="btn btn-ghost btn-small" id="dzSave" type="button">Lagre</button>
+      <button class="btn btn-ghost btn-small" id="dzShare" type="button">Del</button>
+      <span class="dz-run">
+        <select class="dz-select" id="dzN" aria-label="Antall kuler i testkjøringen"><option value="12">12 kuler</option><option value="24" selected>24 kuler</option><option value="40">40 kuler</option><option value="60">60 kuler</option></select>
+        <button class="btn btn-primary btn-small" id="dzTest" type="button">▶ Testkjør</button>
+      </span>
+    </div>
+  </div>
+
+  <div class="dz-main">
+    <nav class="dz-pal" id="dzPal" aria-label="Deler du kan legge til"></nav>
+    <div class="dz-stage" id="dzStage">
+      <canvas class="dz-canvas" id="dzCanvas" aria-label="Løypa – dra for å flytte deler"></canvas>
+      <div class="dz-hud" id="dzHud" hidden></div>
+      <div class="dz-tools" role="toolbar" aria-label="Verktøy">
+        <button type="button" class="dz-tb" id="dzUndo" title="Angre (Ctrl+Z)" aria-label="Angre">↶</button>
+        <button type="button" class="dz-tb" id="dzRedo" title="Gjør om (Ctrl+Y)" aria-label="Gjør om">↷</button>
+        <span class="dz-tsep" aria-hidden="true"></span>
+        <button type="button" class="dz-tb" data-z="out" title="Zoom ut" aria-label="Zoom ut">−</button>
+        <button type="button" class="dz-tb" data-z="in" title="Zoom inn" aria-label="Zoom inn">+</button>
+        <button type="button" class="dz-tb" data-z="fit" title="Vis hele løypa" aria-label="Vis hele løypa">⤢</button>
+        <button type="button" class="dz-tb is-on" id="dzSnap" title="Fest til rutenett" aria-label="Fest til rutenett" aria-pressed="true">#</button>
+      </div>
+      <div class="dz-msg" id="dzMsg" hidden></div>
+    </div>
+    <aside class="dz-panel" id="dzPanel" aria-live="polite"></aside>
+  </div>
+</main>
+
+<dialog class="dlg" id="shareDlg"><form method="dialog" class="dlg-body">
+  <h3>Del løypa</h3>
+  <p class="dz-dlg-p">Send lenken til en kollega. Den åpner løypa i løypedesigneren, og de kan lagre sin egen kopi.</p>
+  <label class="field"><span class="field-label">Lenke til «<span id="shareName"></span>»</span><textarea class="field-input dz-code" id="shareCode" rows="3" readonly></textarea></label>
+  <div class="dlg-btns dz-dlg-btns"><button type="button" class="btn btn-primary btn-small" id="shareCopy">Kopier lenken</button></div>
+  <h4 class="dz-dlg-h">Åpne en løype du har fått</h4>
+  <label class="field"><span class="field-label">Lim inn lenke eller kode</span><textarea class="field-input dz-code" id="importCode" rows="3" placeholder="…#l=KGP1.…"></textarea></label>
+  <div class="dlg-btns"><button class="btn btn-ghost btn-small" value="cancel" type="submit" formnovalidate>Lukk</button><button type="button" class="btn btn-ghost btn-small" id="importGo">Åpne løypa</button></div>
+</form></dialog>
+
+<script src="js/util.js?v=7" defer></script>
+<script src="js/store.js?v=7" defer></script>
+<script src="js/events.js?v=7" defer></script>
+<script src="js/keiser-physics.js?v=7" defer></script>
+<script src="js/keiser-draw.js?v=7" defer></script>
+<script src="js/shell.js?v=7" defer></script>
+<script src="js/pages/designer.js?v=7" defer></script>
+</body>
+</html>

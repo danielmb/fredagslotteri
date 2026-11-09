@@ -1,5 +1,7 @@
-/* Fredagslotteriet – «Keiservarden Grand Prix»: egen liten fysikkmotor for kuler + løypa ned fjellet.
-   Hele løpet simuleres først (deterministisk, med seed), og spilles deretter av. */
+/* Fredagslotteriet – «Keiservarden Grand Prix»: egen liten fysikkmotor for kuler, og løyper bygd av deler.
+   Hele løpet simuleres først (deterministisk, med seed), og spilles deretter av.
+   En løype er bare data: en liste med deler (start, rampe, vegg, hull, Glimt-hjul …).
+   Originalløypa er beskrevet med de samme delene og gir nøyaktig samme løp som før. */
 (function () {
   'use strict';
   const FL = window.FL;
@@ -16,127 +18,239 @@
   const E_MM = 0.55;       // kule mot kule
   const VMAX = 700;
   const ST = { RACE: 0, FIN: 1, OUT: 2, CARRY: 3 };
+  const WORLD_W = 1600;    // løypa er alltid 1600 bred – høyden følger målet
 
-  /* ---------- Løypa (verden 1600 × 3500, y nedover) ---------- */
-  function course(seed) {
-    const rnd = u.mulberry32((seed ^ 0x5eed) >>> 0);
-    const S = [];
-    const seg = (ax, ay, bx, by, o = {}) => S.push({ ax, ay, bx, by, t: o.t || 7, e: o.e == null ? 0.3 : o.e, kind: o.kind || 'track' });
-    // Start: trakt på toppen av Keiservarden
-    seg(470, 40, 740, 300, { kind: 'hopper' }); seg(1130, 40, 860, 300, { kind: 'hopper' });
-    seg(470, 40, 470, -60, { kind: 'hopper' }); seg(1130, 40, 1130, -60, { kind: 'hopper' });
+  /* ---------- Originalløypa (1600 × 3720, y nedover) ---------- */
+  const ORIGINAL_PIECES = [
+    { type: 'start', x: 800, y: 300 },
     // Utforkjøring 1 → høyre
-    seg(610, 262, 610, 346, { kind: 'wall' });
-    seg(612, 340, 1460, 518);
-    seg(1500, 400, 1500, 600, { kind: 'wall' }); seg(1550, 380, 1550, 640, { kind: 'wall' });
+    { type: 'wall', ax: 610, ay: 262, bx: 610, by: 346 },
+    { type: 'ramp', ax: 612, ay: 340, bx: 1460, by: 518 },
+    { type: 'wall', ax: 1500, ay: 400, bx: 1500, by: 600 },
+    { type: 'wall', ax: 1550, ay: 380, bx: 1550, by: 640 },
     // Utforkjøring 2 → venstre, inn i Glimt-hjulet
-    seg(1530, 610, 330, 862);
-    seg(380, 880, 380, 1075, { kind: 'wall' });
-    seg(100, 780, 100, 1162, { kind: 'wall' });
-    seg(100, 780, 250, 752, { kind: 'wall' });
+    { type: 'ramp', ax: 1530, ay: 610, bx: 330, by: 862 },
+    { type: 'wall', ax: 380, ay: 880, bx: 380, by: 1075 },
+    { type: 'wall', ax: 100, ay: 780, bx: 100, by: 1162 },
+    { type: 'wall', ax: 100, ay: 780, bx: 250, by: 752 },
+    { type: 'wheel', x: 240, y: 1000, len: 106, speed: 2.2, arms: 4 },
     // Utforkjøring 3: Bodø-vind og hoppet over Juvet
-    seg(100, 1160, 900, 1332);
-    seg(1010, 1405, 1480, 1470);
-    seg(1520, 1280, 1520, 1500, { kind: 'wall' }); seg(1552, 1300, 1552, 1565, { kind: 'wall' });
-    seg(898, 1342, 898, 1540, { kind: 'pit' }); seg(1010, 1412, 1010, 1540, { kind: 'pit' }); seg(898, 1540, 1010, 1540, { kind: 'pit' });
+    { type: 'ramp', ax: 100, ay: 1160, bx: 900, by: 1332 },
+    { type: 'ramp', ax: 1010, ay: 1405, bx: 1480, by: 1470 },
+    { type: 'wall', ax: 1520, ay: 1280, bx: 1520, by: 1500 },
+    { type: 'wall', ax: 1552, ay: 1300, bx: 1552, by: 1565 },
+    { type: 'pit', x0: 898, x1: 1010, yl: 1342, yr: 1412, y1: 1540, sy: 1398, name: 'Juvet', cause: 'k_vind' },
+    { type: 'wind', x0: 680, y0: 1180, x1: 1010, y1: 1420, dir: -1 },
     // Utforkjøring 4 → venstre, ned i Hurtigruta-feltet
-    seg(1545, 1555, 300, 1810);
-    seg(100, 1700, 100, 2292, { kind: 'wall' }); seg(780, 1850, 780, 2292, { kind: 'wall' });
-    seg(100, 2290, 398, 2374); seg(780, 2290, 482, 2374);
-    const pegs = [], bumpers = [];
-    for (let row = 0; row < 7; row++) {
-      const y = 1870 + row * 56, off = row % 2 ? 32 : 0;
-      for (let x = 150 + off; x <= 740; x += 64) {
-        if (Math.hypot(x - 300, y - 2020) < 60 || Math.hypot(x - 560, y - 2130) < 60) continue;
-        pegs.push({ x, y, r: 7 });
-      }
-    }
-    bumpers.push({ x: 300, y: 2020, r: 26, kick: 520 }, { x: 560, y: 2130, r: 26, kick: 520 });
+    { type: 'ramp', ax: 1545, ay: 1555, bx: 300, by: 1810 },
+    { type: 'wall', ax: 100, ay: 1700, bx: 100, by: 2292 },
+    { type: 'wall', ax: 780, ay: 1850, bx: 780, by: 2292 },
+    { type: 'ramp', ax: 100, ay: 2290, bx: 398, by: 2374 },
+    { type: 'ramp', ax: 780, ay: 2290, bx: 482, by: 2374 },
+    { type: 'pegs', x: 150, y: 1870, w: 590, rows: 7 },
+    { type: 'bumper', x: 300, y: 2020 },
+    { type: 'bumper', x: 560, y: 2130 },
     // Polarsirkel-vippa → to veier. Venstre: lang og trygg
-    seg(300, 2552, 124, 2604);
-    seg(70, 2510, 70, 2685, { kind: 'wall' });
-    seg(80, 2680, 1180, 2900);
+    { type: 'seesaw', x: 440, y: 2472, half: 150 },
+    { type: 'ramp', ax: 300, ay: 2552, bx: 124, by: 2604 },
+    { type: 'wall', ax: 70, ay: 2510, bx: 70, by: 2685 },
+    { type: 'ramp', ax: 80, ay: 2680, bx: 1180, by: 2900 },
     // Høyre: kort, men med Ørnes-luka
-    seg(600, 2552, 860, 2600);
-    seg(960, 2619, 1180, 2660);
-    seg(860, 2606, 860, 2770, { kind: 'pit' }); seg(960, 2626, 960, 2770, { kind: 'pit' }); seg(860, 2770, 960, 2770, { kind: 'pit' });
-    seg(1240, 2510, 1240, 2970, { kind: 'wall' });
-    // Utforkjøring 7: Ørna jakter
-    seg(1252, 2990, 200, 3200);
-    seg(90, 3020, 90, 3302, { kind: 'wall' });
+    { type: 'ramp', ax: 600, ay: 2552, bx: 860, by: 2600 },
+    { type: 'trap', ax: 862, ay: 2601, bx: 958, by: 2619 },
+    { type: 'ramp', ax: 960, ay: 2619, bx: 1180, by: 2660 },
+    { type: 'pit', x0: 860, x1: 960, yl: 2606, yr: 2626, y1: 2770, sy: 2628, name: 'Ørnes', cause: 'k_ornes' },
+    { type: 'wall', ax: 1240, ay: 2510, bx: 1240, by: 2970 },
+    // Utforkjøring 7: Ørna jakter langs rampa
+    { type: 'ramp', ax: 1252, ay: 2990, bx: 200, by: 3200 },
+    { type: 'eagle', ax: 1252, ay: 2990, bx: 200, by: 3200 },
+    { type: 'wall', ax: 90, ay: 3020, bx: 90, by: 3302 },
     // Sjøgata → mål i Bodø havn
-    seg(100, 3300, 1360, 3470);
-    seg(1330, 3580, 1560, 3610); seg(1582, 3360, 1582, 3625, { kind: 'wall' }); seg(1328, 3540, 1328, 3586, { kind: 'wall' });
+    { type: 'ramp', ax: 100, ay: 3300, bx: 1360, by: 3470 },
+    { type: 'finish', x: 1290, y: 3330 },
+    { type: 'sign', x: 300, y: 110, text: 'KEISERVARDEN · 366 MOH' },
+    { type: 'sign', x: 470, y: 840, text: 'GLIMT-HJULET' },
+    { type: 'sign', x: 760, y: 1150, text: 'BODØ-VIND' },
+    { type: 'sign', x: 955, y: 1575, text: 'JUVET' },
+    { type: 'sign', x: 880, y: 1850, text: 'HURTIGRUTA-TUT' },
+    { type: 'sign', x: 660, y: 2430, text: 'POLARSIRKEL-VIPPA' },
+    { type: 'sign', x: 910, y: 2810, text: 'ØRNES ↓' },
+    { type: 'sign', x: 980, y: 2950, text: 'ØRNA JAKTER' },
+    { type: 'sign', x: 640, y: 3520, text: 'SJØGATA' },
+  ];
 
-    const gate = { ax: 740, ay: 300, bx: 860, by: 300, t: 7 };
-    const wheel = { cx: 240, cy: 1000, len: 106, w: 2.2, arms: 4, t: 8, a0: rnd() * 6.28 };
-    const seesaw = { px: 440, py: 2472, half: 150, amp: 0.2, period: 3.2, phase: rnd() * 3.2, t: 8 };
-    const trap = { ax: 862, ay: 2601, bx: 958, by: 2619, t: 7, period: 2.6, phase: rnd() * 2.6, openFrom: 1.7, openTo: 2.45 };
-    const gusts = [];
-    for (let t = 5 + rnd() * 3; t < T_MAX; t += 2.6 + rnd() * 3.2) gusts.push({ t0: t, t1: t + 0.9 + rnd() * 0.5, a: 300 + rnd() * 240 });
-    const wind = { x0: 680, y0: 1180, x1: 1010, y1: 1420, base: 0, gusts };
-    const swoops = [];
-    for (let t = 14 + rnd() * 4; t < T_MAX; t += 4.2 + rnd() * 3) swoops.push(t);
-    const y7 = (x) => 2990 + ((1252 - x) * 210) / 1052;
-    const eagle = {
-      swoops, dur: 1.8, reach: 20,
+  /* ---------- Rydding av løypedata (fra lagring, import og designeren) ---------- */
+  const TYPES = ['start', 'finish', 'ramp', 'wall', 'pegs', 'bumper', 'wheel', 'seesaw', 'trap', 'pit', 'wind', 'eagle', 'sign'];
+  const LIMITS = { total: 300, start: 1, finish: 1, ramp: 160, wall: 160, pegs: 8, bumper: 40, wheel: 8, seesaw: 8, trap: 12, pit: 16, wind: 6, eagle: 4, sign: 40 };
+  const CAUSES = ['k_vind', 'k_ornes'];
+  const num = (v, d, a, b) => { const n = typeof v === 'number' ? v : parseFloat(v); return Number.isFinite(n) ? Math.min(b, Math.max(a, n)) : d; };
+  const XN = (v, d) => num(v, d, -200, 1800);
+  const YN = (v, d) => num(v, d, -3000, 30000);
+  const txt = (v, d, max) => String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, max) || d;
+  const line = (type, p) => ({ type, ax: XN(p.ax, 600), ay: YN(p.ay, 500), bx: XN(p.bx, 900), by: YN(p.by, 560) });
+  const SANE = {
+    start: (p) => ({ type: 'start', x: num(p.x, 800, 340, 1260), y: YN(p.y, 300) }),
+    finish: (p) => ({ type: 'finish', x: num(p.x, 1290, 0, 1300), y: YN(p.y, 3330) }),
+    ramp: (p) => line('ramp', p),
+    wall: (p) => line('wall', p),
+    trap: (p) => line('trap', p),
+    eagle: (p) => line('eagle', p),
+    pegs: (p) => ({ type: 'pegs', x: XN(p.x, 300), y: YN(p.y, 600), w: num(p.w, 400, 64, 1600), rows: Math.round(num(p.rows, 5, 1, 14)) }),
+    bumper: (p) => ({ type: 'bumper', x: XN(p.x, 800), y: YN(p.y, 600) }),
+    wheel: (p) => ({ type: 'wheel', x: XN(p.x, 800), y: YN(p.y, 600), len: num(p.len, 100, 50, 180), speed: num(p.speed, 2.2, -5, 5), arms: Math.round(num(p.arms, 4, 2, 6)) }),
+    seesaw: (p) => ({ type: 'seesaw', x: XN(p.x, 800), y: YN(p.y, 600), half: num(p.half, 140, 60, 260) }),
+    pit: (p) => {
+      let x0 = XN(p.x0, 750), x1 = XN(p.x1, 860);
+      if (x1 < x0) { const k = x0; x0 = x1; x1 = k; }
+      if (x1 - x0 < 40) x1 = x0 + 40;
+      const yl = YN(p.yl, 600), yr = YN(p.yr, 600);
+      const y1 = Math.max(YN(p.y1, 760), Math.max(yl, yr) + 40);
+      const o = { type: 'pit', x0, x1, yl, yr, y1, name: txt(p.name, 'Hullet', 24) };
+      if (p.sy != null && Number.isFinite(+p.sy)) o.sy = num(p.sy, Math.max(yl, yr) + 2, Math.min(yl, yr) - 80, y1 - 10);
+      if (CAUSES.includes(p.cause)) o.cause = p.cause;
+      return o;
+    },
+    wind: (p) => {
+      const ax = XN(p.x0, 600), bx = XN(p.x1, 900), ay = YN(p.y0, 500), by = YN(p.y1, 700);
+      const x0 = Math.min(ax, bx), y0 = Math.min(ay, by);
+      return { type: 'wind', x0, y0, x1: Math.max(ax, bx, x0 + 60), y1: Math.max(ay, by, y0 + 60), dir: +p.dir > 0 ? 1 : -1 };
+    },
+    sign: (p) => ({ type: 'sign', x: XN(p.x, 800), y: YN(p.y, 600), text: txt(p.text, 'SKILT', 28).toUpperCase() }),
+  };
+  function sanePiece(p) { return p && SANE[p.type] ? SANE[p.type](p) : null; }
+  function normalize(raw) {
+    if (!raw || typeof raw !== 'object' || !Array.isArray(raw.pieces)) return null;
+    const count = {};
+    const pieces = [];
+    for (const p of raw.pieces) {
+      const s = sanePiece(p);
+      if (!s || pieces.length >= LIMITS.total) continue;
+      count[s.type] = (count[s.type] || 0) + 1;
+      if (count[s.type] > LIMITS[s.type]) continue;
+      pieces.push(s);
+    }
+    if (!count.start) pieces.unshift({ type: 'start', x: 800, y: 300 });
+    if (!count.finish) pieces.push({ type: 'finish', x: 1290, y: 3330 });
+    return { id: txt(raw.id, 'c_' + u.hashStr(JSON.stringify(pieces)).toString(36), 40), name: txt(raw.name, 'Min løype', 40), pieces };
+  }
+  const hash = (def) => u.hashStr(JSON.stringify(def.pieces)).toString(36);
+  const ORIGINAL = normalize({ id: 'keiservarden', name: 'Keiservarden (original)', pieces: ORIGINAL_PIECES });
+
+  /* ---------- Fra deler til en løype fysikken kan kjøre ---------- */
+  function makeEagle(p, swoops) {
+    const dir = p.ax >= p.bx ? 1 : -1;            // 1 = flyr mot venstre, som i originalen
+    const x0 = p.ax + 128 * dir, span = x0 - (p.bx - 100 * dir);
+    const ddx = (p.ax - p.bx) || 1;
+    const lineY = (x) => p.ay + ((p.ax - x) * (p.by - p.ay)) / ddx;
+    return {
+      swoops, dur: 1.8, reach: 20, dir, ax: p.ax, ay: p.ay, bx: p.bx, by: p.by, lineY,
       at(t) { // klo-posisjon i et pågående stup, ellers null
         for (const t0 of swoops) {
           if (t >= t0 && t <= t0 + this.dur) {
-            const p = (t - t0) / this.dur;
-            const x = 1380 - p * 1280;
-            const y = y7(x) - 16 - 250 * Math.pow(1 - Math.sin(p * Math.PI), 1.3);
-            return { x, y, p, k: t0 };
+            const q = (t - t0) / this.dur;
+            const x = x0 - q * span;
+            const y = lineY(x) - 16 - 250 * Math.pow(1 - Math.sin(q * Math.PI), 1.3);
+            return { x, y, p: q, k: t0 };
           }
         }
         return null;
       },
     };
-    const sensors = [
-      { x0: 905, y0: 1398, x1: 1003, y1: 1537, cause: 'k_vind' },
-      { x0: 867, y0: 2628, x1: 953, y1: 2767, cause: 'k_ornes' },
-    ];
-    const finish = { x0: 1290, y0: 3330, x1: 1330, y1: 3560 };
-    const zones = [{ x0: 95, y0: 780, x1: 390, y1: 1160, zone: 'k_glimt' }];
-    const signs = [
-      { x: 300, y: 110, text: 'KEISERVARDEN · 366 MOH' },
-      { x: 470, y: 840, text: 'GLIMT-HJULET' },
-      { x: 760, y: 1150, text: 'BODØ-VIND' },
-      { x: 955, y: 1575, text: 'JUVET' },
-      { x: 880, y: 1850, text: 'HURTIGRUTA-TUT' },
-      { x: 660, y: 2430, text: 'POLARSIRKEL-VIPPA' },
-      { x: 910, y: 2810, text: 'ØRNES ↓' },
-      { x: 980, y: 2950, text: 'ØRNA JAKTER' },
-      { x: 640, y: 3520, text: 'SJØGATA' },
-    ];
-    return { S, pegs, bumpers, gate, wheel, seesaw, trap, wind, eagle, sensors, finish, zones, signs, W: 1600, H: 3720 };
+  }
+  function compile(def, seed) {
+    const pieces = def.pieces;
+    const rnd = u.mulberry32((seed ^ 0x5eed) >>> 0);
+    const S = [], pegs = [], bumpers = [], gates = [], wheels = [], seesaws = [], traps = [], winds = [], eagles = [], sensors = [], pits = [], signs = [];
+    let start = null, fin = null;
+    const seg = (ax, ay, bx, by, kind = 'track') => S.push({ ax, ay, bx, by, t: 7, e: 0.3, kind });
+    for (const p of pieces) {
+      if (p.type === 'start') {
+        start = p;
+        seg(p.x - 330, p.y - 260, p.x - 60, p.y, 'hopper'); seg(p.x + 330, p.y - 260, p.x + 60, p.y, 'hopper');
+        seg(p.x - 330, p.y - 260, p.x - 330, p.y - 360, 'hopper'); seg(p.x + 330, p.y - 260, p.x + 330, p.y - 360, 'hopper');
+        gates.push({ ax: p.x - 60, ay: p.y, bx: p.x + 60, by: p.y, t: 7 });
+      } else if (p.type === 'ramp') seg(p.ax, p.ay, p.bx, p.by);
+      else if (p.type === 'wall') seg(p.ax, p.ay, p.bx, p.by, 'wall');
+      else if (p.type === 'pit') {
+        seg(p.x0, p.yl, p.x0, p.y1, 'pit'); seg(p.x1, p.yr, p.x1, p.y1, 'pit'); seg(p.x0, p.y1, p.x1, p.y1, 'pit');
+        const top = p.sy != null ? p.sy : Math.max(p.yl, p.yr) + 2;
+        sensors.push({ x0: p.x0 + 7, y0: top, x1: p.x1 - 7, y1: p.y1 - 3, cause: p.cause || 'k_hull', pn: p.cause ? null : p.name });
+        pits.push(p);
+      } else if (p.type === 'finish') {
+        fin = p;
+        seg(p.x + 40, p.y + 250, p.x + 270, p.y + 280); seg(p.x + 292, p.y + 30, p.x + 292, p.y + 295, 'wall'); seg(p.x + 38, p.y + 210, p.x + 38, p.y + 256, 'wall');
+      } else if (p.type === 'bumper') bumpers.push({ x: p.x, y: p.y, r: 26, kick: 520 });
+      else if (p.type === 'sign') signs.push({ x: p.x, y: p.y, text: p.text });
+    }
+    if (!start || !fin) throw new Error('Løypa mangler start eller mål');
+    // spikerbrett: rad for rad, med plass rundt TUT-bumperne
+    for (const p of pieces) {
+      if (p.type !== 'pegs') continue;
+      for (let row = 0; row < p.rows; row++) {
+        const y = p.y + row * 56, off = row % 2 ? 32 : 0;
+        for (let x = p.x + off; x <= p.x + p.w; x += 64) {
+          if (bumpers.some((b) => Math.hypot(x - b.x, y - b.y) < b.r + 34)) continue;
+          pegs.push({ x, y, r: 7 });
+        }
+      }
+    }
+    // bevegelige deler får fase fra seeden, alltid i samme typerekkefølge
+    const of = (type) => pieces.filter((p) => p.type === type);
+    of('wheel').forEach((p) => wheels.push({ cx: p.x, cy: p.y, len: p.len, w: p.speed, arms: p.arms, t: 8, a0: rnd() * 6.28 }));
+    of('seesaw').forEach((p) => seesaws.push({ px: p.x, py: p.y, half: p.half, amp: 0.2, period: 3.2, phase: rnd() * 3.2, t: 8 }));
+    of('trap').forEach((p) => traps.push({ ax: p.ax, ay: p.ay, bx: p.bx, by: p.by, t: 7, period: 2.6, phase: rnd() * 2.6, openFrom: 1.7, openTo: 2.45 }));
+    of('wind').forEach((p) => {
+      const gusts = [];
+      for (let t = 5 + rnd() * 3; t < T_MAX; t += 2.6 + rnd() * 3.2) gusts.push({ t0: t, t1: t + 0.9 + rnd() * 0.5, a: 300 + rnd() * 240 });
+      winds.push({ x0: p.x0, y0: p.y0, x1: p.x1, y1: p.y1, dir: p.dir, base: 0, gusts });
+    });
+    of('eagle').forEach((p) => {
+      const swoops = [];
+      for (let t = 14 + rnd() * 4; t < T_MAX; t += 4.2 + rnd() * 3) swoops.push(t);
+      eagles.push(makeEagle(p, swoops));
+    });
+    return {
+      S, pegs, bumpers, gates, wheels, seesaws, traps, winds, eagles, sensors, pits, signs,
+      start: { x: start.x, y: start.y }, fin: { x: fin.x, y: fin.y },
+      finish: { x0: fin.x, y0: fin.y, x1: fin.x + 40, y1: fin.y + 230 },
+      W: WORLD_W, H: fin.y + 390, top: start.y - 440,
+    };
+  }
+  function course(seed, def) {
+    const d = def && def !== ORIGINAL ? (normalize(def) || ORIGINAL) : ORIGINAL;
+    return compile(d, seed);
   }
 
   /* Tilstander som avhenger av tid (brukes både i simulering og tegning) */
   const kin = {
     gateOpen: (t) => t >= GATE_T,
-    wheelAngle: (C, t) => C.wheel.a0 + C.wheel.w * t,
-    seesawAngle: (C, t) => C.seesaw.amp * Math.sin((2 * Math.PI * (t + C.seesaw.phase)) / C.seesaw.period),
-    seesawRate: (C, t) => C.seesaw.amp * ((2 * Math.PI) / C.seesaw.period) * Math.cos((2 * Math.PI * (t + C.seesaw.phase)) / C.seesaw.period),
-    trapOpen: (C, t) => { const ph = (t + C.trap.phase) % C.trap.period; return ph >= C.trap.openFrom && ph <= C.trap.openTo; },
-    windAccel: (C, t) => { let a = C.wind.base; for (const g of C.wind.gusts) if (t >= g.t0 && t <= g.t1) { a += g.a * Math.sin(((t - g.t0) / (g.t1 - g.t0)) * Math.PI); break; } return a; },
+    wheelAngle: (W, t) => W.a0 + W.w * t,
+    seesawAngle: (P, t) => P.amp * Math.sin((2 * Math.PI * (t + P.phase)) / P.period),
+    seesawRate: (P, t) => P.amp * ((2 * Math.PI) / P.period) * Math.cos((2 * Math.PI * (t + P.phase)) / P.period),
+    trapOpen: (T, t) => { const ph = (t + T.phase) % T.period; return ph >= T.openFrom && ph <= T.openTo; },
+    windAccel: (Z, t) => { let a = Z.base; for (const g of Z.gusts) if (t >= g.t0 && t <= g.t1) { a += g.a * Math.sin(((t - g.t0) / (g.t1 - g.t0)) * Math.PI); break; } return a; },
   };
+  // kula forsvant ut av verden ved siden av et Glimt-hjul → hjulet slo den ut
+  const flung = (C, x, y) => C.wheels.some((w) => (x < 0 ? w.cx < C.W / 2 : x > C.W && w.cx > C.W / 2) && y > w.cy - 300 && y < w.cy + 250);
 
   /* ---------- Simulering ---------- */
-  function simulate(n, seed) {
-    const C = course(seed);
+  function simulate(n, seed, def) {
+    const C = course(seed, def);
     const rnd = u.mulberry32(seed >>> 0);
     const X = new Float64Array(n), Y = new Float64Array(n), VX = new Float64Array(n), VY = new Float64Array(n), ANG = new Float64Array(n);
-    const state = new Uint8Array(n), tDone = new Float64Array(n).fill(-1), cause = new Array(n).fill(null), zone = new Array(n).fill(null);
+    const state = new Uint8Array(n), tDone = new Float64Array(n).fill(-1), cause = new Array(n).fill(null), pn = new Array(n).fill(null);
+    const carrier = new Int16Array(n).fill(-1);
     // startposisjoner i trakta, fra bunnen og opp
     const order = Array.from({ length: n }, (_, i) => i);
     for (let i = n - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
+    const sx = C.start.x, sy = C.start.y, top = sy - 260;
     let k = 0;
-    for (let y = 276; k < n && y > -40; y -= 2 * R + 3) {
-      const yy = Math.max(y, 40);
-      const xl = 470 + (yy - 40) * (270 / 260) + R + 9, xr = 1130 - (yy - 40) * (270 / 260) - R - 9;
+    for (let y = sy - 24; k < n && y > sy - 340; y -= 2 * R + 3) {
+      const yy = Math.max(y, top);
+      const xl = (sx - 330) + (yy - top) * (270 / 260) + R + 9, xr = (sx + 330) - (yy - top) * (270 / 260) - R - 9;
       for (let x = xl; x <= xr && k < n; x += 2 * R + 3) { const i = order[k++]; X[i] = x + (rnd() - 0.5) * 3; Y[i] = y + (rnd() - 0.5) * 3; VX[i] = (rnd() - 0.5) * 40; }
     }
+    for (let y = sy - 365; k < n; y -= 2 * R + 3) for (let x = sx - 310; x <= sx + 310 && k < n; x += 2 * R + 3) { const i = order[k++]; X[i] = x; Y[i] = y; }
     // statisk rutenett for kollisjon
     const CELL = 120, grid = new Map();
     const key = (cx, cy) => cx * 4096 + cy;
@@ -180,19 +294,30 @@
       contact[i] = 1;
       return true;
     }
+    const NW = C.wheels.length, NS = C.seesaws.length, NT = C.traps.length, NZ = C.winds.length, NE = C.eagles.length;
+    const wa = new Float64Array(NW), sa = new Float64Array(NS), sr = new Float64Array(NS), topen = new Uint8Array(NT), wv = new Float64Array(NZ);
+    const claws = new Array(NE).fill(null), grabbed = C.eagles.map(() => new Set());
     const lastBump = new Float64Array(n).fill(-9);
-    let t = 0, step = 0, lastDoneT = -1, grabbedSwoop = new Set();
-    const active = (i) => state[i] === ST.RACE || state[i] === ST.FIN || (state[i] === ST.OUT && cause[i] !== 'k_orna' && X[i] > -40 && X[i] < 1640 && Y[i] < 3760);
+    let t = 0, step = 0, lastDoneT = -1;
+    const active = (i) => state[i] === ST.RACE || state[i] === ST.FIN || (state[i] === ST.OUT && cause[i] !== 'k_orna' && X[i] > -40 && X[i] < C.W + 40 && Y[i] < C.H + 40);
 
     while (t < T_MAX + 2) {
       const gateOpen = kin.gateOpen(t);
-      const wa = kin.wheelAngle(C, t), sa = kin.seesawAngle(C, t), sr = kin.seesawRate(C, t), trapOpen = kin.trapOpen(C, t), wind = kin.windAccel(C, t);
-      const claw = C.eagle.at(t);
+      for (let q = 0; q < NW; q++) wa[q] = kin.wheelAngle(C.wheels[q], t);
+      for (let q = 0; q < NS; q++) { sa[q] = kin.seesawAngle(C.seesaws[q], t); sr[q] = kin.seesawRate(C.seesaws[q], t); }
+      for (let q = 0; q < NT; q++) topen[q] = kin.trapOpen(C.traps[q], t) ? 1 : 0;
+      for (let q = 0; q < NZ; q++) wv[q] = kin.windAccel(C.winds[q], t);
+      for (let q = 0; q < NE; q++) claws[q] = C.eagles[q].at(t);
       for (let i = 0; i < n; i++) {
-        if (state[i] === ST.CARRY) { if (claw) { X[i] = claw.x; Y[i] = claw.y + 24; } else { X[i] = -200; Y[i] = 2500; } continue; }
+        if (state[i] === ST.CARRY) { const cl = claws[carrier[i]]; if (cl) { X[i] = cl.x; Y[i] = cl.y + 24; } else { X[i] = -200; Y[i] = 2500; } continue; }
         if (!active(i)) continue;
         VY[i] += G * DT;
-        if (state[i] === ST.RACE && X[i] > C.wind.x0 && X[i] < C.wind.x1 && Y[i] > C.wind.y0 && Y[i] < C.wind.y1) VX[i] -= wind * DT;
+        if (state[i] === ST.RACE) {
+          for (let q = 0; q < NZ; q++) {
+            const Z = C.winds[q];
+            if (X[i] > Z.x0 && X[i] < Z.x1 && Y[i] > Z.y0 && Y[i] < Z.y1) { if (Z.dir < 0) VX[i] -= wv[q] * DT; else VX[i] += wv[q] * DT; }
+          }
+        }
         const damp = 1 - (contact[i] ? ROLL : AIR) * DT;
         VX[i] *= damp; VY[i] *= contact[i] ? damp : 1;
         const sp = Math.hypot(VX[i], VY[i]);
@@ -228,42 +353,58 @@
           if (it.s) capsule(i, it.s.ax, it.s.ay, it.s.bx, it.s.by, it.s.t, it.s.e, 0, 0);
           else if (circle(i, it.c, it.bump ? 0.6 : 0.45) && it.bump && t - lastBump[i] > 0.25) { lastBump[i] = t; events.push({ t, type: 'bump', i, x: it.c.x, y: it.c.y }); }
         }
-        if (!gateOpen) capsule(i, C.gate.ax, C.gate.ay, C.gate.bx, C.gate.by, C.gate.t, 0.2, 0, 0);
-        if (!trapOpen) capsule(i, C.trap.ax, C.trap.ay, C.trap.bx, C.trap.by, C.trap.t, 0.25, 0, 0);
-        // Glimt-hjulet
-        const W = C.wheel;
-        if (Math.hypot(X[i] - W.cx, Y[i] - W.cy) < W.len + R + W.t + 4) {
-          for (let a = 0; a < W.arms; a++) {
-            const ang = wa + (a * Math.PI * 2) / W.arms, ex = W.cx + Math.cos(ang) * W.len, ey = W.cy + Math.sin(ang) * W.len;
-            const abx = ex - W.cx, aby = ey - W.cy, l2 = abx * abx + aby * aby;
-            let q = ((X[i] - W.cx) * abx + (Y[i] - W.cy) * aby) / l2; q = q < 0 ? 0 : q > 1 ? 1 : q;
-            const qx = W.cx + abx * q, qy = W.cy + aby * q;
-            capsule(i, W.cx, W.cy, ex, ey, W.t, 0.35, -W.w * (qy - W.cy), W.w * (qx - W.cx));
+        if (!gateOpen) for (const g of C.gates) capsule(i, g.ax, g.ay, g.bx, g.by, g.t, 0.2, 0, 0);
+        for (let q = 0; q < NT; q++) if (!topen[q]) { const T = C.traps[q]; capsule(i, T.ax, T.ay, T.bx, T.by, T.t, 0.25, 0, 0); }
+        // Glimt-hjul
+        for (let q = 0; q < NW; q++) {
+          const W = C.wheels[q];
+          if (Math.hypot(X[i] - W.cx, Y[i] - W.cy) < W.len + R + W.t + 4) {
+            for (let a = 0; a < W.arms; a++) {
+              const ang = wa[q] + (a * Math.PI * 2) / W.arms, ex = W.cx + Math.cos(ang) * W.len, ey = W.cy + Math.sin(ang) * W.len;
+              const abx = ex - W.cx, aby = ey - W.cy, l2 = abx * abx + aby * aby;
+              let qq = ((X[i] - W.cx) * abx + (Y[i] - W.cy) * aby) / l2; qq = qq < 0 ? 0 : qq > 1 ? 1 : qq;
+              const qx = W.cx + abx * qq, qy = W.cy + aby * qq;
+              capsule(i, W.cx, W.cy, ex, ey, W.t, 0.35, -W.w * (qy - W.cy), W.w * (qx - W.cx));
+            }
           }
         }
-        // Polarsirkel-vippa
-        const P = C.seesaw;
-        if (Math.abs(X[i] - P.px) < P.half + 30 && Math.abs(Y[i] - P.py) < 80) {
-          const c = Math.cos(sa), s = Math.sin(sa);
-          const ax = P.px - c * P.half, ay = P.py - s * P.half, bx = P.px + c * P.half, by = P.py + s * P.half;
-          const abx = bx - ax, aby = by - ay, l2 = abx * abx + aby * aby;
-          let q = ((X[i] - ax) * abx + (Y[i] - ay) * aby) / l2; q = q < 0 ? 0 : q > 1 ? 1 : q;
-          const qx = ax + abx * q, qy = ay + aby * q;
-          capsule(i, ax, ay, bx, by, P.t, 0.25, -sr * (qy - P.py), sr * (qx - P.px));
+        // vipper
+        for (let q = 0; q < NS; q++) {
+          const Pp = C.seesaws[q];
+          if (Math.abs(X[i] - Pp.px) < Pp.half + 30 && Math.abs(Y[i] - Pp.py) < 80) {
+            const c = Math.cos(sa[q]), s = Math.sin(sa[q]);
+            const ax = Pp.px - c * Pp.half, ay = Pp.py - s * Pp.half, bx = Pp.px + c * Pp.half, by = Pp.py + s * Pp.half;
+            const abx = bx - ax, aby = by - ay, l2 = abx * abx + aby * aby;
+            let qq = ((X[i] - ax) * abx + (Y[i] - ay) * aby) / l2; qq = qq < 0 ? 0 : qq > 1 ? 1 : qq;
+            const qx = ax + abx * qq, qy = ay + aby * qq;
+            capsule(i, ax, ay, bx, by, Pp.t, 0.25, -sr[q] * (qy - Pp.py), sr[q] * (qx - Pp.px));
+          }
         }
       }
       // ørna, sensorer, mål og fall ut av verden
       for (let i = 0; i < n; i++) {
         if (state[i] !== ST.RACE) continue;
-        if (claw && claw.p > 0.3 && claw.p < 0.75 && !grabbedSwoop.has(claw.k) && Math.hypot(X[i] - claw.x, Y[i] - claw.y) < R + C.eagle.reach) {
-          grabbedSwoop.add(claw.k); state[i] = ST.CARRY; tDone[i] = t; cause[i] = 'k_orna'; lastDoneT = t;
-          events.push({ t, type: 'out', i, cause: 'k_orna' });
-          continue;
+        let got = false;
+        for (let q = 0; q < NE; q++) {
+          const cl = claws[q];
+          if (cl && cl.p > 0.3 && cl.p < 0.75 && !grabbed[q].has(cl.k) && Math.hypot(X[i] - cl.x, Y[i] - cl.y) < R + C.eagles[q].reach) {
+            grabbed[q].add(cl.k); carrier[i] = q; state[i] = ST.CARRY; tDone[i] = t; cause[i] = 'k_orna'; lastDoneT = t;
+            events.push({ t, type: 'out', i, cause: 'k_orna' });
+            got = true;
+            break;
+          }
         }
+        if (got) continue;
         const f = C.finish;
         if (X[i] > f.x0 && X[i] < f.x1 && Y[i] > f.y0 && Y[i] < f.y1) { state[i] = ST.FIN; tDone[i] = t; lastDoneT = t; events.push({ t, type: 'finish', i }); continue; }
-        for (const s of C.sensors) if (X[i] > s.x0 && X[i] < s.x1 && Y[i] > s.y0 && Y[i] < s.y1) { state[i] = ST.OUT; tDone[i] = t; cause[i] = s.cause; lastDoneT = t; events.push({ t, type: 'out', i, cause: s.cause }); break; }
-        if (state[i] === ST.RACE && (X[i] < -30 || X[i] > 1630 || Y[i] > 3720)) { state[i] = ST.OUT; tDone[i] = t; cause[i] = X[i] < 0 && Y[i] > 700 && Y[i] < 1250 ? 'k_glimt' : 'k_kant'; lastDoneT = t; events.push({ t, type: 'out', i, cause: cause[i] }); }
+        for (const s of C.sensors) {
+          if (X[i] > s.x0 && X[i] < s.x1 && Y[i] > s.y0 && Y[i] < s.y1) {
+            state[i] = ST.OUT; tDone[i] = t; cause[i] = s.cause; pn[i] = s.pn; lastDoneT = t;
+            events.push(s.pn ? { t, type: 'out', i, cause: s.cause, pn: s.pn } : { t, type: 'out', i, cause: s.cause });
+            break;
+          }
+        }
+        if (state[i] === ST.RACE && (X[i] < -30 || X[i] > C.W + 30 || Y[i] > C.H)) { state[i] = ST.OUT; tDone[i] = t; cause[i] = flung(C, X[i], Y[i]) ? 'k_glimt' : 'k_kant'; lastDoneT = t; events.push({ t, type: 'out', i, cause: cause[i] }); }
       }
       if (step % REC === 0) {
         const fr = new Float32Array(n * 3);
@@ -283,19 +424,48 @@
     const idx = Array.from({ length: n }, (_, i) => i);
     const fin = idx.filter((i) => state[i] === ST.FIN).sort((a, b) => tDone[a] - tDone[b]);
     const out = idx.filter((i) => state[i] !== ST.FIN).sort((a, b) => tDone[b] - tDone[a]);
-    return { C, n, seed, frames, fps: 240 / REC, events, rank: fin.concat(out), finishers: fin.length, tDone, cause, duration: t };
+    return { C, n, seed, frames, fps: 240 / REC, events, rank: fin.concat(out), finishers: fin.length, tDone, cause, pn, duration: t };
   }
 
   /* Kjør med nye seeds til minst «need» kuler kommer i mål (løypa er den samme, bare starten varierer) */
-  function race(n, seed, need) {
+  function race(n, seed, need, def, tries = 8) {
     let best = null;
-    for (let k = 0; k < 8; k++) {
-      const res = simulate(n, (seed + k * 7919) >>> 0);
+    for (let k = 0; k < tries; k++) {
+      const res = simulate(n, (seed + k * 7919) >>> 0, def);
       if (!best || res.finishers > best.finishers) best = res;
       if (res.finishers >= need) return res;
     }
     return best;
   }
 
-  FL.KPhys = { R, GATE_T, T_MAX, ST, course, kin, simulate, race };
+  /* ---------- Godkjenning av egne løyper ---------- */
+  function summarize(res) {
+    const times = res.events.filter((e) => e.type === 'finish').map((e) => e.t - GATE_T);
+    const causes = {};
+    res.events.forEach((e) => { if (e.type === 'out') { const k = e.pn ? `${e.cause}:${e.pn}` : e.cause; causes[k] = (causes[k] || 0) + 1; } });
+    return { n: res.n, finishers: res.finishers, times, causes };
+  }
+  function assess(runs, need) {
+    const tot = runs.reduce((s, r) => s + r.n, 0), fin = runs.reduce((s, r) => s + r.finishers, 0);
+    const rate = tot ? fin / tot : 0;
+    const minRate = runs.length ? Math.min(...runs.map((r) => r.finishers / r.n)) : 0;
+    const med = (arr) => { const a = arr.slice().sort((x, y) => x - y); return a.length ? a[Math.floor(a.length / 2)] : Infinity; };
+    const winT = med(runs.map((r) => (r.times.length >= need ? r.times[need - 1] : Infinity)));
+    const firstT = med(runs.map((r) => (r.times.length ? r.times[0] : Infinity)));
+    const causes = {};
+    runs.forEach((r) => Object.keys(r.causes).forEach((k) => { causes[k] = (causes[k] || 0) + r.causes[k]; }));
+    const reasons = [];
+    if (minRate < 0.3 || runs.some((r) => r.finishers < need)) reasons.push(`For få kom i mål i ett av prøveløpene (ned til ${Math.round(minRate * 100)} %). Minst ${need} kuler og 30 % må klare det hver gang.`);
+    if (rate < 0.45) reasons.push(`Bare ${Math.round(rate * 100)} % kom i mål totalt. Minst 45 % må klare det.`);
+    if (!(winT <= T_MAX - GATE_T - 6)) reasons.push('Løpet tar for lang tid. Vinnerne må være nede på under 75 sekunder.');
+    if (reasons.length) { // pek på det som mest sannsynlig er galt
+      const share = (id) => Object.keys(causes).filter((c) => c === id || c.startsWith(id + ':')).reduce((s, c) => s + causes[c], 0) / Math.max(1, tot);
+      if (share('k_fast') > 0.15) reasons.push('Tips: mange kuler blir liggende fast. Se etter steder der noe sperrer veien, eller ramper som er for slakke.');
+      if (share('k_kant') > 0.15) reasons.push('Tips: mange triller utfor kanten. Sett vegger på endene av rampene.');
+      if (share('k_hull') > 0.25) reasons.push('Tips: hullene sluker mange. Gjør dem smalere, eller flytt dem litt unna.');
+    }
+    return { ok: !reasons.length, rate, minRate, winT: Number.isFinite(winT) ? winT : null, firstT: Number.isFinite(firstT) ? firstT : null, causes, reasons, runs: runs.length, marbles: tot, need };
+  }
+
+  FL.KPhys = { R, GATE_T, T_MAX, ST, WORLD_W, TYPES, LIMITS, ORIGINAL, course, compile, normalize, sanePiece, hash, kin, simulate, race, summarize, assess };
 })();

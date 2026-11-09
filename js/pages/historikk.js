@@ -49,7 +49,7 @@
       return `<li class="trip" data-id="${h.id}">
         <div class="trip-head">
           <div class="trip-date"><b>${d.getDate()}</b><small>${esc(u.dfMonth.format(d).replace('.', ''))}</small></div>
-          <div><div class="trip-meta">${esc(u.dfLong.format(d))} · ${GAME[h.game] || 'Trekning'}${tix ? ` · ${tix} lodd` : ''}</div>
+          <div><div class="trip-meta">${esc(u.dfLong.format(d))} · ${GAME[h.game] || 'Trekning'}${h.course && h.course.name ? ` · «${esc(h.course.name)}»` : ''}${tix ? ` · ${tix} lodd` : ''}</div>
           <div class="trip-winners">${names.map((n, i) => winnerLine(h, i, n)).join('') || '<span>Ingen vinnere registrert</span>'}</div></div>
           <div class="trip-pot">${h.pot ? u.kr(h.pot) : '—'}<small>i potten</small></div>
         </div>

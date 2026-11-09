@@ -235,8 +235,9 @@
     k_glimt: { game: 'keiser', title: 'Slått ut av Glimt-hjulet', name: 'Glimt-hjulet', icon: '💛', color: 'rgba(255,212,0,.2)', ec: '#fbeaa0', desc: 'Gult, svart og spinner som en kontring.', t: ['Glimt-hjulet slo {n} rett ut av løypa.'] },
     k_kant: { game: 'keiser', title: 'Utfor kanten', name: 'Kanten', icon: '⛰️', color: 'rgba(130,140,160,.22)', ec: '#dde2ea', desc: 'Keiservarden er 366 meter høy. Kanten er bratt.', t: ['{n} spratt utfor kanten. Det er langt ned.'] },
     k_fast: { game: 'keiser', title: 'Satt fast', name: 'Snøfonna', icon: '❄️', color: 'rgba(200,230,255,.2)', ec: '#e3f1fb', desc: 'Noen kommer seg aldri videre fra en snøfonn.', t: ['{n} satt fast i ei snøfonn og kom aldri ned.'] },
+    k_hull: { game: 'keiser', title: 'Ned i hullet', name: 'Hull i egne løyper', icon: '🕳️', color: 'rgba(110,93,76,.3)', ec: '#e8dccb', desc: 'Løypedesignerens hull. Hvert hull har et navn, og navnet havner i loggen.', t: ['{n} falt ned i et hull i løypa.'], p: ['{n} falt ned i {p}.'] },
   });
-  const ORDER_KEISER = ['k_vind', 'k_ornes', 'k_orna', 'k_glimt', 'k_kant', 'k_fast'];
+  const ORDER_KEISER = ['k_vind', 'k_ornes', 'k_orna', 'k_glimt', 'k_kant', 'k_fast', 'k_hull'];
   const ORDER_DRAUGEN = ['kraken', 'draugen', 'malstrom', 'blekk', 'huldra', 'krabbe', 'lyn', 'troll', 'vaffellukt', 'volleyball', 'hurtigrutebolge', 'amulett'];
   const D_SINGLE = ['kraken', 'draugen', 'huldra', 'krabbe', 'lyn', 'vaffellukt', 'volleyball'];
   const D_GROUP = { malstrom: 5, blekk: 4, troll: 3, hurtigrutebolge: 4, kraken: 3 };
@@ -435,7 +436,7 @@
       if (!t) return '#' + no;
       return count[u.normName(t.name)] > 1 ? `${t.name} (lodd ${t.label || u.pad(no)})` : t.name; // to lodd? vis hvilket som røk
     });
-    const port = PORT_NAME[beat.place];
+    const port = beat.pn || PORT_NAME[beat.place]; // pn: navnet på et hull i en egen Keiservarden-løype
     let list = ev.t;
     if (names.length > 1 && ev.g) list = ev.g;
     else if (port && ev.p) list = ev.p;

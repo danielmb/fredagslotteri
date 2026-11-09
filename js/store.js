@@ -7,7 +7,18 @@
   const VERSION = 3;
   const DEFAULTS = { price: 30, maxPerPerson: 2, winners: 3, uniqueWinners: true, sound: true, vipps: '', drawTime: '' };
 
-  const blank = () => ({ v: VERSION, settings: { ...DEFAULTS }, people: [], history: [] });
+  const ORIGINAL_COURSE = 'keiservarden';
+  const blank = () => ({ v: VERSION, settings: { ...DEFAULTS }, people: [], history: [], courses: [], courseId: ORIGINAL_COURSE });
+  /* Egne Keiservarden-løyper fra løypedesigneren. Delene vaskes av fysikkmotoren når de brukes –
+     her sjekkes bare formen, så ingenting går tapt på sider som ikke laster fysikken. */
+  function normCourse(c) {
+    if (!c || typeof c !== 'object' || typeof c.id !== 'string' || !c.id || c.id === ORIGINAL_COURSE || !Array.isArray(c.pieces)) return null;
+    return {
+      id: c.id.slice(0, 40), name: u.cleanName(c.name) || 'Uten navn', pieces: c.pieces.slice(0, 400),
+      ok: typeof c.ok === 'string' ? c.ok : null, stats: c.stats && typeof c.stats === 'object' ? c.stats : null,
+      updated: typeof c.updated === 'string' ? c.updated : null,
+    };
+  }
   const intIn = (v, a, b, d) => { const n = parseInt(v, 10); return Number.isFinite(n) ? u.clamp(n, a, b) : d; };
   const toNum = (v) => { const s = String(v == null ? '' : v).trim(); if (!/^\d+$/.test(s)) return 0; const n = parseInt(s, 10); return n > 0 && n <= 99999 ? n : 0; };
   const trimNums = (arr) => { while (arr.length && !arr[arr.length - 1]) arr.pop(); return arr; };
@@ -39,6 +50,9 @@
     out.settings = normSettings(s.settings);
     out.history = Array.isArray(s.history) ? s.history.filter(validRecord) : [];
     out.history.sort((a, b) => new Date(b.date) - new Date(a.date));
+    const seenCourse = new Set();
+    out.courses = (Array.isArray(s.courses) ? s.courses : []).map(normCourse).filter((c) => c && !seenCourse.has(c.id) && seenCourse.add(c.id)).slice(0, 60);
+    out.courseId = out.courses.some((c) => c.id === s.courseId) ? s.courseId : ORIGINAL_COURSE;
     const max = out.settings.maxPerPerson;
     const keys = new Set(), taken = new Set();
     const add = (p, nums) => {
@@ -208,6 +222,25 @@
     getRecord(id) { return state.history.find((h) => h.id === id); },
     lastRecord() { return state.history.find((h) => !h.demo) || null; },
 
+    /* ---- Egne løyper (Keiservarden GP) ---- */
+    get courses() { return state.courses; },
+    get courseId() { return state.courseId; },
+    getCourse(id) { return state.courses.find((c) => c.id === id) || null; },
+    saveCourse(c) {
+      const clean = normCourse({ ...c, updated: new Date().toISOString() });
+      if (!clean) return null;
+      const i = state.courses.findIndex((x) => x.id === clean.id);
+      if (i >= 0) state.courses[i] = clean; else state.courses.unshift(clean);
+      commit();
+      return clean;
+    },
+    removeCourse(id) {
+      state.courses = state.courses.filter((c) => c.id !== id);
+      if (state.courseId === id) state.courseId = ORIGINAL_COURSE;
+      commit();
+    },
+    setCourse(id) { state.courseId = state.courses.some((c) => c.id === id) ? id : ORIGINAL_COURSE; commit(); },
+
     stats() {
       const recs = state.history.filter((h) => !h.demo);
       const ppl = new Map();
@@ -256,6 +289,7 @@
         state.people.push({ ...p, id: u.uid('p'), nums, paid: false });
         newPeople++;
       });
+      inc.courses.forEach((c) => { if (!state.courses.some((x) => x.id === c.id)) state.courses.push(c); });
       commit();
       return { added, newPeople };
     },
