@@ -27,7 +27,7 @@
       html += h.beats.map((b) => `<li><span>${(Ev.EVENTS[b.ev] || {}).icon || '•'}</span><span>${Ev.eventText(b, h.tickets, true)}</span></li>`).join('');
       html += `<li><span>🏁</span><span>I land i Bodø: ${h.winners.map((no, i) => `${MEDAL[i] || ''} <b>${esc(h.tickets[no - 1].name)}</b>`).join(', ')}</span></li>`;
     } else if (h.people && h.people.length) {
-      html += `<li><span>🎟️</span><span>Om bord: ${h.people.map((p) => `${esc(p.name)} (${Store.labelsFor(p.num || 0, p.tickets).filter((x) => x !== '0').join('/') || p.tickets})`).join(', ')}</span></li>`;
+      html += `<li><span>🎟️</span><span>Om bord: ${h.people.map((p) => `${esc(p.name)} (${(p.nums || []).filter(Boolean).join('/') || `${p.tickets} lodd`})`).join(', ')}</span></li>`;
     }
     return html;
   }
@@ -61,7 +61,7 @@
       const medals = [e.gold ? `🥇${e.gold}` : '', e.silver ? `🥈${e.silver}` : '', e.bronze ? `🥉${e.bronze}` : ''].filter(Boolean).join(' ');
       const sub = [medals, e.tickets ? `${e.tickets} lodd` : '', fav ? `typisk: ${Ev.EVENTS[fav].icon}` : ''].filter(Boolean).join(' · ');
       const reg = Store.people.find((p) => u.normName(p.name) === u.normName(e.name));
-      return `<li class="lb"><span class="lb-rank">${i + 1}</span><span class="av" style="background:${u.colorFor(e.name)}">${reg ? reg.num : esc(u.initials(e.name))}</span><div class="lb-txt"><div class="lb-name">${esc(e.name)}</div><div class="lb-sub">${sub}</div></div><span class="lb-wins">${e.wins}</span></li>`;
+      return `<li class="lb"><span class="lb-rank">${i + 1}</span><span class="av" style="background:${u.colorFor(e.name)}">${reg && reg.nums[0] ? reg.nums[0] : esc(u.initials(e.name))}</span><div class="lb-txt"><div class="lb-name">${esc(e.name)}</div><div class="lb-sub">${sub}</div></div><span class="lb-wins">${e.wins}</span></li>`;
     }).join('');
   }
   function render() {

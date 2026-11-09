@@ -3,26 +3,18 @@
   'use strict';
   const FL = window.FL;
   const u = FL.u;
-  const KEY = 'fredagslotteriet:v1'; // samme nøkkel som før – data fra første versjon migreres automatisk
+  const KEY = 'fredagslotteriet:v1'; // samme nøkkel hele veien – eldre data migreres automatisk
+  const VERSION = 3;
   const DEFAULTS = { price: 30, maxPerPerson: 2, winners: 3, uniqueWinners: true, sound: true, vipps: '', drawTime: '' };
 
-  const blank = () => ({ v: 2, settings: { ...DEFAULTS }, people: [], history: [] });
+  const blank = () => ({ v: VERSION, settings: { ...DEFAULTS }, people: [], history: [] });
   const intIn = (v, a, b, d) => { const n = parseInt(v, 10); return Number.isFinite(n) ? u.clamp(n, a, b) : d; };
+  const toNum = (v) => { const s = String(v == null ? '' : v).trim(); if (!/^\d+$/.test(s)) return 0; const n = parseInt(s, 10); return n > 0 && n <= 99999 ? n : 0; };
+  const trimNums = (arr) => { while (arr.length && !arr[arr.length - 1]) arr.pop(); return arr; };
 
-  /* Lodd-numre: første lodd = personens nummer, neste får en null til (7 → 70 → 700) */
-  function labelsFor(num, count) { const out = []; let n = num; for (let k = 0; k < count; k++) { out.push(String(n)); n *= 10; } return out; }
-  function conflictsIn(people, num, max, excludeId) {
-    if (!(num > 0)) return [];
-    const mine = labelsFor(num, max);
-    const res = [];
-    people.forEach((p) => {
-      if (p.id === excludeId || !p.num) return;
-      const hit = mine.find((l) => labelsFor(p.num, max).includes(l));
-      if (hit) res.push({ person: p, label: hit, same: p.num === num });
-    });
-    return res;
-  }
-  function nextFreeIn(people, max) { for (let n = 1; n < 100000; n++) if (!conflictsIn(people, n, max).length) return n; return people.length + 1; }
+  /* Hver passasjer har selvvalgte lodd-nummer, ett per lodd (f.eks. 7 og 70) */
+  const ticketNums = (p) => Array.from({ length: p.tickets }, (_, i) => p.nums[i] || 0);
+  const missingCount = (p) => ticketNums(p).filter((n) => !n).length;
 
   function normSettings(st = {}) {
     return {
@@ -48,26 +40,27 @@
     out.history = Array.isArray(s.history) ? s.history.filter(validRecord) : [];
     out.history.sort((a, b) => new Date(b.date) - new Date(a.date));
     const max = out.settings.maxPerPerson;
-    const keys = new Set(), nums = new Set();
-    const add = (p) => {
+    const keys = new Set(), taken = new Set();
+    const add = (p, nums) => {
       const name = u.cleanName(p && p.name);
       if (!name || keys.has(u.normName(name))) return;
       keys.add(u.normName(name));
-      let num = parseInt(p.num, 10);
-      if (!(num > 0) || nums.has(num)) num = 0; // tildeles under
-      if (num) nums.add(num);
-      out.people.push({ id: p.id || u.uid('p'), name, num, tickets: intIn(p.tickets, 1, max, 1), paid: !!p.paid, active: p.active !== false });
+      const clean = (Array.isArray(nums) ? nums : []).map((v) => { const n = toNum(v); if (!n || taken.has(n)) return 0; taken.add(n); return n; });
+      out.people.push({ id: p.id || u.uid('p'), name, nums: trimNums(clean), tickets: intIn(p.tickets, 1, max, 1), paid: !!p.paid, active: p.active !== false });
     };
-    if (Array.isArray(s.people)) s.people.forEach(add);
-    else {
-      // migrering fra første versjon: billettluka + alle som har vært med før
-      ((s.round && s.round.people) || []).forEach((p) => add({ name: p.name, tickets: p.tickets, paid: p.paid }));
+    if (Array.isArray(s.people)) {
+      // Fra v3 er numrene valgt av folk selv. Versjon 2 delte ut nummer automatisk – de fjernes.
+      const own = (s.v || 0) >= 3;
+      s.people.forEach((p) => add(p, own ? p.nums : []));
+    } else {
+      // Første versjon: billettluka + alle som har vært med før
+      ((s.round && s.round.people) || []).forEach((p) => add({ name: p.name, tickets: p.tickets }, []));
       out.history.forEach((h) => {
-        (h.people || []).forEach((p) => add({ name: p.name, tickets: p.tickets }));
-        if (h.game === 'manuell') h.winnerNames.forEach((n) => add({ name: n }));
+        (h.people || []).forEach((p) => add({ name: p.name, tickets: p.tickets }, []));
+        if (h.game === 'manuell') h.winnerNames.forEach((n) => add({ name: n }, []));
       });
     }
-    out.people.forEach((p) => { if (!p.num) p.num = nextFreeIn(out.people, max); });
+    out.people.forEach((p) => { if (p.paid && missingCount(p)) p.paid = false; });
     return out;
   }
 
@@ -90,11 +83,12 @@
   }
   const recTickets = (h) => (h.game === 'manuell' ? (h.ticketCount || 0) : h.tickets.length);
   const ticketLabel = (h, no) => { const t = h.tickets && h.tickets[no - 1]; return (t && t.label) || u.pad(no); };
-  const byNum = (a, b) => a.num - b.num || a.name.localeCompare(b.name, 'nb');
+  const firstNum = (p) => p.nums.find(Boolean) || Infinity;
+  const byNum = (a, b) => firstNum(a) - firstNum(b) || a.name.localeCompare(b.name, 'nb');
   const find = (id) => state.people.find((p) => p.id === id);
 
   const Store = {
-    DEFAULTS, labelsFor, winnerNames, recTickets, ticketLabel,
+    DEFAULTS, toNum, ticketNums, missingCount, winnerNames, recTickets, ticketLabel,
     get state() { return state; },
     get settings() { return state.settings; },
     get people() { return state.people.slice().sort(byNum); },
@@ -110,33 +104,57 @@
     },
 
     /* ---- Passasjerregisteret ---- */
-    conflicts(num, excludeId) { return conflictsIn(state.people, num, state.settings.maxPerPerson, excludeId); },
-    nextNum() { return nextFreeIn(state.people, state.settings.maxPerPerson); },
-    checkNum(num, excludeId) {
-      if (!(num > 0) || num > 99999) return { ok: false, msg: 'Nummeret må være et helt tall over 0.' };
-      const c = Store.conflicts(num, excludeId);
-      const same = c.find((x) => x.same);
-      if (same) return { ok: false, msg: `Nummer ${num} er allerede ${same.person.name} sitt.` };
-      if (c.length) return { ok: true, warn: `Lodd ${c[0].label} kolliderer med ${c[0].person.name} sitt lodd ${c[0].label}.` };
+    numOwner(n, excludeId) { return state.people.find((p) => p.id !== excludeId && p.nums.includes(n)) || null; },
+    checkNum(v, id, idx) {
+      const n = toNum(v);
+      if (!n) return { ok: false, msg: 'Nummeret må være et helt tall fra 1 og oppover.' };
+      const owner = Store.numOwner(n, id);
+      if (owner) return { ok: false, msg: `Nr. ${n} er allerede ${owner.name} sitt.` };
+      const p = id && find(id);
+      if (p && p.nums.some((x, i) => x === n && i !== idx)) return { ok: false, msg: `${p.name} har allerede nr. ${n}.` };
+      return { ok: true, n };
+    },
+    setNum(id, idx, v) {
+      const p = find(id);
+      if (!p) return { ok: false, msg: 'Fant ikke passasjeren.' };
+      if (String(v == null ? '' : v).trim() === '') {
+        p.nums[idx] = 0;
+        trimNums(p.nums);
+        if (p.paid && missingCount(p)) p.paid = false;
+        commit();
+        return { ok: true };
+      }
+      const chk = Store.checkNum(v, id, idx);
+      if (!chk.ok) return chk;
+      while (p.nums.length < idx) p.nums.push(0);
+      p.nums[idx] = chk.n;
+      commit();
       return { ok: true };
     },
-    addPerson({ name, num, tickets } = {}) {
+    addPerson({ name, nums = [], tickets } = {}) {
       name = u.cleanName(name);
       if (!name) return { ok: false, msg: 'Skriv inn et navn først.' };
       const ex = state.people.find((p) => u.normName(p.name) === u.normName(name));
-      if (ex) return { ok: false, msg: `${ex.name} står allerede på lista (nr. ${ex.num}).`, person: ex };
-      num = parseInt(num, 10) || Store.nextNum();
-      const chk = Store.checkNum(num);
-      if (!chk.ok) return chk;
-      const p = { id: u.uid('p'), name, num, tickets: u.clamp(parseInt(tickets, 10) || 1, 1, state.settings.maxPerPerson), paid: false, active: true };
+      if (ex) return { ok: false, msg: `${ex.name} står allerede på lista.`, person: ex };
+      const clean = [];
+      for (let i = 0; i < nums.length; i++) {
+        if (String(nums[i] == null ? '' : nums[i]).trim() === '') { clean[i] = 0; continue; }
+        const chk = Store.checkNum(nums[i]);
+        if (!chk.ok) return chk;
+        if (clean.includes(chk.n)) return { ok: false, msg: `Nr. ${chk.n} er skrevet inn to ganger.` };
+        clean[i] = chk.n;
+      }
+      trimNums(clean);
+      const max = state.settings.maxPerPerson;
+      const t = tickets ? u.clamp(parseInt(tickets, 10) || 1, 1, max) : u.clamp(clean.filter(Boolean).length || 1, 1, max);
+      const p = { id: u.uid('p'), name, nums: clean, tickets: t, paid: false, active: true };
       state.people.push(p);
       commit();
-      return { ok: true, person: p, warn: chk.warn };
+      return { ok: true, person: p };
     },
     updatePerson(id, patch) {
       const p = find(id);
       if (!p) return { ok: false, msg: 'Fant ikke passasjeren.' };
-      let warn;
       if ('name' in patch) {
         const name = u.cleanName(patch.name);
         if (!name) return { ok: false, msg: 'Navnet kan ikke være tomt.' };
@@ -151,31 +169,37 @@
         });
         p.name = name;
       }
-      if ('num' in patch) {
-        const num = parseInt(patch.num, 10);
-        const chk = Store.checkNum(num, id);
-        if (!chk.ok) return chk;
-        warn = chk.warn;
-        p.num = num;
-      }
       if ('active' in patch) { p.active = !!patch.active; if (!p.active) p.paid = false; }
       commit();
-      return { ok: true, warn };
+      return { ok: true };
     },
     removePerson(id) { state.people = state.people.filter((p) => p.id !== id); commit(); },
 
     /* ---- Dagens tur ---- */
-    setTickets(id, n) { const p = find(id); if (!p) return; p.tickets = u.clamp(n, 1, state.settings.maxPerPerson); commit(); },
-    setPaid(id, v) { const p = find(id); if (!p) return; p.paid = !!v; commit(); },
+    setTickets(id, n) {
+      const p = find(id);
+      if (!p) return;
+      p.tickets = u.clamp(n, 1, state.settings.maxPerPerson);
+      if (p.paid && missingCount(p)) p.paid = false; // mangler nummer for nytt lodd → må bekreftes på nytt
+      commit();
+    },
+    setPaid(id, v) {
+      const p = find(id);
+      if (!p) return { ok: false, msg: 'Fant ikke passasjeren.' };
+      if (v && missingCount(p)) return { ok: false, msg: `Velg lodd-nummer for ${p.name} først.` };
+      p.paid = !!v;
+      commit();
+      return { ok: true };
+    },
     resetPaid() { state.people.forEach((p) => { p.paid = false; }); commit(); },
-    participants() { return Store.active.filter((p) => p.paid).map((p) => ({ id: p.id, name: p.name, num: p.num, tickets: p.tickets })); },
-    leftBehind() { return Store.active.filter((p) => !p.paid).map((p) => ({ name: p.name, num: p.num })); },
+    participants() { return Store.active.filter((p) => p.paid && !missingCount(p)).map((p) => ({ id: p.id, name: p.name, nums: ticketNums(p), tickets: p.tickets })); },
+    leftBehind() { return Store.active.filter((p) => !p.paid).map((p) => ({ name: p.name, nums: p.nums.filter(Boolean) })); },
     totals() {
       const price = state.settings.price;
       const act = Store.active;
       const paid = act.filter((p) => p.paid);
       const tickets = paid.reduce((s, p) => s + p.tickets, 0);
-      return { people: act.length, paidPeople: paid.length, unpaid: act.length - paid.length, tickets, pot: tickets * price, paused: state.people.length - act.length };
+      return { people: act.length, paidPeople: paid.length, unpaid: act.length - paid.length, tickets, pot: tickets * price, paused: state.people.length - act.length, missing: act.filter((p) => missingCount(p)).length };
     },
 
     /* ---- Historikk ---- */
@@ -228,8 +252,8 @@
       let newPeople = 0;
       inc.people.forEach((p) => {
         if (state.people.some((x) => u.normName(x.name) === u.normName(p.name))) return;
-        const num = conflictsIn(state.people, p.num, state.settings.maxPerPerson).length ? nextFreeIn(state.people, state.settings.maxPerPerson) : p.num;
-        state.people.push({ ...p, id: u.uid('p'), num, paid: false });
+        const nums = trimNums(p.nums.map((n) => (n && !Store.numOwner(n) ? n : 0)));
+        state.people.push({ ...p, id: u.uid('p'), nums, paid: false });
         newPeople++;
       });
       commit();

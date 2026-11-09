@@ -53,7 +53,8 @@
     }
     startDemo() {
       const names = ['Kari Nordmann', 'Ola Nordmann', 'Tor-Erik', 'Siv', 'Bjørnar', 'Hanne', 'Frode', 'Mona', 'Geir', 'Lise', 'Arnt', 'Trine'];
-      const d = Ev.createDraw(names.map((n, i) => ({ name: n, num: i + 1, tickets: 1 + u.randInt(Store.settings.maxPerPerson) })), Store.settings, { game: 'lyn', demo: true });
+      const pool = u.shuffle(Array.from({ length: 99 }, (_, i) => i + 1));
+      const d = Ev.createDraw(names.map((n) => { const t = 1 + u.randInt(Store.settings.maxPerPerson); return { name: n, nums: pool.splice(0, t), tickets: t }; }), Store.settings, { game: 'lyn', demo: true });
       d.beats = [];
       this.run(d, 'demo');
     }

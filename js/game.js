@@ -86,7 +86,7 @@
       // de som ikke betalte står igjen på kaia i Sandnessjøen
       const XS = [-320, -362, -404, -446, 318, 360, 402];
       this.docked = (d.leftBehind || []).slice(0, XS.length).map((p, i) => {
-        const a = sc.spawn({ color: u.colorFor(p.name), ini: p.num ? String(p.num) : u.initials(p.name) }, 'fig', 'mark', XS[i], -12, this.startMark);
+        const a = sc.spawn({ color: u.colorFor(p.name), ini: p.nums && p.nums[0] ? String(p.nums[0]) : u.initials(p.name) }, 'fig', 'mark', XS[i], -12, this.startMark);
         return a;
       });
     }
@@ -535,9 +535,9 @@
     startDemo() {
       S().unlock();
       const max = Store.settings.maxPerPerson;
-      const nums = u.shuffle(Array.from({ length: 30 }, (_, i) => i + 1)).filter((n) => n % 10);
-      const people = u.shuffle(DEMO).slice(0, 14 + u.randInt(4)).map((n, i) => ({ name: n, num: nums[i], tickets: 1 + u.randInt(max) }));
-      const left = people.splice(0, 2 + u.randInt(3)).map((p) => ({ name: p.name, num: p.num }));
+      const pool = u.shuffle(Array.from({ length: 99 }, (_, i) => i + 1));
+      const people = u.shuffle(DEMO).slice(0, 14 + u.randInt(4)).map((n) => { const t = 1 + u.randInt(max); return { name: n, nums: pool.splice(0, t), tickets: t }; });
+      const left = people.splice(0, 2 + u.randInt(3)).map((p) => ({ name: p.name, nums: p.nums }));
       this.start(Ev.createDraw(people, Store.settings, { game: 'hurtigbat', demo: true, leftBehind: left }), 'demo');
     }
     replay(rec) { S().unlock(); this.start(rec, 'replay'); }

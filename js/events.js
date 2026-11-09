@@ -161,8 +161,8 @@
   /* ---------- Trekning ---------- */
   function createDraw(people, settings, opts = {}) {
     const tickets = [];
-    // lodd-nummer: personens nummer, så samme nummer med en null til (7 → 70)
-    people.forEach((p) => { let lab = p.num > 0 ? p.num : 0; for (let i = 0; i < p.tickets; i++) { tickets.push({ no: tickets.length + 1, name: u.cleanName(p.name), k: u.normName(p.name), label: lab ? String(lab) : '', num: p.num || 0 }); lab *= 10; } });
+    // lodd-nummer: det hver passasjer har valgt selv, ett per lodd (f.eks. 7 og 70)
+    people.forEach((p) => { const nums = p.nums || []; for (let i = 0; i < p.tickets; i++) tickets.push({ no: tickets.length + 1, name: u.cleanName(p.name), k: u.normName(p.name), label: nums[i] > 0 ? String(nums[i]) : '' }); });
     tickets.forEach((t) => { if (!t.label) t.label = u.pad(t.no); });
     const order = u.shuffle(tickets.map((t) => t.no)); // kryptografisk stokking – dette ER trekningen
     const uniq = settings.uniqueWinners !== false;
@@ -188,9 +188,9 @@
     return {
       id: u.uid('d'), date: new Date().toISOString(), game: opts.game || 'hurtigbat', demo: !!opts.demo,
       price: settings.price, winnersCount: winners.length, pot: tickets.length * settings.price,
-      people: people.map((p) => ({ name: u.cleanName(p.name), num: p.num || 0, tickets: p.tickets })),
+      people: people.map((p) => ({ name: u.cleanName(p.name), nums: (p.nums || []).slice(0, p.tickets), tickets: p.tickets })),
       tickets: tickets.map((t) => ({ no: t.no, name: t.name, label: t.label })),
-      leftBehind: (opts.leftBehind || []).map((p) => ({ name: u.cleanName(p.name), num: p.num || 0 })),
+      leftBehind: (opts.leftBehind || []).map((p) => ({ name: u.cleanName(p.name), nums: (p.nums || []).filter(Boolean) })),
       winners, elim, seed, beats,
     };
   }

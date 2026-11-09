@@ -102,11 +102,57 @@
     renderPill();
   }
 
+  /* «Ny passasjer»-skjema (påmelding og passasjerer): navn + selvvalgte nummer, ett per lodd */
+  function bindAddForm(form, numsBox, note) {
+    const max = () => Store.settings.maxPerPerson;
+    const inputs = () => Array.from(numsBox.querySelectorAll('input'));
+    const hint = 'Skriv inn numrene personen har valgt selv – ett per lodd. Lodd 2 kan stå tomt.';
+    const renderNums = () => {
+      const vals = inputs().map((i) => i.value);
+      numsBox.innerHTML = Array.from({ length: max() }, (_, i) => `<label class="field add-num"><span class="field-label">Lodd ${i + 1}</span><input class="field-input" name="n${i}" type="text" inputmode="numeric" maxlength="5" placeholder="nr." value="${esc(vals[i] || '')}"></label>`).join('');
+    };
+    const check = () => {
+      const seen = [];
+      let msg = '';
+      inputs().some((inp) => {
+        const v = inp.value.trim();
+        if (!v) return false;
+        const c = Store.checkNum(v);
+        if (!c.ok) { msg = c.msg; return true; }
+        if (seen.includes(c.n)) { msg = `Nr. ${c.n} er skrevet inn to ganger.`; return true; }
+        seen.push(c.n);
+        return false;
+      });
+      note.className = 'add-note' + (msg ? ' bad' : '');
+      note.textContent = msg || (seen.length ? `Får lodd ${u.joinNames(seen.map(String))}.` : hint);
+    };
+    numsBox.addEventListener('input', check);
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (!u.cleanName(form.name.value)) { form.name.classList.remove('shake'); void form.name.offsetWidth; form.name.classList.add('shake'); form.name.focus(); return; }
+      const res = Store.addPerson({ name: form.name.value, nums: inputs().map((i) => i.value) });
+      if (!res.ok) { u.toast(res.msg); return; }
+      const p = res.person;
+      const got = p.nums.filter(Boolean);
+      const wantPaid = form.paid && form.paid.checked;
+      const paid = wantPaid && got.length ? Store.setPaid(p.id, true).ok : false;
+      if (!got.length) u.toast(`${p.name} er lagt til – velg nummer før betalingen kan bekreftes.`);
+      else u.toast(`${p.name} er lagt til med lodd ${u.joinNames(got.map(String))}${paid ? ' – betalt ✓' : '.'}`);
+      form.reset();
+      renderNums();
+      check();
+      form.name.focus();
+    });
+    renderNums();
+    check();
+    Store.subscribe(() => { if (inputs().length !== max()) { renderNums(); check(); } });
+  }
+
   renderHeader();
   renderFooter();
   renderDialogs();
   renderTexts();
   Store.subscribe(renderTexts);
 
-  FL.Shell = { page, nextLabel, NAV, esc };
+  FL.Shell = { page, nextLabel, NAV, esc, bindAddForm };
 })();

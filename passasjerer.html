@@ -9,8 +9,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,100..900,0..100,0..1;1,9..144,100..900,0..100,0..1&family=JetBrains+Mono:wght@400;500;700&family=Schibsted+Grotesk:ital,wght@0,400..900;1,400..900&display=swap">
-<link rel="stylesheet" href="css/base.css?v=2">
-<link rel="stylesheet" href="css/pages.css?v=2">
+<link rel="stylesheet" href="css/base.css?v=3">
+<link rel="stylesheet" href="css/pages.css?v=3">
 </head>
 <body data-page="passasjerer">
 <div class="grain" aria-hidden="true"></div>
@@ -21,29 +21,30 @@
     <header class="page-head">
       <p class="eyebrow">Passasjerer</p>
       <h1 class="page-title">Faste <em>passasjerer</em></h1>
-      <p class="page-lede">Alle står her fra uke til uke med sitt faste nummer. Andre lodd får samme nummer med en null bak – nummer 7 får lodd <b>7</b> og <b>70</b>.</p>
+      <p class="page-lede">Alle står her fra uke til uke – med lodd-numrene de har valgt selv, ett per lodd.</p>
     </header>
 
     <form class="card add-card" id="regAdd" autocomplete="off" novalidate>
       <h2>Ny passasjer</h2>
       <div class="add-grid">
-        <label class="field add-num"><span class="field-label">Nr.</span><input class="field-input" name="num" type="number" min="1" max="99999" inputmode="numeric"></label>
         <label class="field add-name"><span class="field-label">Navn</span><input class="field-input" name="name" type="text" maxlength="40" placeholder="F.eks. Kari Nordmann"></label>
+        <div class="add-nums" id="regAddNums"></div>
         <button class="btn btn-primary add-btn" type="submit">Legg til</button>
       </div>
       <p class="add-note" id="regAddNote"></p>
     </form>
 
     <div class="reg-head"><h2>Alle passasjerer <span id="regCount"></span></h2><p>Endre nummer eller navn direkte i lista. Sett folk på pause hvis de ikke er med en stund.</p></div>
+    <p class="reg-missing" id="regMissing" hidden></p>
     <ol class="reg-list" id="regList"></ol>
     <div class="empty" id="regEmpty" hidden><b>Ingen passasjerer ennå.</b>Legg til den første over.</div>
   </div>
 </main>
 
 <footer class="footer" id="footer"></footer>
-<script src="js/util.js?v=2" defer></script>
-<script src="js/store.js?v=2" defer></script>
-<script src="js/shell.js?v=2" defer></script>
-<script src="js/pages/passasjerer.js?v=2" defer></script>
+<script src="js/util.js?v=3" defer></script>
+<script src="js/store.js?v=3" defer></script>
+<script src="js/shell.js?v=3" defer></script>
+<script src="js/pages/passasjerer.js?v=3" defer></script>
 </body>
 </html>

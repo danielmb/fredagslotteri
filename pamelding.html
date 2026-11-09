@@ -9,8 +9,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,100..900,0..100,0..1;1,9..144,100..900,0..100,0..1&family=JetBrains+Mono:wght@400;500;700&family=Schibsted+Grotesk:ital,wght@0,400..900;1,400..900&display=swap">
-<link rel="stylesheet" href="css/base.css?v=2">
-<link rel="stylesheet" href="css/pages.css?v=2">
+<link rel="stylesheet" href="css/base.css?v=3">
+<link rel="stylesheet" href="css/pages.css?v=3">
 </head>
 <body data-page="pamelding">
 <div class="grain" aria-hidden="true"></div>
@@ -21,7 +21,7 @@
     <header class="page-head">
       <p class="eyebrow">Påmelding · <span class="js-next-long">fredag</span></p>
       <h1 class="page-title">Hvem er <em>med?</em></h1>
-      <p class="page-lede">Trykk <b>Bekreft betalt</b> når noen har vippset. Den som ikke er bekreftet når båten går, blir igjen på kaia.</p>
+      <p class="page-lede">Når noen vippser deg, trykker du <b>Bekreft betalt</b> ved navnet deres. Den som ikke er bekreftet når båten går, blir igjen på kaia.</p>
     </header>
 
     <div class="ci-bar" id="ciBar"></div>
@@ -38,21 +38,22 @@
     <p class="ci-paused" id="ciPaused" hidden></p>
 
     <form class="card add-card" id="ciAdd" autocomplete="off" novalidate>
-      <h2>Ny passasjer</h2>
+      <h2>Noen nye som har betalt?</h2>
       <div class="add-grid">
-        <label class="field add-num"><span class="field-label">Nr.</span><input class="field-input" name="num" type="number" min="1" max="99999" inputmode="numeric"></label>
         <label class="field add-name"><span class="field-label">Navn</span><input class="field-input" name="name" type="text" maxlength="40" placeholder="F.eks. Kari Nordmann"></label>
+        <div class="add-nums" id="ciAddNums"></div>
         <button class="btn btn-primary add-btn" type="submit">Legg til</button>
       </div>
+      <label class="check add-paid"><input type="checkbox" name="paid" checked><span>Har betalt – bekreft med en gang</span></label>
       <p class="add-note" id="ciAddNote"></p>
     </form>
   </div>
 </main>
 
 <footer class="footer" id="footer"></footer>
-<script src="js/util.js?v=2" defer></script>
-<script src="js/store.js?v=2" defer></script>
-<script src="js/shell.js?v=2" defer></script>
-<script src="js/pages/pamelding.js?v=2" defer></script>
+<script src="js/util.js?v=3" defer></script>
+<script src="js/store.js?v=3" defer></script>
+<script src="js/shell.js?v=3" defer></script>
+<script src="js/pages/pamelding.js?v=3" defer></script>
 </body>
 </html>
