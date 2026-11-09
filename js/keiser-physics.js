@@ -112,7 +112,7 @@
       return o;
     },
     arm: (p) => syncOf(p, { type: 'arm', x: XN(p.x, 800), y: YN(p.y, 600), len: num(p.len, 150, 30, 400), speed: num(p.speed, 3, -W_MAX, W_MAX) }),
-    boss: (p) => ({ type: 'boss', x: XN(p.x, 800), y: YN(p.y, 600), dir: +p.dir < 0 ? -1 : 1, range: num(p.range, 600, 150, 1200), cd: num(p.cd, 1.4, 0.4, 4), zap: +p.zap === 1 ? 1 : 0 }),
+    boss: (p) => ({ type: 'boss', x: XN(p.x, 800), y: YN(p.y, 600), dir: +p.dir < 0 ? -1 : 1, range: num(p.range, 600, 150, 1200), cd: num(p.cd, 1.4, 0.4, 4), zap: +p.zap === 1 ? 1 : 0, force: num(p.force, 900, 100, 2400) }),
     seesaw: (p) => {
       const o = { type: 'seesaw', x: XN(p.x, 800), y: YN(p.y, 600), half: num(p.half, 140, 60, 260) };
       if (+p.phys === 1) o.phys = 1; // tyngde-vippe (feltet finnes bare når det er på, så eldre løyper er uendret)
@@ -319,7 +319,7 @@
     // Glimt-armen: én arm som spinner rundt et punkt i enden (samme fysikk som hjulet, uten nav)
     of('arm').forEach((p) => { const W = makeWheel(p, 1); W.arm = true; wheels.push(W); });
     // Sjefen: står og skyter med strålepistol (skuddene lagres i shots under løpet, så tegningen kan vise dem)
-    of('boss').forEach((p) => bosses.push({ x: p.x, y: p.y, dir: p.dir, range: p.range, cd: p.cd, zap: p.zap, gx: p.x + p.dir * 42, gy: p.y - 72, phase: rnd() * p.cd, shots: [] }));
+    of('boss').forEach((p) => bosses.push({ x: p.x, y: p.y, dir: p.dir, range: p.range, cd: p.cd, zap: p.zap, force: p.force, gx: p.x + p.dir * 42, gy: p.y - 72, phase: rnd() * p.cd, shots: [] }));
     return {
       S, pegs, bumpers, gates, wheels, seesaws, traps, winds, eagles, sensors, pits, signs,
       vortexes, ferries, rockets, tunnels, racks, reins, slushes, bosses,
@@ -801,8 +801,9 @@
             state[i] = ST.OUT; tDone[i] = t; cause[i] = 'k_sjef'; lastDoneT = t;
             events.push({ t, type: 'out', i, cause: 'k_sjef' });
             X[i] = -500; VX[i] = 0; VY[i] = 0;
-          } else { // dyttet av gårde
-            VX[i] += (s.vx / BOLT_V) * 900; VY[i] += (s.vy / BOLT_V) * 900 - 260;
+          } else { // dyttet av gårde (kraften velges i designeren, litt løft oppover følger med)
+            const Fp = C.bosses[s.q].force;
+            VX[i] += (s.vx / BOLT_V) * Fp; VY[i] += (s.vy / BOLT_V) * Fp - (Fp * 260) / 900;
             cap[i] = V_LAUNCH; launchT[i] = t; launchBy[i] = 5;
             events.push({ t, type: 'zapped', i, x: X[i], y: Y[i] });
           }

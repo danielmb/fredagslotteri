@@ -197,7 +197,7 @@
       pal: 'Sjefen',
       ico: '👔',
       help: 'Sjefen liker ikke fredagslotteriet. Han står og skyter grønne stråler med strålepistolen på kulene han ser foran seg. Vegger og ramper stopper strålene. Velg om strålen dytter kulene eller fordamper dem.',
-      make: (x, y) => ({ x, y, dir: 1, range: 600, cd: 1.4, zap: 0 }),
+      make: (x, y) => ({ x, y, dir: 1, range: 600, cd: 1.4, zap: 0, force: 900 }),
     },
   };
   const PALETTE = [
@@ -349,6 +349,14 @@
           [0, 'Dytter kulene'],
           [1, 'Fordamper dem'],
         ],
+      },
+      {
+        k: 'force',
+        label: 'Kraft på strålen',
+        min: 100,
+        max: 2400,
+        step: 50,
+        when: (p) => !p.zap,
       },
     ],
   };
@@ -1496,7 +1504,7 @@
       return `Beitestrekning ${r(Math.hypot(p.bx - p.ax, p.by - p.ay))}`;
     if (p.type === 'slush') return `${r(p.x1 - p.x0)} × ${r(p.y1 - p.y0)}`;
     if (p.type === 'boss')
-      return `Ser mot ${p.dir > 0 ? 'høyre' : 'venstre'} · rekkevidde ${r(p.range)} · skyter hvert ${secs(p.cd)}<br>${p.zap ? '<span class="warn">⚡ Strålen fordamper kulene – de er ute.</span>' : 'Strålen dytter kulene av gårde.'} Den grønne buen viser hvor han ser.`;
+      return `Ser mot ${p.dir > 0 ? 'høyre' : 'venstre'} · rekkevidde ${r(p.range)} · skyter hvert ${secs(p.cd)}<br>${p.zap ? '<span class="warn">⚡ Strålen fordamper kulene – de er ute.</span>' : `Strålen dytter kulene av gårde med kraft ${r(p.force)}${p.force >= 1600 ? ' – de flyr langt!' : p.force <= 300 ? ' – bare et lite puff.' : '.'}`} Den grønne buen viser hvor han ser.`;
     return `x ${r(p.x)} · y ${r(p.y)}`;
   }
   function piecePanel(p) {
