@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="nb">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fredagslotteriet</title>
+<meta name="description" content="Fredagslotteriet – hurtigbåten til Bodø. Bare de som kommer seg helskinnet frem, vinner.">
+<meta name="theme-color" content="#07111d">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%2307111d'/%3E%3Cpath d='M8 40 L52 39 Q58 40 60 44 L56 50 L10 50 Z' fill='%23f3ecdf'/%3E%3Cpath d='M20 39 L20 28 Q20 26 22 26 L42 26 Q46 26 49 30 L52 39 Z' fill='%23f3ecdf'/%3E%3Cpath d='M8 45 L59 44 L58 46 L8 47 Z' fill='%23ee4a2f'/%3E%3Ccircle cx='46' cy='15' r='5' fill='%235ef2b5'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,100..900,0..100,0..1;1,9..144,100..900,0..100,0..1&family=JetBrains+Mono:wght@400;500;700&family=Schibsted+Grotesk:ital,wght@0,400..900;1,400..900&display=swap">
+<link rel="stylesheet" href="css/base.css?v=2">
+<link rel="stylesheet" href="css/home.css?v=2">
+</head>
+<body data-page="hjem">
+<div class="grain" aria-hidden="true"></div>
+<header class="topbar" id="topbar"></header>
+
+<main>
+  <section class="hero">
+    <div class="hero-sky" aria-hidden="true"><div class="aurora a1"></div><div class="aurora a2"></div><div class="aurora a3"></div></div>
+    <svg class="hero-art" id="heroArt" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMax slice" aria-hidden="true"></svg>
+    <div class="hero-inner">
+      <p class="kicker"><span>Bodø</span><span>Hver fredag</span></p>
+      <h1 class="hero-title"><span class="ht-line">Fredags</span><span class="ht-line ht-em">lotteriet</span></h1>
+      <p class="hero-lede">Neste avgang: <b class="js-next-long">fredag</b></p>
+      <nav class="home-cards" aria-label="Snarveier">
+        <a class="hc" href="pamelding.html"><span class="hc-step">1</span><span class="hc-txt"><b>Påmelding</b><small id="hcPam">Hvem er med?</small></span><span class="hc-arrow" aria-hidden="true">→</span></a>
+        <a class="hc hc-main" href="trekning.html"><span class="hc-step">2</span><span class="hc-txt"><b>Trekning</b><small id="hcTrek">Hurtigbåten til Bodø</small></span><span class="hc-arrow" aria-hidden="true">→</span></a>
+        <a class="hc" href="historikk.html"><span class="hc-step">3</span><span class="hc-txt"><b>Skipsloggen</b><small id="hcHist">Alle trekninger</small></span><span class="hc-arrow" aria-hidden="true">→</span></a>
+      </nav>
+    </div>
+  </section>
+</main>
+
+<footer class="footer" id="footer"></footer>
+<script src="js/util.js?v=2" defer></script>
+<script src="js/store.js?v=2" defer></script>
+<script src="js/art.js?v=2" defer></script>
+<script src="js/shell.js?v=2" defer></script>
+<script src="js/pages/home.js?v=2" defer></script>
+</body>
+</html>

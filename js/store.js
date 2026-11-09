@@ -1,0 +1,242 @@
+/* Fredagslotteriet – tilstand, lagring (localStorage), passasjerregister, historikk og statistikk */
+(function () {
+  'use strict';
+  const FL = window.FL;
+  const u = FL.u;
+  const KEY = 'fredagslotteriet:v1'; // samme nøkkel som før – data fra første versjon migreres automatisk
+  const DEFAULTS = { price: 30, maxPerPerson: 2, winners: 3, uniqueWinners: true, sound: true, vipps: '', drawTime: '' };
+
+  const blank = () => ({ v: 2, settings: { ...DEFAULTS }, people: [], history: [] });
+  const intIn = (v, a, b, d) => { const n = parseInt(v, 10); return Number.isFinite(n) ? u.clamp(n, a, b) : d; };
+
+  /* Lodd-numre: første lodd = personens nummer, neste får en null til (7 → 70 → 700) */
+  function labelsFor(num, count) { const out = []; let n = num; for (let k = 0; k < count; k++) { out.push(String(n)); n *= 10; } return out; }
+  function conflictsIn(people, num, max, excludeId) {
+    if (!(num > 0)) return [];
+    const mine = labelsFor(num, max);
+    const res = [];
+    people.forEach((p) => {
+      if (p.id === excludeId || !p.num) return;
+      const hit = mine.find((l) => labelsFor(p.num, max).includes(l));
+      if (hit) res.push({ person: p, label: hit, same: p.num === num });
+    });
+    return res;
+  }
+  function nextFreeIn(people, max) { for (let n = 1; n < 100000; n++) if (!conflictsIn(people, n, max).length) return n; return people.length + 1; }
+
+  function normSettings(st = {}) {
+    return {
+      price: intIn(st.price, 1, 1000, DEFAULTS.price),
+      maxPerPerson: intIn(st.maxPerPerson, 1, 4, DEFAULTS.maxPerPerson),
+      winners: intIn(st.winners, 1, 10, DEFAULTS.winners),
+      uniqueWinners: st.uniqueWinners !== false,
+      sound: st.sound !== false,
+      vipps: u.cleanName(st.vipps || '').slice(0, 60),
+      drawTime: u.cleanName(st.drawTime || '').slice(0, 20),
+    };
+  }
+  function validRecord(h) {
+    if (!h || typeof h !== 'object' || !h.id || !h.date || isNaN(new Date(h.date))) return false;
+    if (h.game === 'manuell') return Array.isArray(h.winnerNames);
+    return Array.isArray(h.tickets) && Array.isArray(h.winners);
+  }
+
+  function normalize(s) {
+    const out = blank();
+    if (!s || typeof s !== 'object') return out;
+    out.settings = normSettings(s.settings);
+    out.history = Array.isArray(s.history) ? s.history.filter(validRecord) : [];
+    out.history.sort((a, b) => new Date(b.date) - new Date(a.date));
+    const max = out.settings.maxPerPerson;
+    const keys = new Set(), nums = new Set();
+    const add = (p) => {
+      const name = u.cleanName(p && p.name);
+      if (!name || keys.has(u.normName(name))) return;
+      keys.add(u.normName(name));
+      let num = parseInt(p.num, 10);
+      if (!(num > 0) || nums.has(num)) num = 0; // tildeles under
+      if (num) nums.add(num);
+      out.people.push({ id: p.id || u.uid('p'), name, num, tickets: intIn(p.tickets, 1, max, 1), paid: !!p.paid, active: p.active !== false });
+    };
+    if (Array.isArray(s.people)) s.people.forEach(add);
+    else {
+      // migrering fra første versjon: billettluka + alle som har vært med før
+      ((s.round && s.round.people) || []).forEach((p) => add({ name: p.name, tickets: p.tickets, paid: p.paid }));
+      out.history.forEach((h) => {
+        (h.people || []).forEach((p) => add({ name: p.name, tickets: p.tickets }));
+        if (h.game === 'manuell') h.winnerNames.forEach((n) => add({ name: n }));
+      });
+    }
+    out.people.forEach((p) => { if (!p.num) p.num = nextFreeIn(out.people, max); });
+    return out;
+  }
+
+  let state = blank();
+  try { const raw = localStorage.getItem(KEY); if (raw) state = normalize(JSON.parse(raw)); } catch (e) { /* tom start */ }
+  const subs = new Set();
+  function commit() {
+    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { u.toast('Klarte ikke å lagre i nettleseren 😬'); }
+    subs.forEach((fn) => { try { fn(state); } catch (e) { console.error(e); } });
+  }
+  // andre faner/sider med samme nettsted holdes i synk
+  window.addEventListener('storage', (e) => {
+    if (e.key !== KEY || !e.newValue) return;
+    try { state = normalize(JSON.parse(e.newValue)); subs.forEach((fn) => fn(state)); } catch (err) { /* ignorer */ }
+  });
+
+  function winnerNames(h) {
+    if (h.game === 'manuell') return h.winnerNames.slice();
+    return h.winners.map((no) => (h.tickets[no - 1] || {}).name || ('#' + no));
+  }
+  const recTickets = (h) => (h.game === 'manuell' ? (h.ticketCount || 0) : h.tickets.length);
+  const ticketLabel = (h, no) => { const t = h.tickets && h.tickets[no - 1]; return (t && t.label) || u.pad(no); };
+  const byNum = (a, b) => a.num - b.num || a.name.localeCompare(b.name, 'nb');
+  const find = (id) => state.people.find((p) => p.id === id);
+
+  const Store = {
+    DEFAULTS, labelsFor, winnerNames, recTickets, ticketLabel,
+    get state() { return state; },
+    get settings() { return state.settings; },
+    get people() { return state.people.slice().sort(byNum); },
+    get active() { return state.people.filter((p) => p.active).sort(byNum); },
+    get history() { return state.history; },
+    subscribe(fn) { subs.add(fn); return () => subs.delete(fn); },
+
+    setSettings(patch) {
+      state.settings = normSettings({ ...state.settings, ...patch });
+      const m = state.settings.maxPerPerson;
+      state.people.forEach((p) => { p.tickets = Math.min(p.tickets, m); });
+      commit();
+    },
+
+    /* ---- Passasjerregisteret ---- */
+    conflicts(num, excludeId) { return conflictsIn(state.people, num, state.settings.maxPerPerson, excludeId); },
+    nextNum() { return nextFreeIn(state.people, state.settings.maxPerPerson); },
+    checkNum(num, excludeId) {
+      if (!(num > 0) || num > 99999) return { ok: false, msg: 'Nummeret må være et helt tall over 0.' };
+      const c = Store.conflicts(num, excludeId);
+      const same = c.find((x) => x.same);
+      if (same) return { ok: false, msg: `Nummer ${num} er allerede ${same.person.name} sitt.` };
+      if (c.length) return { ok: true, warn: `Lodd ${c[0].label} kolliderer med ${c[0].person.name} sitt lodd ${c[0].label}.` };
+      return { ok: true };
+    },
+    addPerson({ name, num, tickets } = {}) {
+      name = u.cleanName(name);
+      if (!name) return { ok: false, msg: 'Skriv inn et navn først.' };
+      const ex = state.people.find((p) => u.normName(p.name) === u.normName(name));
+      if (ex) return { ok: false, msg: `${ex.name} står allerede på lista (nr. ${ex.num}).`, person: ex };
+      num = parseInt(num, 10) || Store.nextNum();
+      const chk = Store.checkNum(num);
+      if (!chk.ok) return chk;
+      const p = { id: u.uid('p'), name, num, tickets: u.clamp(parseInt(tickets, 10) || 1, 1, state.settings.maxPerPerson), paid: false, active: true };
+      state.people.push(p);
+      commit();
+      return { ok: true, person: p, warn: chk.warn };
+    },
+    updatePerson(id, patch) {
+      const p = find(id);
+      if (!p) return { ok: false, msg: 'Fant ikke passasjeren.' };
+      let warn;
+      if ('name' in patch) {
+        const name = u.cleanName(patch.name);
+        if (!name) return { ok: false, msg: 'Navnet kan ikke være tomt.' };
+        const ex = state.people.find((x) => x.id !== id && u.normName(x.name) === u.normName(name));
+        if (ex) return { ok: false, msg: `Det finnes allerede en ${ex.name}.` };
+        // nytt navn følger med bakover i skipsloggen, så statistikken henger sammen
+        const old = u.normName(p.name);
+        const fix = (o) => { if (o && u.normName(o.name) === old) o.name = name; };
+        state.history.forEach((h) => {
+          (h.people || []).forEach(fix); (h.tickets || []).forEach(fix); (h.leftBehind || []).forEach(fix);
+          if (Array.isArray(h.winnerNames)) h.winnerNames = h.winnerNames.map((n) => (u.normName(n) === old ? name : n));
+        });
+        p.name = name;
+      }
+      if ('num' in patch) {
+        const num = parseInt(patch.num, 10);
+        const chk = Store.checkNum(num, id);
+        if (!chk.ok) return chk;
+        warn = chk.warn;
+        p.num = num;
+      }
+      if ('active' in patch) { p.active = !!patch.active; if (!p.active) p.paid = false; }
+      commit();
+      return { ok: true, warn };
+    },
+    removePerson(id) { state.people = state.people.filter((p) => p.id !== id); commit(); },
+
+    /* ---- Dagens tur ---- */
+    setTickets(id, n) { const p = find(id); if (!p) return; p.tickets = u.clamp(n, 1, state.settings.maxPerPerson); commit(); },
+    setPaid(id, v) { const p = find(id); if (!p) return; p.paid = !!v; commit(); },
+    resetPaid() { state.people.forEach((p) => { p.paid = false; }); commit(); },
+    participants() { return Store.active.filter((p) => p.paid).map((p) => ({ id: p.id, name: p.name, num: p.num, tickets: p.tickets })); },
+    leftBehind() { return Store.active.filter((p) => !p.paid).map((p) => ({ name: p.name, num: p.num })); },
+    totals() {
+      const price = state.settings.price;
+      const act = Store.active;
+      const paid = act.filter((p) => p.paid);
+      const tickets = paid.reduce((s, p) => s + p.tickets, 0);
+      return { people: act.length, paidPeople: paid.length, unpaid: act.length - paid.length, tickets, pot: tickets * price, paused: state.people.length - act.length };
+    },
+
+    /* ---- Historikk ---- */
+    addRecord(rec) { state.history.unshift(rec); state.history.sort((a, b) => new Date(b.date) - new Date(a.date)); commit(); },
+    removeRecord(id) { state.history = state.history.filter((h) => h.id !== id); commit(); },
+    getRecord(id) { return state.history.find((h) => h.id === id); },
+    lastRecord() { return state.history.find((h) => !h.demo) || null; },
+
+    stats() {
+      const recs = state.history.filter((h) => !h.demo);
+      const ppl = new Map();
+      const ent = (name) => {
+        const k = u.normName(name);
+        let e = ppl.get(k);
+        if (!e) { e = { name, wins: 0, gold: 0, silver: 0, bronze: 0, tickets: 0, draws: 0, docks: 0, causes: {} }; ppl.set(k, e); }
+        return e;
+      };
+      let pot = 0, tickets = 0;
+      const causes = {};
+      recs.forEach((h) => {
+        pot += h.pot || 0;
+        tickets += recTickets(h);
+        (h.people || []).forEach((p) => { const e = ent(p.name); e.tickets += p.tickets; e.draws++; });
+        (h.leftBehind || []).forEach((p) => { ent(p.name).docks++; });
+        winnerNames(h).forEach((n, i) => { const e = ent(n); e.wins++; if (i === 0) e.gold++; else if (i === 1) e.silver++; else if (i === 2) e.bronze++; });
+        (h.beats || []).forEach((b) => (b.v || []).forEach((no) => {
+          const t = h.tickets[no - 1];
+          if (!t) return;
+          causes[b.ev] = (causes[b.ev] || 0) + 1;
+          const e = ent(t.name);
+          e.causes[b.ev] = (e.causes[b.ev] || 0) + 1;
+        }));
+      });
+      const all = Array.from(ppl.values());
+      const leaders = all.filter((e) => e.wins > 0).sort((a, b) => b.wins - a.wins || b.gold - a.gold || b.silver - a.silver || a.tickets - b.tickets || a.name.localeCompare(b.name, 'nb'));
+      let topCause = null;
+      Object.keys(causes).forEach((k) => { if (!topCause || causes[k] > causes[topCause]) topCause = k; });
+      return { draws: recs.length, pot, tickets, leaders, causes, topCause, byName: ppl };
+    },
+
+    exportData() { return JSON.stringify({ app: 'fredagslotteriet', exported: new Date().toISOString(), ...state }, null, 2); },
+    importData(obj) {
+      const inc = normalize(obj);
+      const fresh = !state.history.length && !state.people.length;
+      if (fresh) state.settings = inc.settings;
+      const have = new Set(state.history.map((h) => h.id));
+      let added = 0;
+      inc.history.forEach((h) => { if (!have.has(h.id)) { state.history.push(h); added++; } });
+      state.history.sort((a, b) => new Date(b.date) - new Date(a.date));
+      let newPeople = 0;
+      inc.people.forEach((p) => {
+        if (state.people.some((x) => u.normName(x.name) === u.normName(p.name))) return;
+        const num = conflictsIn(state.people, p.num, state.settings.maxPerPerson).length ? nextFreeIn(state.people, state.settings.maxPerPerson) : p.num;
+        state.people.push({ ...p, id: u.uid('p'), num, paid: false });
+        newPeople++;
+      });
+      commit();
+      return { added, newPeople };
+    },
+    wipe() { state = blank(); commit(); },
+  };
+
+  FL.Store = Store;
+})();

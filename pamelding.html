@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="nb">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Påmelding · Fredagslotteriet</title>
+<meta name="theme-color" content="#07111d">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%2307111d'/%3E%3Cpath d='M8 40 L52 39 Q58 40 60 44 L56 50 L10 50 Z' fill='%23f3ecdf'/%3E%3Cpath d='M20 39 L20 28 Q20 26 22 26 L42 26 Q46 26 49 30 L52 39 Z' fill='%23f3ecdf'/%3E%3Cpath d='M8 45 L59 44 L58 46 L8 47 Z' fill='%23ee4a2f'/%3E%3Ccircle cx='46' cy='15' r='5' fill='%235ef2b5'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,100..900,0..100,0..1;1,9..144,100..900,0..100,0..1&family=JetBrains+Mono:wght@400;500;700&family=Schibsted+Grotesk:ital,wght@0,400..900;1,400..900&display=swap">
+<link rel="stylesheet" href="css/base.css?v=2">
+<link rel="stylesheet" href="css/pages.css?v=2">
+</head>
+<body data-page="pamelding">
+<div class="grain" aria-hidden="true"></div>
+<header class="topbar" id="topbar"></header>
+
+<main class="page">
+  <div class="wrap wrap-narrow">
+    <header class="page-head">
+      <p class="eyebrow">Påmelding · <span class="js-next-long">fredag</span></p>
+      <h1 class="page-title">Hvem er <em>med?</em></h1>
+      <p class="page-lede">Trykk <b>Bekreft betalt</b> når noen har vippset. Den som ikke er bekreftet når båten går, blir igjen på kaia.</p>
+    </header>
+
+    <div class="ci-bar" id="ciBar"></div>
+
+    <div class="ci-tools">
+      <div class="filter" id="ciFilter" role="group" aria-label="Vis">
+        <button type="button" data-f="all" class="on">Alle</button><button type="button" data-f="unpaid">Ikke betalt</button><button type="button" data-f="paid">Betalt</button>
+      </div>
+      <input class="field-input ci-search" id="ciSearch" type="search" placeholder="Søk navn eller nummer" aria-label="Søk navn eller nummer">
+    </div>
+
+    <ol class="ci-list" id="ciList"></ol>
+    <div class="empty" id="ciEmpty" hidden></div>
+    <p class="ci-paused" id="ciPaused" hidden></p>
+
+    <form class="card add-card" id="ciAdd" autocomplete="off" novalidate>
+      <h2>Ny passasjer</h2>
+      <div class="add-grid">
+        <label class="field add-num"><span class="field-label">Nr.</span><input class="field-input" name="num" type="number" min="1" max="99999" inputmode="numeric"></label>
+        <label class="field add-name"><span class="field-label">Navn</span><input class="field-input" name="name" type="text" maxlength="40" placeholder="F.eks. Kari Nordmann"></label>
+        <button class="btn btn-primary add-btn" type="submit">Legg til</button>
+      </div>
+      <p class="add-note" id="ciAddNote"></p>
+    </form>
+  </div>
+</main>
+
+<footer class="footer" id="footer"></footer>
+<script src="js/util.js?v=2" defer></script>
+<script src="js/store.js?v=2" defer></script>
+<script src="js/shell.js?v=2" defer></script>
+<script src="js/pages/pamelding.js?v=2" defer></script>
+</body>
+</html>

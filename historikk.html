@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="nb">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Skipsloggen · Fredagslotteriet</title>
+<meta name="theme-color" content="#07111d">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%2307111d'/%3E%3Cpath d='M8 40 L52 39 Q58 40 60 44 L56 50 L10 50 Z' fill='%23f3ecdf'/%3E%3Cpath d='M20 39 L20 28 Q20 26 22 26 L42 26 Q46 26 49 30 L52 39 Z' fill='%23f3ecdf'/%3E%3Cpath d='M8 45 L59 44 L58 46 L8 47 Z' fill='%23ee4a2f'/%3E%3Ccircle cx='46' cy='15' r='5' fill='%235ef2b5'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,100..900,0..100,0..1;1,9..144,100..900,0..100,0..1&family=JetBrains+Mono:wght@400;500;700&family=Schibsted+Grotesk:ital,wght@0,400..900;1,400..900&display=swap">
+<link rel="stylesheet" href="css/base.css?v=2">
+<link rel="stylesheet" href="css/pages.css?v=2">
+</head>
+<body data-page="historikk">
+<div class="grain" aria-hidden="true"></div>
+<header class="topbar" id="topbar"></header>
+
+<main class="page">
+  <div class="wrap">
+    <header class="page-head">
+      <p class="eyebrow">Historikk</p>
+      <h1 class="page-title">Skips<em>loggen</em></h1>
+    </header>
+    <div class="hist-stats" id="histStats"></div>
+    <div class="hist-grid">
+      <div class="hist-main">
+        <div class="hist-toolbar">
+          <h2>Trekninger</h2>
+          <div class="hist-actions">
+            <button class="btn btn-small btn-ghost" id="manualBtn" type="button">+ Tidligere trekning</button>
+            <button class="btn btn-small btn-ghost" id="exportBtn" type="button">Last ned backup</button>
+            <button class="btn btn-small btn-ghost" id="importBtn" type="button">Last opp backup</button>
+            <input type="file" id="importFile" accept="application/json,.json" hidden>
+          </div>
+        </div>
+        <form class="card manual-form" id="manualForm" hidden autocomplete="off">
+          <h3>Før vi hadde nettside</h3>
+          <p>Legg inn en trekning som skjedde før skipsloggen fantes.</p>
+          <div class="manual-grid">
+            <label class="field"><span class="field-label">Dato</span><input class="field-input" type="date" name="date" required></label>
+            <label class="field"><span class="field-label">Antall lodd (valgfritt)</span><input class="field-input" type="number" name="tickets" min="0" max="999" placeholder="F.eks. 24"></label>
+          </div>
+          <div class="manual-grid" id="manualWinners"></div>
+          <datalist id="nameList"></datalist>
+          <div class="manual-btns">
+            <button class="btn btn-ghost btn-small" type="button" id="manualCancel">Avbryt</button>
+            <button class="btn btn-primary btn-small" type="submit">Lagre i loggen</button>
+          </div>
+        </form>
+        <ol class="timeline" id="timeline"></ol>
+        <div class="empty" id="histEmpty"><b>Loggen er blank.</b>Ingen trekninger ennå. Havet venter.</div>
+      </div>
+      <aside class="hist-side">
+        <h2>Vinnertavla</h2>
+        <ol class="leader" id="leader"></ol>
+        <div class="empty empty-small" id="leaderEmpty">Ingen vinnere ennå.</div>
+      </aside>
+    </div>
+  </div>
+</main>
+
+<footer class="footer" id="footer"></footer>
+<script src="js/util.js?v=2" defer></script>
+<script src="js/store.js?v=2" defer></script>
+<script src="js/events.js?v=2" defer></script>
+<script src="js/shell.js?v=2" defer></script>
+<script src="js/pages/historikk.js?v=2" defer></script>
+</body>
+</html>
