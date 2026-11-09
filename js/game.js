@@ -441,6 +441,7 @@
     }
     setSpeed(n) {
       this.userSpeed = n;
+      FL.Engine.userSpeed = n; // deles med de andre spillene
       if (!this.skipping) Eng.speed = n;
       u.$$('#speedCtl button', this.stage).forEach((b) => b.classList.toggle('is-on', +b.dataset.speed === n));
     }
@@ -512,6 +513,7 @@
         this.el.sideBody.scrollTop = 0;
       });
       const onAct = (e) => {
+        if (this.stage.dataset.game !== 'hurtigbat') return; // knappene tilhører spillet som vises
         const b = e.target.closest('[data-act]'); if (!b) return;
         const act = b.dataset.act;
         if (act === 'go') this.startLive();

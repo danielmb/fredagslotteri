@@ -225,7 +225,7 @@
         (h.people || []).forEach((p) => { const e = ent(p.name); e.tickets += p.tickets; e.draws++; });
         (h.leftBehind || []).forEach((p) => { ent(p.name).docks++; });
         winnerNames(h).forEach((n, i) => { const e = ent(n); e.wins++; if (i === 0) e.gold++; else if (i === 1) e.silver++; else if (i === 2) e.bronze++; });
-        (h.beats || []).forEach((b) => (b.v || []).forEach((no) => {
+        (h.beats || []).filter((b) => !b.save).forEach((b) => (b.v || []).forEach((no) => {
           const t = h.tickets[no - 1];
           if (!t) return;
           causes[b.ev] = (causes[b.ev] || 0) + 1;

@@ -214,3 +214,28 @@
 .bstatus.wait { color: var(--sun); animation: blink 1s steps(1) infinite; }
 .brow.is-win .flap i { color: var(--sun); }
 .board-foot { margin-top: 4cqh; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
+
+/* ---------- Draugen ---------- */
+.draugen-svg, .draugen-fx { display: none; }
+.draugen-svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.stage[data-game="draugen"] .draugen-svg, .stage[data-game="draugen"] .draugen-fx { display: block; }
+.stage[data-game="draugen"] #sceneSvg, .stage[data-game="draugen"] #fxCanvas, .stage[data-game="draugen"] .sky { display: none; }
+.stage[data-game="draugen"] .scene { background: #03050a; }
+.fb-num { font-family: var(--ff-display); font-weight: 900; fill: #14202b; letter-spacing: -.02em; }
+.fb-oar { transform-box: fill-box; transform-origin: 0 0; animation: oar 1.1s ease-in-out infinite alternate; }
+@keyframes oar { from { transform: rotate(-16deg); } to { transform: rotate(20deg); } }
+.wp-ring { animation: wpSpin 1.6s linear infinite; }
+@keyframes wpSpin { to { stroke-dashoffset: -400; } }
+.fb-tooth { animation: toothGlow 1.4s ease-in-out infinite alternate; }
+@keyframes toothGlow { from { opacity: .75; } to { opacity: 1; } }
+.hul-tail { transform-box: fill-box; transform-origin: 0 0; animation: tailWag .6s ease-in-out infinite alternate; }
+@keyframes tailWag { from { transform: rotate(-12deg); } to { transform: rotate(14deg); } }
+.ghost-txt { font-family: var(--ff-display); font-style: italic; font-weight: 800; fill: #c8ffe6; fill-opacity: .9; stroke: #5ef2b5; stroke-opacity: .35; stroke-width: 3; paint-order: stroke; letter-spacing: .02em; font-variation-settings: "opsz" 144, "SOFT" 100, "WONK" 1; }
+.route-boat-d { width: auto; height: auto; font-size: 18px; line-height: 1; filter: drop-shadow(0 0 8px rgba(94, 242, 181, .7)); }
+.game-tab-new .gt-ico { position: relative; }
+.game-tab-new .gt-ico::after { content: "NY"; position: absolute; top: -7px; right: -9px; padding: 2px 5px; border-radius: 6px; background: var(--red); color: #fff; font-family: var(--ff-mono); font-size: 9px; font-weight: 700; letter-spacing: .06em; }
+/* I Draugen fyller flåten nedre del av bildet – kort og annonseringer flyttes opp i himmelen */
+.stage[data-game="draugen"] .evcard-wrap { top: max(64px, 11cqh); bottom: auto; width: min(52cqw, 600px); }
+.stage[data-game="draugen"] .evcard { transform-origin: left top; }
+.stage[data-game="draugen"] .announce { top: 41%; }
+@media (max-width: 640px) { .stage[data-game="draugen"] .evcard-wrap { top: auto; bottom: 10px; width: calc(100% - 24px); } }

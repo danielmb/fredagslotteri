@@ -5,7 +5,8 @@
   const u = FL.u, Store = FL.Store, Ev = FL.Events;
   const { $, esc } = u;
   const MEDAL = ['🥇', '🥈', '🥉'];
-  const GAME = { hurtigbat: 'Hurtigbåten', lyn: 'Avgangstavla', manuell: 'Manuelt registrert' };
+  const GAME = { hurtigbat: 'Hurtigbåten', draugen: 'Draugen', lyn: 'Avgangstavla', manuell: 'Manuelt registrert' };
+  const isVoyage = (h) => h.game === 'hurtigbat' || h.game === 'draugen';
 
   function renderStats(s) {
     const lead = s.leaders[0];
@@ -22,10 +23,12 @@
   }
   function tripLog(h) {
     let html = '';
-    if (h.leftBehind && h.leftBehind.length) html += `<li><span>🧳</span><span>Igjen på kaia (ikke betalt): ${h.leftBehind.map((p) => esc(p.name)).join(', ')}</span></li>`;
-    if (h.game === 'hurtigbat' && h.beats && h.beats.length) {
+    if (h.leftBehind && h.leftBehind.length) html += h.game === 'draugen'
+      ? `<li><span>👻</span><span>Mannskap hos Draugen (ikke betalt): ${h.leftBehind.map((p) => esc(p.name)).join(', ')}</span></li>`
+      : `<li><span>🧳</span><span>Igjen på kaia (ikke betalt): ${h.leftBehind.map((p) => esc(p.name)).join(', ')}</span></li>`;
+    if (isVoyage(h) && h.beats && h.beats.length) {
       html += h.beats.map((b) => `<li><span>${(Ev.EVENTS[b.ev] || {}).icon || '•'}</span><span>${Ev.eventText(b, h.tickets, true)}</span></li>`).join('');
-      html += `<li><span>🏁</span><span>I land i Bodø: ${h.winners.map((no, i) => `${MEDAL[i] || ''} <b>${esc(h.tickets[no - 1].name)}</b>`).join(', ')}</span></li>`;
+      html += `<li><span>🏁</span><span>${h.game === 'draugen' ? 'Kom frem til Henningsvær' : 'I land i Bodø'}: ${h.winners.map((no, i) => `${MEDAL[i] || ''} <b>${esc(h.tickets[no - 1].name)}</b>`).join(', ')}</span></li>`;
     } else if (h.people && h.people.length) {
       html += `<li><span>🎟️</span><span>Om bord: ${h.people.map((p) => `${esc(p.name)} (${(p.nums || []).filter(Boolean).join('/') || `${p.tickets} lodd`})`).join(', ')}</span></li>`;
     }
@@ -47,9 +50,9 @@
           <div class="trip-winners">${names.map((n, i) => winnerLine(h, i, n)).join('') || '<span>Ingen vinnere registrert</span>'}</div></div>
           <div class="trip-pot">${h.pot ? u.kr(h.pot) : '—'}<small>i potten</small></div>
         </div>
-        <details><summary>${h.game === 'hurtigbat' ? `Reiseloggen · ${events} ${events === 1 ? 'hendelse' : 'hendelser'}` : 'Detaljer'} <span class="chev" aria-hidden="true">▾</span></summary>
+        <details><summary>${isVoyage(h) ? `Reiseloggen · ${events} ${events === 1 ? 'hendelse' : 'hendelser'}` : 'Detaljer'} <span class="chev" aria-hidden="true">▾</span></summary>
           ${logHtml ? `<ol class="trip-log">${logHtml}</ol>` : ''}
-          <div class="trip-btns">${h.game === 'hurtigbat' ? `<a class="btn btn-small btn-aurora" href="trekning.html?reprise=${encodeURIComponent(h.id)}">▶ Se reprise</a>` : ''}<button class="btn btn-small btn-ghost" type="button" data-del>Slett fra loggen</button></div>
+          <div class="trip-btns">${isVoyage(h) ? `<a class="btn btn-small btn-aurora" href="trekning.html?reprise=${encodeURIComponent(h.id)}">▶ Se reprise</a>` : ''}<button class="btn btn-small btn-ghost" type="button" data-del>Slett fra loggen</button></div>
         </details></li>`;
     }).join('');
   }

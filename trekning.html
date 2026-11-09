@@ -9,8 +9,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,100..900,0..100,0..1;1,9..144,100..900,0..100,0..1&family=JetBrains+Mono:wght@400;500;700&family=Schibsted+Grotesk:ital,wght@0,400..900;1,400..900&display=swap">
-<link rel="stylesheet" href="css/base.css?v=3">
-<link rel="stylesheet" href="css/stage.css?v=3">
+<link rel="stylesheet" href="css/base.css?v=5">
+<link rel="stylesheet" href="css/stage.css?v=5">
 </head>
 <body data-page="trekning">
 <div class="grain" aria-hidden="true"></div>
@@ -20,6 +20,7 @@
   <div class="stage-head">
     <div class="game-tabs" role="tablist" aria-label="Velg spill">
       <button type="button" role="tab" class="game-tab is-active" data-game="hurtigbat" aria-selected="true"><span class="gt-ico">⛴</span><span><b>Hurtigbåten til Bodø</b><small>Hovedspillet · ca. 2 min</small></span></button>
+      <button type="button" role="tab" class="game-tab game-tab-new" data-game="draugen" aria-selected="false"><span class="gt-ico">🦑</span><span><b>Draugen</b><small>Lofotfisket · ca. 2 min</small></span></button>
       <button type="button" role="tab" class="game-tab" data-game="lyn" aria-selected="false"><span class="gt-ico">⚡</span><span><b>Avgangstavla</b><small>Lyntrekning · 15 sek</small></span></button>
     </div>
   </div>
@@ -29,6 +30,8 @@
         <div class="sky" aria-hidden="true"><div class="aurora a1"></div><div class="aurora a2"></div><div class="aurora a3"></div></div>
         <svg class="scene-svg" id="sceneSvg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true"></svg>
         <canvas class="fx" id="fxCanvas" aria-hidden="true"></canvas>
+        <svg class="draugen-svg" id="draugenSvg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true"></svg>
+        <canvas class="fx draugen-fx" id="draugenFx" aria-hidden="true"></canvas>
 
         <div class="hud-top">
           <div class="route" id="route" aria-hidden="true"></div>
@@ -64,17 +67,20 @@
 </main>
 
 <footer class="footer" id="footer"></footer>
-<script src="js/util.js?v=3" defer></script>
-<script src="js/store.js?v=3" defer></script>
-<script src="js/events.js?v=3" defer></script>
-<script src="js/art.js?v=3" defer></script>
-<script src="js/audio.js?v=3" defer></script>
-<script src="js/fx.js?v=3" defer></script>
-<script src="js/voyage.js?v=3" defer></script>
-<script src="js/anims.js?v=3" defer></script>
-<script src="js/game.js?v=3" defer></script>
-<script src="js/lyn.js?v=3" defer></script>
-<script src="js/shell.js?v=3" defer></script>
-<script src="js/pages/trekning.js?v=3" defer></script>
+<script src="js/util.js?v=5" defer></script>
+<script src="js/store.js?v=5" defer></script>
+<script src="js/events.js?v=5" defer></script>
+<script src="js/art.js?v=5" defer></script>
+<script src="js/audio.js?v=5" defer></script>
+<script src="js/fx.js?v=5" defer></script>
+<script src="js/voyage.js?v=5" defer></script>
+<script src="js/anims.js?v=5" defer></script>
+<script src="js/game.js?v=5" defer></script>
+<script src="js/draugen-art.js?v=5" defer></script>
+<script src="js/draugen.js?v=5" defer></script>
+<script src="js/draugen-anims.js?v=5" defer></script>
+<script src="js/lyn.js?v=5" defer></script>
+<script src="js/shell.js?v=5" defer></script>
+<script src="js/pages/trekning.js?v=5" defer></script>
 </body>
 </html>

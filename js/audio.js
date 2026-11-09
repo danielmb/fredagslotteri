@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const FL = window.FL;
-  let ctx = null, master = null, noiseBuf = null, sea = null;
+  let ctx = null, master = null, noiseBuf = null, sea = null, storm = null;
   let enabled = true;
 
   function ensure() {
@@ -91,6 +91,54 @@
     fanfare() { if (!ensure()) return; const t = now(); [[523, 0], [659, 0.14], [784, 0.28], [1046, 0.42], [784, 0.62], [1046, 0.76]].forEach(([fq, dt], i) => { osc('triangle', fq, t + dt, i === 5 ? 0.9 : 0.16, 0.16); osc('sawtooth', fq / 2, t + dt, i === 5 ? 0.9 : 0.16, 0.035); }); },
     boom() { if (!ensure()) return; const t = now(); noise(t, 0.9, { type: 'lowpass', f0: 900, f1: 60, peak: 0.35 }); noise(t + 0.05, 1.2, { type: 'highpass', f0: 4000, f1: 2000, peak: 0.05, a: 0.1 }); },
     flap() { if (!ensure()) return; noise(now(), 0.035, { type: 'highpass', f0: 3500, f1: 2500, peak: 0.08 }); },
+    roar() { // Kraken
+      if (!ensure()) return;
+      const t = now();
+      const lp = ctx.createBiquadFilter(), g = ctx.createGain();
+      lp.type = 'lowpass'; lp.frequency.value = 420; lp.Q.value = 6;
+      env(g, t, 0.15, 0.32, 0.9, 0.7);
+      lp.connect(g).connect(master);
+      [['sawtooth', 70, 38], ['square', 73, 36]].forEach(([type, f0, f1]) => { const o = ctx.createOscillator(); o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + 1.6); o.connect(lp); o.start(t); o.stop(t + 2); });
+      noise(t, 1.6, { type: 'lowpass', f0: 500, f1: 90, q: 1, peak: 0.25, a: 0.2 });
+    },
+    wail() { // Draugens skrik
+      if (!ensure()) return;
+      const t = now();
+      const o = ctx.createOscillator(), g = ctx.createGain(), vib = ctx.createOscillator(), vg = ctx.createGain();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(520, t); o.frequency.linearRampToValueAtTime(980, t + 0.5); o.frequency.linearRampToValueAtTime(420, t + 2.2);
+      vib.frequency.value = 7; vg.gain.value = 22; vib.connect(vg).connect(o.frequency);
+      env(g, t, 0.2, 0.16, 1.4, 0.7);
+      o.connect(g).connect(master); o.start(t); vib.start(t); o.stop(t + 2.6); vib.stop(t + 2.6);
+      noise(t, 2.2, { type: 'bandpass', f0: 1800, f1: 700, q: 4, peak: 0.08, a: 0.3 });
+    },
+    thunder() {
+      if (!ensure()) return;
+      const t = now();
+      noise(t, 0.25, { type: 'highpass', f0: 3000, f1: 1200, peak: 0.35 });
+      noise(t + 0.05, 2.8, { type: 'lowpass', f0: 600, f1: 50, q: 0.7, peak: 0.55, a: 0.08 });
+    },
+    heartbeat() {
+      if (!ensure()) return;
+      const t = now();
+      [0, 0.22].forEach((dt) => { const o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(60, t + dt); o.frequency.exponentialRampToValueAtTime(38, t + dt + 0.15); env(g, t + dt, 0.005, 0.55, 0.03, 0.15); o.connect(g).connect(master); o.start(t + dt); o.stop(t + dt + 0.3); });
+    },
+    boing() { if (!ensure()) return; const t = now(); const o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'triangle'; o.frequency.setValueAtTime(180, t); o.frequency.exponentialRampToValueAtTime(620, t + 0.18); env(g, t, 0.005, 0.2, 0.06, 0.15); o.connect(g).connect(master); o.start(t); o.stop(t + 0.35); },
+    crunch() { if (!ensure()) return; const t = now(); for (let i = 0; i < 3; i++) noise(t + i * 0.06, 0.06, { type: 'bandpass', f0: 2500 - i * 400, f1: 900, q: 2, peak: 0.25 }); },
+    storm(on) { // regn og vind i bakgrunnen
+      if (on) {
+        if (!ensure() || storm) return;
+        const s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain(), lfo = ctx.createOscillator(), lg = ctx.createGain();
+        s.buffer = noiseBuf; s.loop = true; f.type = 'bandpass'; f.frequency.value = 900; f.Q.value = 0.4;
+        g.gain.value = 0.07; lfo.frequency.value = 0.2; lg.gain.value = 0.04;
+        lfo.connect(lg).connect(g.gain); s.connect(f).connect(g).connect(master);
+        s.start(); lfo.start();
+        storm = { s, lfo, g };
+      } else if (storm) {
+        try { storm.g.gain.setTargetAtTime(0, now(), 0.4); storm.s.stop(now() + 1.5); storm.lfo.stop(now() + 1.5); } catch (e) { /* allerede stoppet */ }
+        storm = null;
+      }
+    },
     sea(on) { // havsus i bakgrunnen
       if (on) {
         if (!ensure() || sea) return;
@@ -111,6 +159,6 @@
     ...S,
     unlock() { ensure(); },
     get enabled() { return enabled; },
-    setEnabled(v) { enabled = !!v; if (!enabled) { S.sea(false); if (ctx) ctx.suspend(); } else if (ctx) ctx.resume(); },
+    setEnabled(v) { enabled = !!v; if (!enabled) { S.sea(false); S.storm(false); if (ctx) ctx.suspend(); } else if (ctx) ctx.resume(); },
   };
 })();

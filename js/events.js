@@ -14,7 +14,7 @@
   ];
   const AT = Object.fromEntries(ROUTE.map((r) => [r.id, r.at]));
   const PORT_NAME = { nesna: 'Nesna', ornes: 'Ørnes' };
-  const PLACE_LABEL = { sea: 'Til sjøs', nesna: 'Kaia i Nesna', ornes: 'Kaia i Ørnes', polar: 'Polarsirkelen', final: 'Innseilingen til Bodø' };
+  const PLACE_LABEL = { sea: 'Til sjøs', nesna: 'Kaia i Nesna', ornes: 'Kaia i Ørnes', polar: 'Polarsirkelen', final: 'Innseilingen til Bodø', vest: 'Vestfjorden', boss: 'Stormens øye' };
 
   /* t = standardtekster, p = tekster ved kai ({p} = stedsnavn), g = flere ofre samtidig */
   const EVENTS = {
@@ -150,6 +150,88 @@
         '{n} hoppet over bord i gult skjerf. Rakk neppe avspark, men ånden var der.'],
     },
   };
+  /* ---------- Draugen: farene i Vestfjorden ---------- */
+  Object.assign(EVENTS, {
+    kraken: {
+      game: 'draugen', title: 'KRAKEN!', name: 'Kraken', icon: '🐙', color: 'rgba(160,60,110,.3)', ec: '#ecc5d8',
+      desc: 'Åtte armer, null tålmodighet.',
+      t: ['En tentakkel tykk som en lyktestolpe løftet {n} til værs, kikket nøye – og tok hen med ned.',
+        'Kraken var sulten. {n} var nærmest.',
+        'Noe stort rørte seg under båten til {n}. Så var det bare bobler.'],
+      g: ['Krakens armer skjøt opp av dypet og tok {n} på én gang.'],
+    },
+    draugen: {
+      game: 'draugen', title: 'Draugens skrik', name: 'Draugen', icon: '👻', color: 'rgba(150,230,190,.18)', ec: '#d3efe2',
+      desc: 'Hører du skriket hans, kommer du ikke hjem. Sier de i Nordland.',
+      t: ['Draugen gled forbi i halvbåten sin og skrek. {n} hørte det. Det var det.',
+        'Lyset i tåka var ikke et fyr. Det var Draugen, og skriket var for {n}.',
+        'Den hodeløse fiskeren pekte på {n}. Havet gjorde resten.'],
+    },
+    malstrom: {
+      game: 'draugen', title: 'Malstrømmen!', name: 'Moskstraumen', icon: '🌀', color: 'rgba(60,140,200,.25)', ec: '#c9def0',
+      desc: 'Verdens mest berømte malstrøm. Edgar Allan Poe skrev om den. Han tok ikke med Frode.',
+      t: ['Moskstraumen åpnet seg rett under {n}. Edgar Allan Poe skrev om denne malstrømmen. Han glemte å nevne {n}.'],
+      g: ['Moskstraumen åpnet seg midt i flåten og svelget {n}. Poe skrev om denne. Han tok ikke med dem.'],
+    },
+    blekk: {
+      game: 'draugen', title: 'Blekksvart', name: 'Krakens blekk', icon: '🖤', color: 'rgba(40,40,60,.4)', ec: '#d9d9e3',
+      desc: 'Når det blir lyst igjen, mangler det alltid noen.',
+      t: ['Kraken sprutet blekk. Da det ble lyst igjen, var {n} borte. Ingen vet hva som skjedde.'],
+      g: ['Kraken sprutet blekk over hele flåten. Da det ble lyst igjen, var {n} borte. Ingen vet hva som skjedde.'],
+    },
+    huldra: {
+      game: 'draugen', title: 'Huldra', name: 'Huldra på stranda', icon: '🧝‍♀️', color: 'rgba(223,79,134,.22)', ec: '#f5cddd',
+      desc: 'Vakker på avstand. Kuhale på nært hold.',
+      t: ['{n} så Huldra på stranda og rodde rett i land. Lever nå lykkelig i en hule på Værøy.',
+        '{n} fikk øye på Huldra. Oppdaget kuhalen litt for sent.'],
+    },
+    krabbe: {
+      game: 'draugen', title: 'Kongekrabben', name: 'Kongekrabben', icon: '🦀', color: 'rgba(220,70,50,.25)', ec: '#f4c9bf',
+      desc: 'Innført art, utført passasjer.',
+      t: ['En kongekrabbe på størrelse med en Volvo knep hull i båten til {n}. Innført art, utført passasjer.',
+        '{n} prøvde å fange kongekrabbe med bare hendene. Kongekrabben fanget {n}.'],
+    },
+    lyn: {
+      game: 'draugen', title: 'BRAK!', name: 'Lynet', icon: '⚡', color: 'rgba(246,215,90,.25)', ec: '#f8e7a8',
+      desc: 'Den høyeste masta tar alltid støyten.',
+      t: ['Lynet slo ned i masta til {n}. Tor hadde visst noe uoppgjort med {n}.',
+        'BRAK! {n} ble truffet av lynet og lyser fortsatt litt i mørket.'],
+    },
+    troll: {
+      game: 'draugen', title: 'Trollet kastet!', name: 'Trollet på Vågakallen', icon: '🪨', color: 'rgba(130,140,110,.25)', ec: '#dfe3d2',
+      desc: 'Vågakallen er et fjell. Og et troll. Og han kaster godt.',
+      t: ['Trollet på Vågakallen kastet en kampestein. Bølgen veltet {n}.'],
+      g: ['Trollet på Vågakallen kastet en kampestein midt i flåten. Bølgen tok {n}.'],
+    },
+    vaffellukt: {
+      game: 'draugen', title: 'Vaffellukt!', name: 'Vaffellukt fra Henningsvær', icon: '🧇', color: 'rgba(230,170,70,.25)', ec: '#f5ddb0',
+      desc: 'Ingen kan motstå nystekte vafler. Heller ikke kompasset.',
+      t: ['{n} kjente lukta av nystekte vafler og rodde rett dit. Feil vei, men god stemning.',
+        'Vaffellukt! {n} snudde båten og forsvant. Ble sist sett med syltetøy i skjegget.'],
+    },
+    volleyball: {
+      game: 'draugen', title: 'Spekkhogger-volleyball', name: 'Spekkhogger-volleyball', icon: '🐋', color: 'rgba(80,110,140,.28)', ec: '#d0dae4',
+      desc: 'Spekkhoggerne i Vestfjorden trenger noe å leke med om natta.',
+      t: ['To spekkhoggere spilte volleyball med båten til {n}. Siste serve gikk i havet.',
+        '{n} ble ballen i spekkhoggernes nattlige volleyballturnering. Tapte 0–1.'],
+    },
+    hurtigrutebolge: {
+      game: 'draugen', title: 'Hurtigruta suste forbi', name: 'Hurtigrutebølgen', icon: '🌊', color: 'rgba(21,151,189,.25)', ec: '#c4e6ef',
+      desc: 'Hurtigruta krysser Vestfjorden. Hekkbølgen gjør det også.',
+      t: ['Hurtigruta suste forbi uten å se seg for. Hekkbølgen veltet {n}.'],
+      g: ['Hurtigruta suste forbi. Hekkbølgen veltet {n} på én gang.'],
+    },
+    amulett: {
+      game: 'draugen', title: 'Draugens tann!', name: 'Draugens tann', icon: '🦷', color: 'rgba(246,189,71,.25)', ec: '#f5e2b0',
+      desc: 'Går til den som var nærmest å vinne sist. Redder deg én gang.',
+      t: ['Kraken grep båten til {n} – men Draugens tann lyste opp, og Kraken slapp i skrekk. Reddet! Denne gangen.'],
+    },
+  });
+  const ORDER_DRAUGEN = ['kraken', 'draugen', 'malstrom', 'blekk', 'huldra', 'krabbe', 'lyn', 'troll', 'vaffellukt', 'volleyball', 'hurtigrutebolge', 'amulett'];
+  const D_SINGLE = ['kraken', 'draugen', 'huldra', 'krabbe', 'lyn', 'vaffellukt', 'volleyball'];
+  const D_GROUP = { malstrom: 5, blekk: 4, troll: 3, hurtigrutebolge: 4, kraken: 3 };
+  const D_BOSS = ['kraken', 'lyn', 'volleyball', 'krabbe'];
+
   Object.keys(EVENTS).forEach((k) => { EVENTS[k].id = k; });
   const ORDER = ['orna', 'tut', 'noro', 'kokken', 'trappa', 'overbord', 'drukning', 'full', 'ornes', 'svolvaer', 'feilrute', 'sjosyk', 'maake', 'nordlys', 'vind', 'spekkhogger', 'polar', 'glimt'];
 
@@ -184,15 +266,67 @@
     // vinneres ekstra lodd ryker et tilfeldig sted, men aldri i den dramatiske slutten
     extra.forEach((no) => { const max = Math.max(0, elim.length - 3); elim.splice(u.randInt(max + 1), 0, no); });
     const seed = u.randInt(0x7fffffff);
-    const beats = buildBeats(elim, u.mulberry32(seed));
+    // Draugens tann: den som var nærmest å vinne sist får et amulett (ren teater – vinnerne er allerede trukket)
+    let amulet = null;
+    if (opts.game === 'draugen' && opts.amuletName) {
+      const t = tickets.find((x) => x.k === u.normName(opts.amuletName));
+      if (t) amulet = { name: t.name, no: t.no };
+    }
+    const beats = opts.game === 'draugen' ? buildDraugenBeats(elim, u.mulberry32(seed), amulet && amulet.no) : buildBeats(elim, u.mulberry32(seed));
     return {
       id: u.uid('d'), date: new Date().toISOString(), game: opts.game || 'hurtigbat', demo: !!opts.demo,
       price: settings.price, winnersCount: winners.length, pot: tickets.length * settings.price,
       people: people.map((p) => ({ name: u.cleanName(p.name), nums: (p.nums || []).slice(0, p.tickets), tickets: p.tickets })),
       tickets: tickets.map((t) => ({ no: t.no, name: t.name, label: t.label })),
       leftBehind: (opts.leftBehind || []).map((p) => ({ name: u.cleanName(p.name), nums: (p.nums || []).filter(Boolean) })),
-      winners, elim, seed, beats,
+      amulet, winners, elim, seed, beats,
     };
+  }
+
+  /* Manus for Draugen: hendelser fordelt over Vestfjorden, sjefsfase til slutt, siste offer tas av Draugen */
+  function buildDraugenBeats(elim, rnd, amuletNo) {
+    const E = elim.length;
+    const ri = (n) => Math.floor(rnd() * n);
+    const beats = [];
+    if (E) {
+      let B = E <= 14 ? E : Math.round(14 + (E - 14) * 0.4);
+      B = Math.min(B, 28);
+      if (E >= 8 && B === E) B = E - 1;
+      const a0 = 0.07, a1 = 0.9, span = (a1 - a0) / B;
+      const slots = Array.from({ length: B }, (_, i) => ({ at: a0 + span * (i + 0.5) + (rnd() - 0.5) * span * 0.5, size: 1 }));
+      const boss = Math.min(4, B);
+      slots.forEach((s, i) => { s.boss = i >= B - boss; s.last = i === B - 1; });
+      const groupable = slots.filter((s) => !s.boss);
+      let extra = E - B, guard = 0;
+      while (extra > 0 && groupable.length && guard++ < 5000) { const s = groupable[ri(groupable.length)]; if (s.size < (guard > 2000 ? 8 : 5)) { s.size++; extra--; } }
+      if (extra > 0) slots[0].size += extra;
+      let bag = [], prev = null, vi = 0, draugens = 0;
+      const refill = () => { bag = u.shuffle(D_SINGLE, ri); };
+      refill();
+      const fromBag = (ok) => { for (let k = 0; k < 2; k++) { const i = bag.findIndex(ok); if (i >= 0) return bag.splice(i, 1)[0]; refill(); } return 'kraken'; };
+      const bossOrder = u.shuffle(D_BOSS, ri);
+      slots.forEach((s, i) => {
+        let ev;
+        if (s.last) ev = 'draugen';
+        else if (s.boss) ev = bossOrder[(i - (B - boss)) % bossOrder.length];
+        else if (s.size > 1) { const c = Object.keys(D_GROUP).filter((e) => D_GROUP[e] >= s.size && e !== prev); ev = c.length ? c[ri(c.length)] : 'malstrom'; }
+        else ev = fromBag((e) => e !== prev && !(e === 'draugen' && draugens >= 2));
+        if (ev === 'draugen') draugens++;
+        prev = ev;
+        const v = elim.slice(vi, vi + s.size);
+        vi += s.size;
+        beats.push({ at: +s.at.toFixed(4), place: s.boss ? 'boss' : 'vest', ev, v, t: ri(6) });
+      });
+    }
+    if (amuletNo) {
+      const j = beats.findIndex((b) => b.v.includes(amuletNo));
+      const limit = j >= 0 ? j : Math.max(1, Math.floor(beats.length * 0.7));
+      const k = limit > 0 ? ri(limit + 1) : 0;
+      const before = beats[k - 1] ? beats[k - 1].at : 0.03;
+      const after = beats[k] ? beats[k].at : 0.92;
+      beats.splice(k, 0, { at: +((before + after) / 2).toFixed(4), place: 'vest', ev: 'amulett', v: [amuletNo], t: 0, save: true });
+    }
+    return beats.filter((b) => b.v.length);
   }
 
   function buildBeats(elim, rnd) {
@@ -301,5 +435,12 @@
     return body.split('{n}').join(who).split('{p}').join(asHtml ? u.esc(place) : place);
   }
 
-  FL.Events = { EVENTS, ORDER, ROUTE, AT, PORT_NAME, PLACE_LABEL, createDraw, eventText };
+  const ROUTE_DRAUGEN = [
+    { id: 'bodo', name: 'Bodø', type: 'start', at: 0 },
+    { id: 'landegode', name: 'Landegode', type: 'marker', at: 0.18 },
+    { id: 'vest', name: 'Vestfjorden', type: 'marker', at: 0.5 },
+    { id: 'skrova', name: 'Skrova', type: 'marker', at: 0.8 },
+    { id: 'henn', name: 'Henningsvær', type: 'end', at: 1 },
+  ];
+  FL.Events = { EVENTS, ORDER, ORDER_DRAUGEN, ROUTE, ROUTE_DRAUGEN, AT, PORT_NAME, PLACE_LABEL, createDraw, eventText };
 })();

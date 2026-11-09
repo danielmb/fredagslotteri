@@ -12,6 +12,8 @@
       this.map = { s: 1, ox: 0, oy: 0 };
       this.dpr = 1;
       this.worldOffset = () => 0; // skjermX = verdenX + offset
+      this.camera = null; // valgfritt: () => ({ x, y, w, h }) når scenen zoomer
+      this.cw = 0; this.ch = 0;
       this.resize();
       if ('ResizeObserver' in window) new ResizeObserver(() => this.resize()).observe(canvas);
     }
@@ -19,6 +21,7 @@
       const r = this.c.getBoundingClientRect();
       if (!r.width || !r.height) return;
       this.dpr = Math.min(2, window.devicePixelRatio || 1);
+      this.cw = r.width; this.ch = r.height;
       this.c.width = Math.round(r.width * this.dpr);
       this.c.height = Math.round(r.height * this.dpr);
       const s = Math.max(r.width / VW, r.height / VH); // samme som preserveAspectRatio="xMidYMid slice"
@@ -60,7 +63,13 @@
     update(dtMs) {
       const dt = Math.min(0.05, dtMs / 1000);
       const { ctx } = this;
-      const { s, ox, oy } = this.map;
+      let { s, ox, oy } = this.map;
+      if (this.camera && this.cw) { // følg SVG-kameraet (viewBox) når scenen zoomer
+        const c = this.camera();
+        s = Math.max(this.cw / c.w, this.ch / c.h);
+        ox = (this.cw - c.w * s) / 2 - c.x * s;
+        oy = (this.ch - c.h * s) / 2 - c.y * s;
+      }
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, this.c.width, this.c.height);
       if (!this.parts.length) return;
@@ -77,7 +86,11 @@
         const t = p.age / p.life;
         const x = p.world ? p.x + wo : p.x;
         ctx.globalAlpha = Math.max(0, 1 - t * t);
-        if (p.kind === 'ring') {
+        if (p.kind === 'streak') { // regn
+          ctx.globalAlpha = 0.55 * (1 - t);
+          ctx.strokeStyle = p.color; ctx.lineWidth = p.size;
+          ctx.beginPath(); ctx.moveTo(x, p.y); ctx.lineTo(x - p.vx * 0.022, p.y - p.vy * 0.022); ctx.stroke();
+        } else if (p.kind === 'ring') {
           ctx.globalAlpha = Math.max(0, 0.7 * (1 - t));
           ctx.strokeStyle = p.color; ctx.lineWidth = 2;
           ctx.beginPath(); ctx.ellipse(x, p.y, p.size + t * 50, (p.size + t * 50) * 0.22, 0, 0, Math.PI * 2); ctx.stroke();
