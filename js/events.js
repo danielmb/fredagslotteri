@@ -236,8 +236,12 @@
     k_kant: { game: 'keiser', title: 'Utfor kanten', name: 'Kanten', icon: '⛰️', color: 'rgba(130,140,160,.22)', ec: '#dde2ea', desc: 'Keiservarden er 366 meter høy. Kanten er bratt.', t: ['{n} spratt utfor kanten. Det er langt ned.'] },
     k_fast: { game: 'keiser', title: 'Satt fast', name: 'Snøfonna', icon: '❄️', color: 'rgba(200,230,255,.2)', ec: '#e3f1fb', desc: 'Noen kommer seg aldri videre fra en snøfonn.', t: ['{n} satt fast i ei snøfonn og kom aldri ned.'] },
     k_hull: { game: 'keiser', title: 'Ned i hullet', name: 'Hull i egne løyper', icon: '🕳️', color: 'rgba(110,93,76,.3)', ec: '#e8dccb', desc: 'Løypedesignerens hull. Hvert hull har et navn, og navnet havner i loggen.', t: ['{n} falt ned i et hull i løypa.'], p: ['{n} falt ned i {p}.'] },
+    k_salt: { game: 'keiser', title: 'Tatt av Saltstraumen', name: 'Saltstraumen', icon: '🌀', color: 'rgba(40,150,190,.22)', ec: '#cdeaf5', desc: 'Verdens sterkeste malstrøm ligger en halvtimes kjøring fra Bodø. Den spinner deg rundt og spytter deg ut – hvis du er heldig.', t: ['{n} ble tatt av Saltstraumen.'] },
+    k_ferje: { game: 'keiser', title: 'Rakk ikke ferga', name: 'Ferga til Lofoten', icon: '⛴️', color: 'rgba(60,110,160,.22)', ec: '#d6e6f5', desc: 'Bommen går ned, ferga går. Den som ikke rakk den, havner i havet.', t: ['{n} rakk ikke ferga og havnet i havet.'] },
+    k_rakett: { game: 'keiser', title: 'Skutt ut i verdensrommet', name: 'Andøya-raketten', icon: '🚀', color: 'rgba(255,154,122,.22)', ec: '#fbd9cc', desc: 'Andøya skyter opp raketter på ordentlig. Denne er litt for sterk.', t: ['{n} ble skutt rett ut i verdensrommet fra Andøya.'] },
+    k_fisk: { game: 'keiser', title: 'Slått ut av tørrfisken', name: 'Tørrfiskhjellet', icon: '🐟', color: 'rgba(201,180,143,.25)', ec: '#efe3cc', desc: 'Lofot-torsk som har hengt i vinden hele vinteren. Hard som en planke.', t: ['{n} fikk en tørrfisk i trynet og forsvant ut av løypa.'] },
   });
-  const ORDER_KEISER = ['k_vind', 'k_ornes', 'k_orna', 'k_glimt', 'k_kant', 'k_fast', 'k_hull'];
+  const ORDER_KEISER = ['k_vind', 'k_ornes', 'k_orna', 'k_glimt', 'k_kant', 'k_fast', 'k_hull', 'k_salt', 'k_ferje', 'k_rakett', 'k_fisk'];
   const ORDER_DRAUGEN = ['kraken', 'draugen', 'malstrom', 'blekk', 'huldra', 'krabbe', 'lyn', 'troll', 'vaffellukt', 'volleyball', 'hurtigrutebolge', 'amulett'];
   const D_SINGLE = ['kraken', 'draugen', 'huldra', 'krabbe', 'lyn', 'vaffellukt', 'volleyball'];
   const D_GROUP = { malstrom: 5, blekk: 4, troll: 3, hurtigrutebolge: 4, kraken: 3 };

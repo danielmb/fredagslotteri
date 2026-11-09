@@ -84,7 +84,7 @@
     seesaw: {
       name: 'Vippe',
       ico: '⚖️',
-      help: 'Vipper fram og tilbake og sender kulene to veier.',
+      help: 'Vipper fram og tilbake og sender kulene to veier. Velg «Tyngde», så vipper den etter vekta av kulene som lander på den.',
       make: (x, y) => ({ x, y, half: 140 }),
     },
     trap: {
@@ -130,6 +130,62 @@
       help: 'Bare pynt. Skriv hva du vil.',
       make: (x, y) => ({ x, y, text: 'NYTT SKILT' }),
     },
+    vortex: {
+      name: 'Saltstraumen',
+      pal: 'Saltstraumen',
+      ico: '🌀',
+      help: 'Verdens sterkeste malstrøm, rett utenfor Bodø. Suger kulene inn, spinner dem et par runder og spytter dem ut et tilfeldig sted. Med sluk forsvinner noen ned i dypet.',
+      make: (x, y) => ({ x, y, r: 130, dir: 1, drain: 0 }),
+    },
+    belt: {
+      name: 'Bagasjebånd',
+      pal: 'Bagasjebånd',
+      ico: '🧳',
+      help: 'Fra Bodø lufthavn: frakter kulene i den retningen pilene går – også oppover. «Kula di kommer på bånd 2.»',
+      make: (x, y) => ({ ax: x - 160, ay: y + 30, bx: x + 160, by: y - 30, speed: 240 }),
+    },
+    ferry: {
+      name: 'Ferga til Lofoten',
+      pal: 'Ferga',
+      ico: '⛴️',
+      help: 'Går mellom kaia ved A og kaia ved B. Bommen på A-kaia er nede når ferga er borte. Ved B tipper ferga av passasjerene. Rakk du ikke ferga, havner du i havet.',
+      make: (x, y) => ({ ax: x - 200, ay: y, bx: x + 200, by: y, speed: 260 }),
+    },
+    rocket: {
+      name: 'Andøya-raketten',
+      pal: 'Raketten',
+      ico: '🚀',
+      help: 'Fanger én kule om gangen, teller ned og fyrer den av. Dra i pilspissen for å sikte – den stiplede linja viser hvor kula flyr.',
+      make: (x, y) => ({ x, y, ang: 60, pow: 1300 }),
+    },
+    tunnel: {
+      name: 'Tunnel',
+      pal: 'Tunnel',
+      ico: '🚇',
+      help: 'Kuler som triller inn i åpningen ved A, kommer ut ved B. Av og til er tunnelen stengt på grunn av ras – da må kulene vente.',
+      make: (x, y) => ({ ax: x - 250, ay: y, bx: x + 250, by: y + 200, dir: 1, ras: 1 }),
+    },
+    rack: {
+      name: 'Tørrfiskhjell',
+      pal: 'Tørrfisk',
+      ico: '🐟',
+      help: 'Tørrfisk som henger og svinger i vinden og slår til kulene. Kulene kan dytte fisken unna. Dra i høyre ende for å gjøre hjellet lengre.',
+      make: (x, y) => ({ x: x - 130, y: y - 60, w: 260, len: 70 }),
+    },
+    rein: {
+      name: 'Rein i veien',
+      pal: 'Rein',
+      ico: '🦌',
+      help: 'Rusler fram og tilbake langs streken, beiter og stenger veien. Innimellom går den til skogs, og da slipper kulene forbi. Legg streken langs en rampe.',
+      make: (x, y) => ({ ax: x - 180, ay: y, bx: x + 180, by: y + 30 }),
+    },
+    slush: {
+      name: 'Slaps',
+      pal: 'Slaps',
+      ico: '🌨️',
+      help: 'November i Bodø. Alt som triller gjennom feltet, sakker kraftig ned.',
+      make: (x, y) => ({ x0: x - 150, y0: y - 60, x1: x + 150, y1: y + 60 }),
+    },
   };
   const PALETTE = [
     'ramp',
@@ -142,6 +198,14 @@
     'pit',
     'wind',
     'eagle',
+    'vortex',
+    'belt',
+    'ferry',
+    'rocket',
+    'tunnel',
+    'rack',
+    'rein',
+    'slush',
     'sign',
   ];
   const FIELDS = {
@@ -160,10 +224,65 @@
       },
       { k: 'arms', label: 'Armer', min: 2, max: 6, step: 1 },
     ],
-    seesaw: [{ k: 'half', label: 'Lengde (halv)', min: 60, max: 260, step: 2 }],
+    seesaw: [
+      { k: 'half', label: 'Lengde (halv)', min: 60, max: 260, step: 2 },
+      {
+        k: 'phys',
+        label: 'Vipper av',
+        opts: [
+          [0, '⚙️ Motor'],
+          [1, '⚖️ Tyngde'],
+        ],
+      },
+    ],
     pit: [{ k: 'name', label: 'Navn på hullet', text: 24 }],
     sign: [{ k: 'text', label: 'Tekst på skiltet', text: 28 }],
     wind: [{ k: 'dir', label: 'Blåser mot', dir: true }],
+    vortex: [
+      { k: 'r', label: 'Størrelse', min: 70, max: 240, step: 2 },
+      {
+        k: 'dir',
+        label: 'Snurrer',
+        opts: [
+          [1, '↻ Med klokka'],
+          [-1, '↺ Mot klokka'],
+        ],
+      },
+      {
+        k: 'drain',
+        label: 'Sluk i midten',
+        opts: [
+          [0, 'Nei'],
+          [1, 'Ja – noen forsvinner'],
+        ],
+      },
+    ],
+    belt: [
+      {
+        k: 'speed',
+        label: 'Fart (minus = andre veien)',
+        min: -600,
+        max: 600,
+        step: 10,
+      },
+    ],
+    ferry: [{ k: 'speed', label: 'Fart', min: 120, max: 420, step: 10 }],
+    rocket: [
+      { k: 'ang', label: 'Retning (grader)', min: 0, max: 180, step: 1 },
+      { k: 'pow', label: 'Kraft', min: 500, max: 2400, step: 10 },
+    ],
+    tunnel: [
+      { k: 'dir', label: 'Kommer ut mot', dir: true },
+      {
+        k: 'ras',
+        label: 'Ras',
+        opts: [
+          [1, 'Innimellom'],
+          [0, 'Aldri'],
+        ],
+      },
+    ],
+    rack: [{ k: 'len', label: 'Lengde på fisken', min: 40, max: 120, step: 1 }],
   };
   const TEST_SAY = {
     k_vind: 'blåste ned i Juvet',
@@ -173,6 +292,10 @@
     k_kant: 'trillet utfor kanten',
     k_fast: 'satt fast',
     k_hull: 'falt ned i et hull',
+    k_salt: 'ble tatt av Saltstraumen',
+    k_ferje: 'rakk ikke ferga og havnet i havet',
+    k_rakett: 'ble skutt ut i verdensrommet',
+    k_fisk: 'fikk en tørrfisk i trynet',
   };
   const SIMPLE = [
     { type: 'start', x: 800, y: 300 },
@@ -186,6 +309,40 @@
     { type: 'finish', x: 1290, y: 990 },
     { type: 'sign', x: 300, y: 110, text: 'MIN EGEN LØYPE' },
   ];
+  // demo med alle de nye delene (godkjent: rundt 75 % kommer i mål)
+  const DEMO = [
+    { type: 'start', x: 800, y: 300 },
+    { type: 'wall', ax: 610, ay: 262, bx: 610, by: 346 },
+    { type: 'ramp', ax: 612, ay: 340, bx: 1080, by: 430 },
+    { type: 'vortex', x: 1250, y: 600, r: 130, dir: 1, drain: 0 },
+    { type: 'wall', ax: 1590, ay: 380, bx: 1590, by: 900 },
+    { type: 'ramp', ax: 1585, ay: 880, bx: 330, by: 1080 },
+    { type: 'wall', ax: 90, ay: 900, bx: 90, by: 1340 },
+    { type: 'seesaw', x: 340, y: 1170, half: 140, phys: 1 },
+    { type: 'ramp', ax: 95, ay: 1330, bx: 880, by: 1450 },
+    { type: 'rack', x: 300, y: 1300, w: 340, len: 50 },
+    { type: 'slush', x0: 560, y0: 1340, x1: 820, y1: 1460 },
+    { type: 'ferry', ax: 975, ay: 1475, bx: 1360, by: 1475, speed: 280 },
+    { type: 'ramp', ax: 1452, ay: 1500, bx: 1530, by: 1525 },
+    { type: 'wall', ax: 1590, ay: 1350, bx: 1590, by: 1800 },
+    { type: 'ramp', ax: 1585, ay: 1780, bx: 420, by: 2010 },
+    { type: 'rein', ax: 1350, ay: 1826, bx: 900, by: 1915 },
+    { type: 'tunnel', ax: 520, ay: 1990, bx: 700, by: 2250, dir: 1, ras: 1 },
+    { type: 'wall', ax: 90, ay: 1950, bx: 90, by: 2160 },
+    { type: 'ramp', ax: 95, ay: 2150, bx: 1000, by: 2300 },
+    { type: 'rocket', x: 1035, y: 2325, ang: 60, pow: 680 },
+    { type: 'wall', ax: 1590, ay: 2150, bx: 1590, by: 2460 },
+    { type: 'ramp', ax: 1585, ay: 2440, bx: 250, by: 2620 },
+    { type: 'wall', ax: 90, ay: 2500, bx: 90, by: 2720 },
+    { type: 'ramp', ax: 95, ay: 2700, bx: 900, by: 2830 },
+    { type: 'belt', ax: 900, ay: 2835, bx: 1250, by: 2755, speed: 300 },
+    { type: 'finish', x: 1290, y: 2730 },
+    { type: 'sign', x: 300, y: 110, text: 'ALT I ETT' },
+    { type: 'sign', x: 1250, y: 410, text: 'SALTSTRAUMEN' },
+    { type: 'sign', x: 470, y: 1230, text: 'TØRRFISK OG SLAPS' },
+    { type: 'sign', x: 1170, y: 1390, text: 'LOFOTFERGA' },
+    { type: 'sign', x: 1040, y: 2150, text: 'ANDØYA' },
+  ];
 
   /* ---------- Geometri: rammer, treff og håndtak ---------- */
   const mctx = document.createElement('canvas').getContext('2d');
@@ -193,7 +350,8 @@
     p.type === 'ramp' ||
     p.type === 'wall' ||
     p.type === 'trap' ||
-    p.type === 'eagle';
+    p.type === 'eagle' ||
+    p.type === 'belt';
   const segD = (px, py, ax, ay, bx, by) => {
     const abx = bx - ax,
       aby = by - ay,
@@ -251,6 +409,40 @@
           x1: Math.max(p.ax, p.bx) + 10,
           y1: Math.max(p.ay, p.by) + 10,
         };
+      case 'vortex':
+        return { x0: p.x - p.r, y0: p.y - p.r, x1: p.x + p.r, y1: p.y + p.r + 22 };
+      case 'ferry':
+        return {
+          x0: Math.min(p.ax, p.bx) - 100,
+          y0: Math.min(p.ay, p.by) - 64,
+          x1: Math.max(p.ax, p.bx) + 100,
+          y1: Math.max(p.ay, p.by) + 222,
+        };
+      case 'rocket':
+        return { x0: p.x - 56, y0: p.y - 110, x1: p.x + 32, y1: p.y + 26 };
+      case 'tunnel':
+        return {
+          x0: Math.min(p.ax, p.bx) - 48,
+          y0: Math.min(p.ay, p.by) - 80,
+          x1: Math.max(p.ax, p.bx) + 48,
+          y1: Math.max(p.ay, p.by) + 6,
+        };
+      case 'rack':
+        return {
+          x0: p.x - 14,
+          y0: p.y - 26,
+          x1: p.x + p.w + 14,
+          y1: p.y + p.len + 10,
+        };
+      case 'rein':
+        return {
+          x0: Math.min(p.ax, p.bx) - 40,
+          y0: Math.min(p.ay, p.by) - 90,
+          x1: Math.max(p.ax, p.bx) + 40,
+          y1: Math.max(p.ay, p.by) + 10,
+        };
+      case 'slush':
+        return { x0: p.x0, y0: p.y0, x1: p.x1, y1: p.y1 };
       default:
         return {
           x0: Math.min(p.ax, p.bx) - 10,
@@ -279,6 +471,32 @@
       return Math.hypot(x - p.x, y - p.y) <= p.len + 10 + tol
         ? Math.PI * p.len * p.len
         : Infinity;
+    if (p.type === 'vortex')
+      return Math.hypot(x - p.x, y - p.y) <= p.r + tol
+        ? Math.PI * p.r * p.r
+        : Infinity;
+    if (p.type === 'rocket')
+      return Math.hypot(x - p.x, y - (p.y - 20)) <= 40 + tol ||
+        (Math.abs(x - (p.x - 40)) <= 12 + tol && y > p.y - 106 - tol && y < p.y)
+        ? 1200
+        : Infinity;
+    if (p.type === 'tunnel')
+      return Math.hypot(x - p.ax, y - (p.ay - 30)) <= 46 + tol ||
+        Math.hypot(x - p.bx, y - (p.by - 30)) <= 46 + tol
+        ? 1300
+        : Infinity;
+    if (p.type === 'rein') {
+      const d = segD(x, y, p.ax, p.ay - 30, p.bx, p.by - 30);
+      return d <= 34 + tol ? 2500 + d : Infinity;
+    }
+    if (p.type === 'ferry') {
+      for (const [dx, dy] of [
+        [p.ax, p.ay],
+        [p.bx, p.by],
+      ])
+        if (Math.abs(x - dx) <= 92 + tol && y > dy - 44 - tol && y < dy + 46 + tol)
+          return 1800;
+    }
     const b = bounds(p);
     if (x < b.x0 - tol || x > b.x1 + tol || y < b.y0 - tol || y > b.y1 + tol)
       return Infinity;
@@ -294,9 +512,29 @@
       case 'wall':
       case 'trap':
       case 'eagle':
+      case 'belt':
+      case 'ferry':
+      case 'tunnel':
+      case 'rein':
         return [
           { k: 'a', x: p.ax, y: p.ay },
           { k: 'b', x: p.bx, y: p.by },
+        ];
+      case 'vortex':
+        return [{ k: 'r', x: p.x + p.r, y: p.y }];
+      case 'rocket': {
+        const a = (p.ang * Math.PI) / 180,
+          L = p.pow / 8;
+        return [
+          { k: 'aim', x: p.x + Math.cos(a) * L, y: p.y - 17 - Math.sin(a) * L },
+        ];
+      }
+      case 'rack':
+        return [{ k: 'w', x: p.x + p.w, y: p.y }];
+      case 'slush':
+        return [
+          { k: 'tl', x: p.x0, y: p.y0 },
+          { k: 'br', x: p.x1, y: p.y1 },
         ];
       case 'pegs':
         return [{ k: 'se', x: p.x + p.w, y: p.y + (p.rows - 1) * 56 }];
@@ -321,10 +559,36 @@
   }
   function setHandle(p, k, x, y) {
     switch (p.type) {
+      case 'vortex':
+        p.r = u.clamp(Math.round(Math.hypot(x - p.x, y - p.y)), 70, 240);
+        break;
+      case 'rocket': {
+        const dx = x - p.x,
+          dy = p.y - 17 - y;
+        p.ang = u.clamp(Math.round((Math.atan2(dy, dx) * 180) / Math.PI), 0, 180);
+        p.pow = u.clamp(Math.round((Math.hypot(dx, dy) * 8) / 10) * 10, 500, 2400);
+        break;
+      }
+      case 'rack':
+        p.w = u.clamp(Math.round(x - p.x), 80, 900);
+        break;
+      case 'slush':
+        if (k === 'tl') {
+          p.x0 = Math.min(x, p.x1 - 60);
+          p.y0 = Math.min(y, p.y1 - 40);
+        } else {
+          p.x1 = Math.max(x, p.x0 + 60);
+          p.y1 = Math.max(y, p.y0 + 40);
+        }
+        break;
       case 'ramp':
       case 'wall':
       case 'trap':
       case 'eagle':
+      case 'belt':
+      case 'ferry':
+      case 'tunnel':
+      case 'rein':
         if (k === 'a') {
           p.ax = x;
           p.ay = y;
@@ -414,6 +678,8 @@
         name: 'Keiservarden – min versjon',
         pieces: clone(P.ORIGINAL.pieces),
       };
+    if (kind === 'demo')
+      return { id: u.uid('c'), name: 'Alt i ett', pieces: clone(DEMO) };
     return { id: u.uid('c'), name: 'Min løype', pieces: clone(SIMPLE) };
   }
 
@@ -481,6 +747,14 @@
     if (a < 0) a = 0;
     const A = fr[a],
       B = fr[a + 1];
+    // hopp i opptaket (tunnel, ørna, sluket): ikke tegn kula på veien mellom
+    if (
+      Math.abs(B[i * 3] - A[i * 3]) > 260 ||
+      Math.abs(B[i * 3 + 1] - A[i * 3 + 1]) > 260
+    ) {
+      const S = f < 0.5 ? A : B;
+      return [S[i * 3], S[i * 3 + 1], S[i * 3 + 2]];
+    }
     return [
       A[i * 3] + (B[i * 3] - A[i * 3]) * f,
       A[i * 3 + 1] + (B[i * 3 + 1] - A[i * 3 + 1]) * f,
@@ -569,9 +843,33 @@
         ctx.moveTo(p.ax, p.ay);
         ctx.lineTo(p.bx, p.by);
         ctx.stroke();
+      } else if (p.type === 'tunnel' || p.type === 'ferry' || p.type === 'rein') {
+        // hvor tunnelen går, hvor ferga går og hvor reinen rusler
+        const lift = p.type === 'tunnel' ? 22 : p.type === 'rein' ? 30 : 0;
+        ctx.strokeStyle =
+          p.type === 'tunnel'
+            ? 'rgba(243,236,223,.35)'
+            : p.type === 'ferry'
+              ? 'rgba(160,210,240,.5)'
+              : 'rgba(234,223,204,.45)';
+        ctx.beginPath();
+        ctx.moveTo(p.ax, p.ay - lift);
+        ctx.lineTo(p.bx, p.by - lift);
+        ctx.stroke();
       }
     }
     ctx.setLineDash([]);
+    // banen raketten skyter kulene (uten andre kuler og bevegelige deler)
+    if (C.rockets.length) {
+      if (!C.aims) C.aims = C.rockets.map((L) => P.aimPath(C, L));
+      ctx.fillStyle = 'rgba(255,154,122,.85)';
+      for (const pts of C.aims)
+        for (let k = 0; k < pts.length; k += 4) {
+          ctx.beginPath();
+          ctx.arc(pts[k], pts[k + 1], 3.2 * px, 0, Math.PI * 2);
+          ctx.fill();
+        }
+    }
     for (const p of doc.pieces) {
       if (p.type !== 'eagle') continue;
       ctx.save();
@@ -809,14 +1107,28 @@
       const w = toWorld(sx, sy);
       const i = pick(w.x, w.y);
       if (i >= 0) {
-        if (i !== sel) select(i);
+        const before = snapshot(),
+          src = doc.pieces[i];
+        let idx = i;
+        // Alt + dra: dra ut en kopi, originalen blir stående
+        if (
+          e.altKey &&
+          src.type !== 'start' &&
+          src.type !== 'finish' &&
+          roomFor(src.type)
+        ) {
+          doc.pieces.push(clone(src));
+          idx = doc.pieces.length - 1;
+          rebuild();
+        }
+        if (idx !== sel) select(idx);
         drag = {
           kind: 'move',
-          idx: i,
+          idx,
           w0: w,
-          before: snapshot(),
-          orig: clone(doc.pieces[i]),
-          changed: false,
+          before,
+          orig: clone(doc.pieces[idx]),
+          changed: idx !== i,
         };
         canvas.style.cursor = 'grabbing';
         return;
@@ -833,7 +1145,13 @@
       const h = sel >= 0 && handleAt(sel, sx, sy);
       const w = toWorld(sx, sy);
       hover = h ? -1 : pick(w.x, w.y);
-      canvas.style.cursor = h ? 'crosshair' : hover >= 0 ? 'move' : 'grab';
+      canvas.style.cursor = h
+        ? 'crosshair'
+        : hover >= 0
+          ? e.altKey
+            ? 'copy'
+            : 'move'
+          : 'grab';
       return;
     }
     if (drag.kind === 'pinch') {
@@ -1007,6 +1325,7 @@
           <li>Dra delene dit du vil ha dem. Dra i de runde håndtakene for å endre størrelse og helning.</li>
           <li>Dra i bakgrunnen for å flytte deg rundt. Rull eller knip for å zoome.</li>
           <li><kbd>Delete</kbd> sletter, <kbd>Ctrl</kbd>+<kbd>Z</kbd> angrer, <kbd>Ctrl</kbd>+<kbd>D</kbd> dupliserer, piltastene flytter litt.</li>
+          <li>Hold <kbd>Alt</kbd> mens du drar en del, så drar du ut en kopi.</li>
           <li>Testkjør ofte. Når du er fornøyd: godkjenn løypa, så kan den brukes i trekningen.</li>
         </ul>
       </section>
@@ -1017,6 +1336,13 @@
       return `<label class="dz-field"><span>${esc(f.label)}</span><input class="field-input" type="text" data-f="${f.k}" maxlength="${f.text}" value="${esc(p[f.k])}" spellcheck="false"></label>`;
     if (f.dir)
       return `<div class="dz-field"><span>${esc(f.label)}</span><div class="dz-seg"><button type="button" data-dir="-1" class="${p.dir < 0 ? 'on' : ''}">← Venstre</button><button type="button" data-dir="1" class="${p.dir > 0 ? 'on' : ''}">Høyre →</button></div></div>`;
+    if (f.opts)
+      return `<div class="dz-field"><span>${esc(f.label)}</span><div class="dz-seg">${f.opts
+        .map(
+          ([v, lab]) =>
+            `<button type="button" data-opt="${f.k}" data-v="${v}" class="${(p[f.k] || 0) === v ? 'on' : ''}">${esc(lab)}</button>`,
+        )
+        .join('')}</div></div>`;
     return `<label class="dz-field"><span>${esc(f.label)} <output>${u.nf.format(p[f.k])}</output></span><input type="range" data-f="${f.k}" min="${f.min}" max="${f.max}" step="${f.step}" value="${p[f.k]}"></label>`;
   }
   function posText(p) {
@@ -1027,6 +1353,12 @@
       const len = Math.hypot(dx, dy),
         deg = (Math.atan2(Math.abs(dy), Math.abs(dx)) * 180) / Math.PI;
       if (p.type === 'wall' || p.type === 'eagle') return `Lengde ${r(len)}`;
+      if (p.type === 'belt') {
+        const fwd = p.speed >= 0,
+          to = fwd ? { x: p.bx, y: p.by } : { x: p.ax, y: p.ay },
+          from = fwd ? { x: p.ax, y: p.ay } : { x: p.bx, y: p.by };
+        return `Lengde ${r(len)} · helning ${r(deg)}° · frakter ${to.y < from.y - 2 ? 'oppover' : to.y > from.y + 2 ? 'nedover' : 'bortover'} mot ${to.x >= from.x ? 'høyre' : 'venstre'}`;
+      }
       const low = p.by > p.ay ? p.bx - p.ax : p.ax - p.bx;
       return `Lengde ${r(len)} · helning ${r(deg)}° · ruller mot ${low > 0 ? 'høyre' : 'venstre'}${p.type === 'ramp' && deg < 4 ? '<br><span class="warn">⚠ Slakk rampe – kulene kan bli liggende.</span>' : ''}`;
     }
@@ -1035,6 +1367,21 @@
     if (p.type === 'wind') return `${r(p.x1 - p.x0)} × ${r(p.y1 - p.y0)}`;
     if (p.type === 'wheel' && Math.abs(p.speed) > P.W_FAST)
       return `x ${r(p.x)} · y ${r(p.y)}<br><span class="warn">🚀 Rakettfart! Hjulet skyter kulene til værs. Pass på at de lander et sted.</span>`;
+    if (p.type === 'vortex')
+      return `x ${r(p.x)} · y ${r(p.y)} · størrelse ${r(p.r)}`;
+    if (p.type === 'ferry') {
+      const d = Math.hypot(p.bx - p.ax, p.by - p.ay);
+      return `Avstand ${r(d)} · overfarten tar ${secs(Math.max(0.6, d / p.speed))}<br>La rampa ende rett ved bommen på A-kaia, og la det være noe som tar imot kulene ved B.`;
+    }
+    if (p.type === 'rocket')
+      return `Retning ${r(p.ang)}° · kraft ${r(p.pow)}<br>Dra i pilspissen for å sikte. Prikkene viser hvor kula flyr.`;
+    if (p.type === 'tunnel')
+      return `Inn ved ${r(p.ax)}, ${r(p.ay)} · ut ved ${r(p.bx)}, ${r(p.by)}`;
+    if (p.type === 'rack')
+      return `${Math.max(1, Math.floor((p.w - 43) / 44) + 1)} tørrfisk · bredde ${r(p.w)}`;
+    if (p.type === 'rein')
+      return `Beitestrekning ${r(Math.hypot(p.bx - p.ax, p.by - p.ay))}`;
+    if (p.type === 'slush') return `${r(p.x1 - p.x0)} × ${r(p.y1 - p.y0)}`;
     return `x ${r(p.x)} · y ${r(p.y)}`;
   }
   function piecePanel(p) {
@@ -1111,6 +1458,15 @@
       changed(before);
       return;
     }
+    const opt = e.target.closest('[data-opt]');
+    if (opt && sel >= 0) {
+      const before = snapshot();
+      const p = clone(doc.pieces[sel]);
+      p[opt.dataset.opt] = +opt.dataset.v;
+      doc.pieces[sel] = P.sanePiece(p);
+      if (snapshot() !== before) changed(before);
+      return;
+    }
     const b = e.target.closest('[data-a]');
     if (!b) return;
     const a = b.dataset.a;
@@ -1154,7 +1510,7 @@
     $('#dzOpen').innerHTML =
       `${cur ? '' : `<option value="" selected>${esc(doc.name)} (ikke lagret)</option>`}
       ${list.length ? `<optgroup label="Mine løyper">${list.map((c) => `<option value="${esc(c.id)}"${c.id === cur ? ' selected' : ''}>${esc(c.name)}${mark(c)}${Store.courseId === c.id ? ' · i bruk' : ''}</option>`).join('')}</optgroup>` : ''}
-      <optgroup label="Lag ny"><option value="new:simple">＋ Ny enkel løype</option><option value="new:copy">＋ Kopi av Keiservarden</option></optgroup>`;
+      <optgroup label="Lag ny"><option value="new:simple">＋ Ny enkel løype</option><option value="new:copy">＋ Kopi av Keiservarden</option><option value="new:demo">＋ Demo med alle delene</option></optgroup>`;
   }
   function load(c, savedVersion) {
     stopTest(true);
@@ -1239,12 +1595,15 @@
       fillOpen();
       return;
     }
-    if (v === 'new:simple' || v === 'new:copy') {
-      load(fromTemplate(v === 'new:copy' ? 'copy' : 'simple'), null);
+    if (v === 'new:simple' || v === 'new:copy' || v === 'new:demo') {
+      const kind = v.slice(4);
+      load(fromTemplate(kind), null);
       u.toast(
-        v === 'new:copy'
+        kind === 'copy'
           ? 'Kopi av originalen – gjør den til din egen!'
-          : 'Ny løype. Start og mål er på plass – resten er opp til deg.',
+          : kind === 'demo'
+            ? 'Demo med Saltstraumen, ferga, raketten og resten. Trykk Testkjør!'
+            : 'Ny løype. Start og mål er på plass – resten er opp til deg.',
       );
     } else {
       const c = Store.getCourse(v);
@@ -1299,14 +1658,16 @@
     const T = test;
     if (e.type === 'bump') return;
     let entry;
-    if (e.type === 'launch') {
+    if (e.type === 'launch' || e.type === 'rocket') {
       if (T.flown[e.i]) return; // logg bare første oppskyting for hver kule
       T.flown[e.i] = 1;
       entry = {
         icon: '🚀',
-        html: `<b>Kule ${e.i + 1}</b> ble skutt til værs`,
+        html: `<b>Kule ${e.i + 1}</b> ${e.type === 'rocket' ? 'ble skutt opp fra Andøya' : 'ble skutt til værs'}`,
         t: Math.max(0, e.t - P.GATE_T),
       };
+    } else if (e.type !== 'finish' && e.type !== 'out') {
+      return; // tunnel, slaps, tørrfisk, rein og Saltstraumen vises bare i bildet
     } else if (e.type === 'finish') {
       T.state[e.i] = 'fin';
       T.fin.push(e.i);
@@ -1365,6 +1726,7 @@
       for (let i = 0; i < T.n; i++) {
         if (T.state[i]) continue;
         const y = pos(res, i, T.t)[1];
+        if (y < -50000) continue; // inne i en tunnel
         if (y > by) {
           by = y;
           best = i;
@@ -1565,7 +1927,7 @@
   /* ---------- Verktøy på lerretet og delelista ---------- */
   $('#dzPal').innerHTML = PALETTE.map(
     (t) =>
-      `<button type="button" data-add="${t}" title="Legg til ${esc(KINDS[t].name.toLowerCase())}"><span class="dz-ico">${KINDS[t].ico}</span>${esc(KINDS[t].name)}</button>`,
+      `<button type="button" data-add="${t}" title="Legg til ${esc(KINDS[t].name.toLowerCase())}"><span class="dz-ico">${KINDS[t].ico}</span>${esc(KINDS[t].pal || KINDS[t].name)}</button>`,
   ).join('');
   $('#dzPal').addEventListener('click', (e) => {
     const b = e.target.closest('[data-add]');

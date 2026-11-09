@@ -1,7 +1,7 @@
 /* ==========================================================================
    Løypedesigneren for Keiservarden GP: verktøylinje, delepalett, lerret, panel
    ========================================================================== */
-.dz-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; padding-top: var(--top); }
+.dz-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; min-height: 0; max-height: 100vh; max-height: 100dvh; padding-top: var(--top); }
 .dz-bar { flex: none; display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 20px; padding: 12px var(--gutter) 14px; border-bottom: 1px solid var(--line); }
 .dz-title { flex: 1 1 320px; min-width: 0; }
 .dz-back { display: inline-block; margin-bottom: 4px; font-size: 13px; color: var(--muted); text-decoration: none; }
@@ -19,9 +19,9 @@
 .dz-select option, .dz-select optgroup { background: var(--bg-2); color: var(--text); }
 .dz-run { display: inline-flex; align-items: center; gap: 6px; }
 
-.dz-main { flex: 1; min-height: 0; display: grid; grid-template-columns: 92px minmax(0, 1fr) 330px; }
+.dz-main { flex: 1; min-height: 0; display: grid; grid-template-columns: 92px minmax(0, 1fr) 330px; grid-template-rows: minmax(0, 1fr); }
 .dz-pal { min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding: 10px 8px; border-right: 1px solid var(--line); background: #071221; scrollbar-width: thin; scrollbar-color: var(--line-2) transparent; }
-.dz-pal button { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 4px 7px; border-radius: 12px; border: 1px solid var(--line); background: rgba(255, 255, 255, .03); color: var(--text); font-size: 11.5px; font-weight: 600; line-height: 1.15; transition: border-color .2s, background .2s, transform .2s; }
+.dz-pal button { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 4px 7px; overflow-wrap: anywhere; text-align: center; border-radius: 12px; border: 1px solid var(--line); background: rgba(255, 255, 255, .03); color: var(--text); font-size: 11.5px; font-weight: 600; line-height: 1.15; transition: border-color .2s, background .2s, transform .2s; }
 .dz-pal button:hover { border-color: var(--aurora); background: rgba(94, 242, 181, .08); }
 .dz-pal button:active { transform: scale(.95); }
 .dz-ico { display: grid; place-items: center; width: 30px; height: 30px; font-size: 21px; line-height: 1; color: var(--paper); }
@@ -99,8 +99,8 @@
 
 @media (max-width: 1100px) { .dz-main { grid-template-columns: 84px minmax(0, 1fr) 290px; } }
 @media (max-width: 860px) {
-  .dz-page { height: auto; min-height: 100vh; }
-  .dz-main { grid-template-columns: minmax(0, 1fr); }
+  .dz-page { height: auto; min-height: 100vh; max-height: none; }
+  .dz-main { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; }
   .dz-pal { flex-direction: row; overflow-x: auto; overflow-y: hidden; padding: 8px; border-right: 0; border-bottom: 1px solid var(--line); scrollbar-width: none; }
   .dz-pal::-webkit-scrollbar { display: none; }
   .dz-pal button { flex: none; width: 74px; }

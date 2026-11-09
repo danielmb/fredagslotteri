@@ -69,6 +69,15 @@
     splash(big = 1) { if (!ensure()) return; const t = now(); noise(t, 0.7 * big, { f0: 2200, f1: 260, q: 0.6, peak: 0.45 * big }); noise(t + 0.05, 0.4, { type: 'lowpass', f0: 500, f1: 120, peak: 0.3 }); },
     thud() { if (!ensure()) return; const t = now(); const o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(120, t); o.frequency.exponentialRampToValueAtTime(40, t + 0.18); env(g, t, 0.005, 0.5, 0.02, 0.2); o.connect(g).connect(master); o.start(t); o.stop(t + 0.35); },
     whoosh() { if (!ensure()) return; noise(now(), 0.9, { type: 'bandpass', f0: 300, f1: 2400, q: 1.2, peak: 0.25, a: 0.3 }); },
+    grunt() { // reinen grynter
+      if (!ensure()) return;
+      const t = now();
+      const o = ctx.createOscillator(), g = ctx.createGain(), lp = ctx.createBiquadFilter();
+      o.type = 'sawtooth'; o.frequency.setValueAtTime(95, t); o.frequency.exponentialRampToValueAtTime(62, t + 0.32);
+      lp.type = 'lowpass'; lp.frequency.value = 420; lp.Q.value = 4;
+      env(g, t, 0.02, 0.22, 0.12, 0.2); o.connect(lp).connect(g).connect(master); o.start(t); o.stop(t + 0.5);
+      noise(t, 0.25, { type: 'bandpass', f0: 300, f1: 160, q: 2, peak: 0.08 });
+    },
     launch() { // Glimt-hjulet skyter en kule til værs: stigende plystring og et sus
       if (!ensure()) return;
       const t = now();
