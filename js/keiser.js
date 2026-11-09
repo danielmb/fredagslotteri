@@ -22,7 +22,13 @@
     k_fisk: (n) => ['Tørrfisk!', `${n} fikk en tørrfisk i trynet og forsvant ut av løypa.`],
     k_arm: (n) => ['Glimt-armen!', `${n} fikk et slag av Glimt-armen og forsvant ut av løypa!`],
   };
-  const FUN = ['rocket', 'spit', 'tunnel', 'fish', 'rein', 'slaps'];
+  const FUN = ['launch', 'rocket', 'spit', 'tunnel', 'fish', 'rein', 'slaps'];
+  // killfeed: kort tekst for hvert utfall (kommentatoren tar bare start og vinnere)
+  const KILL = {
+    k_vind: 'blåste ned i Juvet', k_ornes: 'tok Ørnes-luka', k_orna: 'tatt av ørna', k_glimt: 'slått ut av Glimt-hjulet',
+    k_arm: 'slått ut av Glimt-armen', k_kant: 'utfor kanten', k_fast: 'satt fast', k_salt: 'tatt av Saltstraumen',
+    k_ferje: 'rakk ikke ferga', k_rakett: 'skutt ut i verdensrommet', k_fisk: 'tørrfisk i trynet',
+  };
 
   /* Løypa som er valgt for trekningen: en godkjent egen løype, ellers originalen (null) */
   function activeDef() {
@@ -47,13 +53,17 @@
         an: u.$('#announce', stage), ev: u.$('#evWrap', stage), route: u.$('#route', stage),
         pax: u.$('#paxList', stage), log: u.$('#logList', stage), paxCount: u.$('#paxCount', stage), logCount: u.$('#logCount', stage),
         start: u.$('#startOverlay', stage), end: u.$('#endOverlay', stage), sideBody: u.$('.side-body', stage),
+        kf: document.createElement('ol'),
       };
+      this.el.kf.className = 'kfeed';
+      this.el.kf.setAttribute('aria-live', 'polite');
+      this.canvas.parentElement.appendChild(this.el.kf);
       this.cw = 0; this.ch = 0; this.dpr = 1;
       this.def = null; this.courseKey = '';
       this.C = P.course(1, null);
       this.cam = this.homeCam();
       this.token = 0; this.active = false; this.running = false; this.playing = false;
-      this.t = 0; this.texts = []; this.time = 0;
+      this.t = 0; this.texts = []; this.time = 0; this.fb = new Map();
       this.stars = D.stars(42);
       this.resize();
       if ('ResizeObserver' in window) new ResizeObserver(() => this.resize()).observe(this.canvas);
@@ -93,6 +103,10 @@
       if (prio < (this.sayPrio || 0) && this.time - (this.sayAt || 0) < 1.8) return;
       this.sayPrio = prio; this.sayAt = this.time;
       this.infoCard(icon, title, text, 'Kommentator · Keiservarden GP');
+      // kommentatoren tar bare de store øyeblikkene – og forsvinner igjen, så bildet er ryddig under løpet
+      const card = this.el.ev.firstElementChild;
+      clearTimeout(this.sayT);
+      this.sayT = setTimeout(() => { if (card && card.parentNode) { card.classList.add('out'); setTimeout(() => card.remove(), 400); } }, prio >= 5 ? 6500 : 4500);
     }
     float(text, x, y, color = '#fff', size = 30) { this.texts.push({ text, x, y, color, size, t0: this.time }); }
     handle(e, quiet) {
@@ -106,16 +120,6 @@
       }
       if (FUN.includes(e.type)) {
         if (!quiet && m && !m.state) this.fun(e, m);
-        return;
-      }
-      if (e.type === 'launch') { // et raskt Glimt-hjul skjøt kula til værs
-        if (quiet || !m || m.state) return;
-        if (this.time - (this.launchAt || 0) > 0.3) { this.launchAt = this.time; S().launch(); this.float('SVISJ!', e.x, e.y - 34, '#ffd400', 26); }
-        if (this.time - (this.launchSayAt || 0) > 5) {
-          this.launchSayAt = this.time;
-          const lp = this.pax.get(m.no);
-          if (lp) this.say(e.arm ? '🦾' : '🚀', e.arm ? 'Glimt-armen slår til!' : 'Oppskyting!', `${e.arm ? 'Glimt-armen slo' : 'Glimt-hjulet sendte'} ${u.esc(lp.name)} (kule ${u.esc(lp.label)}) til værs!`, 2);
-        }
         return;
       }
       const p = this.pax.get(m.no);
@@ -135,7 +139,7 @@
           if (rank === this.W) this.winT = e.t;
         } else {
           this.setRow(p, '🏁');
-          if (!quiet && this.time - (this.finSayAt || 0) > 2.2) { this.finSayAt = this.time; this.say('🏁', 'I mål', `${u.esc(p.name)} kom i mål som nummer ${rank}.`, 0); }
+          if (!quiet && rank <= this.W + 3) this.feed('🏁', `${this.who(p)} i mål som nr. ${rank}`, 'fin'); // resten står i lista
         }
         return;
       }
@@ -148,36 +152,50 @@
         this.updateCounts();
         this.logLine(ev.icon, said(`<b>${u.esc(p.name)}</b>`, e.pn)[1]);
         if (quiet) return;
-        const [title, line] = said(`<b>${u.esc(p.name)}</b> (${u.esc(p.label)})`, e.pn);
-        this.say(ev.icon, title, line, 3);
-        const [x, y] = this.pos(e.i, this.t);
+        this.feed(ev.icon, `${this.who(p)} ${u.esc(e.cause === 'k_hull' ? `falt ned i ${e.pn || 'hullet'}` : KILL[e.cause] || KILL.k_kant)}`, 'out');
         if (e.cause === 'k_orna') S().screech();
-        else if (e.cause === 'k_ornes') { S().thud(); this.float('ØRNES ↓', x, y - 30, '#f6bd47', 24); }
-        else if (e.cause === 'k_salt' || e.cause === 'k_ferje') { S().splash(1); this.float('PLASK!', x, y - 30, '#9fd6ff', 26); }
+        else if (e.cause === 'k_ornes') S().thud();
+        else if (e.cause === 'k_salt' || e.cause === 'k_ferje') S().splash(1);
         else if (e.cause === 'k_rakett') S().boom();
-        else { S().whoosh(); this.float('NEEI!', x, y - 34, '#9fd6ff', 26); }
+        else S().whoosh();
       }
     }
-    /* Småhendelser fra de nye delene: lyd, en liten tekst i bildet og av og til en kommentar */
+    /* Killfeed øverst i hjørnet: utfall og småhendelser glir inn og forsvinner igjen */
+    feed(icon, html, kind = 'minor') {
+      if (kind === 'minor' && !this.once('minorFeed', 2.2)) return; // småting kommer aldri tettere enn dette
+      const kf = this.el.kf, li = document.createElement('li');
+      li.className = `kf-row is-${kind}`;
+      li.innerHTML = `<span class="kf-ico">${icon}</span><span class="kf-txt">${html}</span>`;
+      kf.prepend(li);
+      while (kf.children.length > 6) kf.lastElementChild.remove();
+      setTimeout(() => { li.classList.add('is-old'); setTimeout(() => li.remove(), 500); }, kind === 'out' ? 6500 : 4000);
+    }
+    who(p) { return p ? `<b style="color:${p.color}">${u.esc(p.name)}</b> <span class="kf-no">${u.esc(p.label)}</span>` : '<b>En kule</b>'; }
+    once(k, gap) { if (this.time - (this[k] || -99) < gap) return false; this[k] = this.time; return true; }
+    /* Småhendelser fra Glimt-hjul, Glimt-arm og de nye delene: lyd og en linje i killfeeden */
     fun(e, m) {
-      const p = this.pax.get(m.no), who = p ? `${u.esc(p.name)} (kule ${u.esc(p.label)})` : 'En kule';
-      const once = (k, gap) => { if (this.time - (this[k] || -99) < gap) return false; this[k] = this.time; return true; };
-      if (e.type === 'rocket') {
-        if (once('rocketFx', 0.25)) { S().launch(); this.float('AVFYRT!', e.x, e.y - 40, '#ff9a7a', 26); }
-        if (once('rocketSay', 6)) this.say('🚀', '3 – 2 – 1 – AVFYR!', `Andøya skjøt ${who} rett til værs!`, 2);
+      const who = this.who(this.pax.get(m.no));
+      // samme kule og samme greie vises høyst hvert tiende sekund
+      const fresh = () => { const k = `${e.type}:${e.i}`, last = this.fb.get(k); if (last != null && this.time - last < 10) return false; this.fb.set(k, this.time); return true; };
+      if (e.type === 'launch') {
+        if (this.once('launchFx', 0.3)) S().launch();
+        if (fresh()) this.feed(e.arm ? '🦾' : '💛', `${who} slått til værs`);
+      } else if (e.type === 'rocket') {
+        if (this.once('rocketFx', 0.25)) S().launch();
+        if (fresh()) this.feed('🚀', `${who} skutt opp fra Andøya`);
       } else if (e.type === 'spit') {
-        if (once('spitFx', 0.3)) { S().splash(0.6); this.float('SPLASJ!', e.x, e.y - 30, '#9fd6ff', 24); }
-        if (once('spitSay', 6)) this.say('🌀', 'Saltstraumen!', `Strømmen snurret ${who} rundt og spyttet den ut igjen!`, 2);
+        if (this.once('spitFx', 0.3)) S().splash(0.6);
+        if (fresh()) this.feed('🌀', `${who} spyttet ut av Saltstraumen`);
       } else if (e.type === 'tunnel') {
-        if (once('tunnelSay', 7)) this.say('🚇', 'Inn i tunnelen', `${who} forsvant inn i fjellet. Kor kommer den ut?`, 1);
+        if (fresh()) this.feed('🚇', `${who} kjørte inn i tunnelen`);
       } else if (e.type === 'fish') {
-        if (once('fishFx', 0.3)) { S().thud(); this.float('SMEKK!', e.x, e.y - 30, '#f1d9b6', 24); }
-        if (once('fishSay', 6)) this.say('🐟', 'Tørrfisk!', `${who} fikk en tørrfisk midt i trynet!`, 1);
+        if (this.once('fishFx', 0.3)) S().thud();
+        if (fresh()) this.feed('🐟', `${who} fikk tørrfisk i trynet`);
       } else if (e.type === 'rein') {
-        if (once('reinFx', 0.5)) { S().grunt(); this.float('GRYNT', e.x, e.y - 20, '#eadfcc', 22); }
-        if (once('reinSay', 7)) this.say('🦌', 'Rein i veien!', `En rein står midt i løypa. ${who} må pent vente.`, 1);
+        if (this.once('reinFx', 0.6)) S().grunt();
+        if (fresh()) this.feed('🦌', `${who} står fast bak reinen`);
       } else if (e.type === 'slaps') {
-        if (e.i === this.leader && once('slapsSay', 8)) this.say('🌨️', 'Slaps!', `${who} kjører rett inn i novemberslapset. Her går det tregt.`, 1);
+        if (e.i === this.leader && fresh()) this.feed('🌨️', `${who} kjørte inn i slapset`);
       }
     }
     raceName() { return this.courseName ? `«${this.courseName}»` : 'Keiservarden Grand Prix'; }
@@ -199,7 +217,7 @@
       if (prev < G && this.t >= G) { this.announce('KJØR!', 'Porten e åpen', 1300); S().horn(0.9); this.say('🎙️', 'Og de e i gang!', this.courseName ? `Porten e åpen – kulene stuper utfor ${u.esc(this.raceName())}!` : 'Porten på Keiservarden e åpen – kulene stuper ned mot Bodø!', 2); }
       let gust = false;
       for (const Z of this.C.winds) {
-        for (const g of Z.gusts) if (prev < g.t0 && this.t >= g.t0 && this.leaderY > Z.y0 - 280 && this.leaderY < Z.y1 + 280) { S().wind(); this.say('🌬️', 'Vindkast!', this.courseName ? 'Kraftig vindkast – nå gjelder det å holde farta!' : 'Kraftig kast i Bodø-vind – nå gjelder det å holde farta!', 1); gust = true; break; }
+        for (const g of Z.gusts) if (prev < g.t0 && this.t >= g.t0 && this.leaderY > Z.y0 - 280 && this.leaderY < Z.y1 + 280) { S().wind(); if (this.once('gustFeed', 4)) this.feed('🌬️', this.courseName ? 'Vindkast!' : 'Vindkast i Bodø-vinden!'); gust = true; break; }
         if (gust) break;
       }
       for (const E of this.C.eagles) {
@@ -212,14 +230,14 @@
       for (const F of this.C.ferries) {
         if (P.kin.ferry(F, prev).at === 1 && P.kin.ferry(F, this.t).at !== 1 && near(F.ay)) {
           S().horn(0.7, 0.24);
-          if (this.time - (this.ferrySayAt || -99) > 14) { this.ferrySayAt = this.time; this.say('⛴️', 'Ferga går!', 'MF Lofoten legger fra kai. Den som ikke rakk den, står igjen i køen.', 1); }
+          if (this.once('ferryFeed', 8)) this.feed('⛴️', 'MF Lofoten legger fra kai');
         }
       }
       for (const T of this.C.tunnels) {
-        if (!P.kin.tunnelClosed(T, prev) && P.kin.tunnelClosed(T, this.t) && near(T.ay)) { S().boom(); this.say('🪨', 'Ras i tunnelen!', 'Tunnelen er stengt. Kulene må vente til veien er ryddet.', 1); }
+        if (!P.kin.tunnelClosed(T, prev) && P.kin.tunnelClosed(T, this.t) && near(T.ay)) { S().boom(); this.feed('🪨', 'Ras i tunnelen – stengt'); }
       }
       for (const Rn of this.C.reins) {
-        if (!P.kin.rein(Rn, prev).away && P.kin.rein(Rn, this.t).away && near(Rn.ay)) this.say('🦌', 'Reinen går til skogs', 'Veien er fri – nå gjelder det å komme seg forbi!', 0);
+        if (!P.kin.rein(Rn, prev).away && P.kin.rein(Rn, this.t).away && near(Rn.ay) && this.once('reinAwayFeed', 4)) this.feed('🦌', 'Reinen gikk til skogs – veien er fri');
       }
       while (this.ei < this.res.events.length && this.res.events[this.ei].t <= this.t) this.handle(this.res.events[this.ei++], false);
       // leder
@@ -228,7 +246,7 @@
       this.leaderY = best >= 0 ? by : this.leaderY;
       if (best >= 0 && best !== this.leader && this.t > G + 2 && !this.finished.length) {
         this.leader = best;
-        if (this.time - (this.leadAt || 0) > 3.5) { this.leadAt = this.time; const p = this.pax.get(this.mar[best].no); this.say('🏔️', 'Ny leder!', `${u.esc(p.name)} (kule ${u.esc(p.label)}) tar ledelsen!`, 1); }
+        if (this.once('leadFeed', 3.5)) this.feed('🏔️', `${this.who(this.pax.get(this.mar[best].no))} tar ledelsen`, 'lead');
       }
       if (this.playing && ((this.winT != null && this.t >= this.winT + 3.8) || this.t >= this.res.duration)) this.wrapUp();
     }
@@ -353,7 +371,7 @@
       this.syncCourse(true);
       this.cam = this.homeCam();
       this.fx.clear();
-      this.el.ev.innerHTML = ''; this.el.an.innerHTML = '';
+      this.el.ev.innerHTML = ''; this.el.an.innerHTML = ''; this.el.kf.innerHTML = '';
       this.el.route.innerHTML = '';
       this.el.pax.innerHTML = '<li class="side-empty">Kulene står klare i porten på toppen.</li>';
       this.el.log.innerHTML = '<li class="side-empty">Kommentatoren varmer opp stemmen.</li>';
@@ -401,11 +419,11 @@
       const ff = res.events.find((e) => e.type === 'finish');
       this.firstFinT = ff ? ff.t : Infinity;
       this.finished = []; this.out = 0; this.logN = 0; this.ei = 0; this.t = 0; this.leader = -1; this.leaderY = 0; this.winT = null;
-      this.sayPrio = 0; this.texts = [];
+      this.sayPrio = 0; this.texts = []; this.fb = new Map();
       this.cam = this.homeCam();
       this.buildManifest();
       this.el.log.innerHTML = '';
-      this.el.ev.innerHTML = '';
+      this.el.ev.innerHTML = ''; this.el.kf.innerHTML = '';
       this.hideOverlay(this.el.start); this.hideOverlay(this.el.end);
       this.running = true; this.playing = true;
       Eng.speed = FL.Engine.userSpeed || 1;
