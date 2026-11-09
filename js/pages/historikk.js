@@ -5,8 +5,10 @@
   const u = FL.u, Store = FL.Store, Ev = FL.Events;
   const { $, esc } = u;
   const MEDAL = ['🥇', '🥈', '🥉'];
-  const GAME = { hurtigbat: 'Hurtigbåten', draugen: 'Draugen', lyn: 'Avgangstavla', manuell: 'Manuelt registrert' };
-  const isVoyage = (h) => h.game === 'hurtigbat' || h.game === 'draugen';
+  const GAME = { hurtigbat: 'Hurtigbåten', draugen: 'Draugen', keiser: 'Keiservarden GP', lyn: 'Avgangstavla', manuell: 'Manuelt registrert' };
+  const isVoyage = (h) => h.game === 'hurtigbat' || h.game === 'draugen' || h.game === 'keiser';
+  const LEFT = { draugen: ['👻', 'Mannskap hos Draugen'], keiser: ['🚧', 'Satt fast i startporten'] };
+  const GOAL = { draugen: 'Kom frem til Henningsvær', keiser: 'Først ned til Bodø havn' };
 
   function renderStats(s) {
     const lead = s.leaders[0];
@@ -23,12 +25,13 @@
   }
   function tripLog(h) {
     let html = '';
-    if (h.leftBehind && h.leftBehind.length) html += h.game === 'draugen'
-      ? `<li><span>👻</span><span>Mannskap hos Draugen (ikke betalt): ${h.leftBehind.map((p) => esc(p.name)).join(', ')}</span></li>`
-      : `<li><span>🧳</span><span>Igjen på kaia (ikke betalt): ${h.leftBehind.map((p) => esc(p.name)).join(', ')}</span></li>`;
-    if (isVoyage(h) && h.beats && h.beats.length) {
+    if (h.leftBehind && h.leftBehind.length) {
+      const [ico, lbl] = LEFT[h.game] || ['🧳', 'Igjen på kaia'];
+      html += `<li><span>${ico}</span><span>${lbl} (ikke betalt): ${h.leftBehind.map((p) => esc(p.name)).join(', ')}</span></li>`;
+    }
+    if (isVoyage(h) && h.beats && (h.beats.length || h.game === 'keiser')) {
       html += h.beats.map((b) => `<li><span>${(Ev.EVENTS[b.ev] || {}).icon || '•'}</span><span>${Ev.eventText(b, h.tickets, true)}</span></li>`).join('');
-      html += `<li><span>🏁</span><span>${h.game === 'draugen' ? 'Kom frem til Henningsvær' : 'I land i Bodø'}: ${h.winners.map((no, i) => `${MEDAL[i] || ''} <b>${esc(h.tickets[no - 1].name)}</b>`).join(', ')}</span></li>`;
+      html += `<li><span>🏁</span><span>${GOAL[h.game] || 'I land i Bodø'}: ${h.winners.map((no, i) => `${MEDAL[i] || ''} <b>${esc(h.tickets[no - 1].name)}</b>`).join(', ')}</span></li>`;
     } else if (h.people && h.people.length) {
       html += `<li><span>🎟️</span><span>Om bord: ${h.people.map((p) => `${esc(p.name)} (${(p.nums || []).filter(Boolean).join('/') || `${p.tickets} lodd`})`).join(', ')}</span></li>`;
     }

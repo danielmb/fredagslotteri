@@ -1,9 +1,15 @@
 # Fredagslotteriet
 
-Nettside for fredagslotteriet i Bodø – med spillet «Hurtigbåten til Bodø».
+Nettside for fredagslotteriet i Bodø – med spillene «Hurtigbåten til Bodø», «Draugen» og «Keiservarden Grand Prix».
 
 - **Påmelding:** den som tar imot betalingen, krysser av folk på en fast liste. Alle har lodd-nummer de har valgt selv (f.eks. 7 og 70), ett per lodd. Den som ikke er bekreftet betalt når båten går, blir igjen på kaia.
-- **Trekning:** Hurtigbåten til Bodø (hovedspillet) eller Avgangstavla (lyntrekning).
+- **Trekning:** fire måter å trekke på:
+  - Hurtigbåten til Bodø (hovedspillet)
+  - Draugen (Lofotfisket i Vestfjorden)
+  - Keiservarden Grand Prix (kuleløp med ekte fysikk ned til Bodø havn)
+  - Avgangstavla (lyntrekning)
+
+  Vinnerne trekkes alltid kryptografisk og låses i skipsloggen før spillet vises.
 - **Skipsloggen:** historikk, vinnertavle og backup.
 
 ## Kjøre lokalt

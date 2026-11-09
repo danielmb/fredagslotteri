@@ -14,7 +14,7 @@
   ];
   const AT = Object.fromEntries(ROUTE.map((r) => [r.id, r.at]));
   const PORT_NAME = { nesna: 'Nesna', ornes: 'Ørnes' };
-  const PLACE_LABEL = { sea: 'Til sjøs', nesna: 'Kaia i Nesna', ornes: 'Kaia i Ørnes', polar: 'Polarsirkelen', final: 'Innseilingen til Bodø', vest: 'Vestfjorden', boss: 'Stormens øye' };
+  const PLACE_LABEL = { sea: 'Til sjøs', nesna: 'Kaia i Nesna', ornes: 'Kaia i Ørnes', polar: 'Polarsirkelen', final: 'Innseilingen til Bodø', vest: 'Vestfjorden', boss: 'Stormens øye', kei: 'Keiservarden' };
 
   /* t = standardtekster, p = tekster ved kai ({p} = stedsnavn), g = flere ofre samtidig */
   const EVENTS = {
@@ -227,6 +227,16 @@
       t: ['Kraken grep båten til {n} – men Draugens tann lyste opp, og Kraken slapp i skrekk. Reddet! Denne gangen.'],
     },
   });
+  /* ---------- Keiservarden Grand Prix: farer i løypa ---------- */
+  Object.assign(EVENTS, {
+    k_vind: { game: 'keiser', title: 'Blåste ned i Juvet', name: 'Bodø-vind og Juvet', icon: '🌬️', color: 'rgba(160,190,220,.22)', ec: '#dbe5ee', desc: 'Et kraftig vindkast midt i hoppet. Juvet tar resten.', t: ['{n} fikk motvind midt i hoppet og blåste ned i Juvet.'] },
+    k_ornes: { game: 'keiser', title: 'Feil avkjøring', name: 'Ørnes-luka', icon: '📍', color: 'rgba(246,189,71,.22)', ec: '#f5e2b0', desc: 'Snarveien har en luke. Luka går til Ørnes.', t: ['{n} tok snarveien, falt gjennom Ørnes-luka og havnet i Ørnes.'] },
+    k_orna: { game: 'keiser', title: 'Ørna tok kula', name: 'Ørna jakter', icon: '🦅', color: 'rgba(201,140,70,.28)', ec: '#f1d9b6', desc: 'Havørna er glad i blanke ting. Kuler er blanke.', t: ['Ørna stupte ned og tok {n}. Den ser vi aldri igjen.'] },
+    k_glimt: { game: 'keiser', title: 'Slått ut av Glimt-hjulet', name: 'Glimt-hjulet', icon: '💛', color: 'rgba(255,212,0,.2)', ec: '#fbeaa0', desc: 'Gult, svart og spinner som en kontring.', t: ['Glimt-hjulet slo {n} rett ut av løypa.'] },
+    k_kant: { game: 'keiser', title: 'Utfor kanten', name: 'Kanten', icon: '⛰️', color: 'rgba(130,140,160,.22)', ec: '#dde2ea', desc: 'Keiservarden er 366 meter høy. Kanten er bratt.', t: ['{n} spratt utfor kanten. Det er langt ned.'] },
+    k_fast: { game: 'keiser', title: 'Satt fast', name: 'Snøfonna', icon: '❄️', color: 'rgba(200,230,255,.2)', ec: '#e3f1fb', desc: 'Noen kommer seg aldri videre fra en snøfonn.', t: ['{n} satt fast i ei snøfonn og kom aldri ned.'] },
+  });
+  const ORDER_KEISER = ['k_vind', 'k_ornes', 'k_orna', 'k_glimt', 'k_kant', 'k_fast'];
   const ORDER_DRAUGEN = ['kraken', 'draugen', 'malstrom', 'blekk', 'huldra', 'krabbe', 'lyn', 'troll', 'vaffellukt', 'volleyball', 'hurtigrutebolge', 'amulett'];
   const D_SINGLE = ['kraken', 'draugen', 'huldra', 'krabbe', 'lyn', 'vaffellukt', 'volleyball'];
   const D_GROUP = { malstrom: 5, blekk: 4, troll: 3, hurtigrutebolge: 4, kraken: 3 };
@@ -272,7 +282,8 @@
       const t = tickets.find((x) => x.k === u.normName(opts.amuletName));
       if (t) amulet = { name: t.name, no: t.no };
     }
-    const beats = opts.game === 'draugen' ? buildDraugenBeats(elim, u.mulberry32(seed), amulet && amulet.no) : buildBeats(elim, u.mulberry32(seed));
+    // Keiservarden fyller inn hendelsene fra fysikk-simuleringen etterpå
+    const beats = opts.game === 'draugen' ? buildDraugenBeats(elim, u.mulberry32(seed), amulet && amulet.no) : opts.game === 'keiser' ? [] : buildBeats(elim, u.mulberry32(seed));
     return {
       id: u.uid('d'), date: new Date().toISOString(), game: opts.game || 'hurtigbat', demo: !!opts.demo,
       price: settings.price, winnersCount: winners.length, pot: tickets.length * settings.price,
@@ -442,5 +453,5 @@
     { id: 'skrova', name: 'Skrova', type: 'marker', at: 0.8 },
     { id: 'henn', name: 'Henningsvær', type: 'end', at: 1 },
   ];
-  FL.Events = { EVENTS, ORDER, ORDER_DRAUGEN, ROUTE, ROUTE_DRAUGEN, AT, PORT_NAME, PLACE_LABEL, createDraw, eventText };
+  FL.Events = { EVENTS, ORDER, ORDER_DRAUGEN, ORDER_KEISER, ROUTE, ROUTE_DRAUGEN, AT, PORT_NAME, PLACE_LABEL, createDraw, eventText };
 })();

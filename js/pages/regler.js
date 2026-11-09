@@ -27,10 +27,12 @@
       const e = Ev.EVENTS[id];
       const n = s.causes[id] || 0;
       return `<article class="hz" style="--hz:${e.color}"><div class="hz-ico" aria-hidden="true">${e.icon}</div><h3>${esc(e.name)}</h3><p>${esc(e.desc)}</p>
-        <div class="hz-foot">${e.folk ? '<span class="tag tag-folk">Folkets innslag</span>' : (e.game === 'draugen' ? '<span class="tag tag-sagn">Sagn</span>' : '<span class="tag tag-bonus">Bonus</span>')}<span class="hz-count">${id === 'amulett' ? '🦷 redder én gang' : `☠ <b>${n}</b> ${n === 1 ? 'offer' : 'ofre'}`}</span></div></article>`;
+        <div class="hz-foot">${e.folk ? '<span class="tag tag-folk">Folkets innslag</span>' : (e.game === 'draugen' ? '<span class="tag tag-sagn">Sagn</span>' : e.game === 'keiser' ? '<span class="tag tag-sagn">Fysikk</span>' : '<span class="tag tag-bonus">Bonus</span>')}<span class="hz-count">${id === 'amulett' ? '🦷 redder én gang' : `☠ <b>${n}</b> ${n === 1 ? 'offer' : 'ofre'}`}</span></div></article>`;
     };
     $('#hazards').innerHTML = Ev.ORDER.map(card).join('');
     $('#hazardsDraugen').innerHTML = Ev.ORDER_DRAUGEN.map(card).join('');
+    const hk = document.getElementById('hazardsKeiser');
+    if (hk) hk.innerHTML = Ev.ORDER_KEISER.map(card).join('');
   }
   const render = () => { renderRules(); renderHazards(); };
   render();

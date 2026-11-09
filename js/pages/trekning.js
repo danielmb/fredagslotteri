@@ -1,4 +1,4 @@
-/* Trekningssiden: tre spill på samme scene + hovedløkka */
+/* Trekningssiden: fire spill på samme scene + hovedløkka */
 (function () {
   'use strict';
   const FL = window.FL;
@@ -6,10 +6,11 @@
   const stage = document.getElementById('stage');
   const voyage = new FL.Voyage(stage);
   const draugen = new FL.Draugen(stage);
+  const keiser = new FL.Keiser(stage);
   const board = new FL.Board(stage);
   FL.Engine.userSpeed = 1;
   let game = 'hurtigbat';
-  FL.app = { voyage, draugen, board };
+  FL.app = { voyage, draugen, keiser, board };
 
   function clearShared() {
     u.$('#startOverlay').hidden = true; u.$('#endOverlay').hidden = true;
@@ -22,28 +23,34 @@
     try { localStorage.setItem('fredagslotteriet:spill', g); } catch (e) { /* ikke viktig */ }
     if (g !== 'hurtigbat') voyage.abort(true);
     if (g !== 'draugen' && draugen.active) draugen.deactivate();
+    if (g !== 'keiser' && keiser.active) keiser.deactivate();
     if (g !== 'lyn') board.hide();
     clearShared();
     if (g === 'lyn') board.show();
     else if (g === 'draugen') draugen.activate();
+    else if (g === 'keiser') keiser.activate();
     else voyage.idle();
   }
   u.$$('.game-tab[data-game]').forEach((t) => t.addEventListener('click', () => { if (t.dataset.game !== game) setGame(t.dataset.game); }));
   Store.subscribe(() => {
     if (game === 'hurtigbat') voyage.renderStart();
     else if (game === 'draugen') draugen.renderStart();
+    else if (game === 'keiser') keiser.renderStart();
     else if (board.state === 'idle') board.show();
   });
 
   // reprise fra skipsloggen (trekning.html?reprise=<id>), ellers sist valgte spill
   const rid = new URLSearchParams(location.search).get('reprise');
   const rec = rid && Store.getRecord(rid);
+  const GAMES = ['hurtigbat', 'draugen', 'keiser', 'lyn'];
   let first = 'hurtigbat';
   try { first = localStorage.getItem('fredagslotteriet:spill') || 'hurtigbat'; } catch (e) { /* standard */ }
-  if (rec && (rec.game === 'hurtigbat' || rec.game === 'draugen')) first = rec.game;
+  if (!GAMES.includes(first)) first = 'hurtigbat';
+  if (rec && ['hurtigbat', 'draugen', 'keiser'].includes(rec.game)) first = rec.game;
   if (first !== 'hurtigbat') setGame(first);
   if (rec && rec.game === 'hurtigbat') setTimeout(() => voyage.replay(rec), 400);
   if (rec && rec.game === 'draugen') setTimeout(() => draugen.replay(rec), 400);
+  if (rec && rec.game === 'keiser') setTimeout(() => keiser.replay(rec), 400);
 
   /* hovedløkke – pauser når scenen ikke er synlig */
   const { Eng } = FL.Engine;
@@ -57,6 +64,7 @@
       const d = dt * Eng.speed;
       Eng.step(d);
       if (game === 'draugen') draugen.frame(d, dt);
+      else if (game === 'keiser') keiser.frame(d, dt);
       else {
         voyage.sc.update(d);
         voyage.tick();
