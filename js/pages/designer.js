@@ -192,6 +192,13 @@
       help: 'November i Bodø. Alt som triller gjennom feltet, sakker kraftig ned.',
       make: (x, y) => ({ x0: x - 150, y0: y - 60, x1: x + 150, y1: y + 60 }),
     },
+    boss: {
+      name: 'Sjefen',
+      pal: 'Sjefen',
+      ico: '👔',
+      help: 'Sjefen liker ikke fredagslotteriet. Han står og skyter grønne stråler med strålepistolen på kulene han ser foran seg. Vegger og ramper stopper strålene. Velg om strålen dytter kulene eller fordamper dem.',
+      make: (x, y) => ({ x, y, dir: 1, range: 600, cd: 1.4, zap: 0 }),
+    },
   };
   const PALETTE = [
     'ramp',
@@ -213,6 +220,7 @@
     'rack',
     'rein',
     'slush',
+    'boss',
     'sign',
   ];
   // i takt: fast startvinkel i stedet for tilfeldig (vinkelen vises bare når takt er på)
@@ -330,6 +338,19 @@
       },
     ],
     rack: [{ k: 'len', label: 'Lengde på fisken', min: 40, max: 120, step: 1 }],
+    boss: [
+      { k: 'dir', label: 'Ser mot', dir: true },
+      { k: 'range', label: 'Rekkevidde', min: 150, max: 1200, step: 10 },
+      { k: 'cd', label: 'Sekunder mellom skuddene', min: 0.4, max: 4, step: 0.1 },
+      {
+        k: 'zap',
+        label: 'Strålen',
+        opts: [
+          [0, 'Dytter kulene'],
+          [1, 'Fordamper dem'],
+        ],
+      },
+    ],
   };
   const TEST_SAY = {
     k_vind: 'blåste ned i Juvet',
@@ -344,6 +365,7 @@
     k_rakett: 'ble skutt ut i verdensrommet',
     k_fisk: 'fikk en tørrfisk i trynet',
     k_arm: 'ble slått ut av Glimt-armen',
+    k_sjef: 'ble tatt av Sjefen',
   };
   const SIMPLE = [
     { type: 'start', x: 800, y: 300 },
@@ -492,6 +514,8 @@
         };
       case 'slush':
         return { x0: p.x0, y0: p.y0, x1: p.x1, y1: p.y1 };
+      case 'boss':
+        return { x0: p.x - 34, y0: p.y - 128, x1: p.x + 34, y1: p.y + 22 };
       default:
         return {
           x0: Math.min(p.ax, p.bx) - 10,
@@ -533,6 +557,10 @@
       return Math.hypot(x - p.ax, y - (p.ay - 30)) <= 46 + tol ||
         Math.hypot(x - p.bx, y - (p.by - 30)) <= 46 + tol
         ? 1300
+        : Infinity;
+    if (p.type === 'boss')
+      return x > p.x - 40 - tol && x < p.x + 40 + tol && y > p.y - 130 - tol && y < p.y + 22 + tol
+        ? 1100
         : Infinity;
     if (p.type === 'rein') {
       const d = segD(x, y, p.ax, p.ay - 30, p.bx, p.by - 30);
@@ -580,6 +608,8 @@
       }
       case 'rack':
         return [{ k: 'w', x: p.x + p.w, y: p.y }];
+      case 'boss':
+        return [{ k: 'r', x: p.x + p.dir * (42 + p.range), y: p.y - 72 }];
       case 'slush':
         return [
           { k: 'tl', x: p.x0, y: p.y0 },
@@ -625,6 +655,13 @@
       case 'rack':
         p.w = u.clamp(Math.round(x - p.x), 80, 900);
         break;
+      case 'boss': {
+        // dra rekkevidden; drar du forbi Sjefen, snur han seg
+        const dx = x - (p.x + p.dir * 42);
+        if (Math.sign(dx) && Math.sign(dx) !== p.dir && Math.abs(dx) > 60) p.dir = Math.sign(dx);
+        p.range = u.clamp(Math.round(Math.hypot(x - (p.x + p.dir * 42), y - (p.y - 72)) / 10) * 10, 150, 1200);
+        break;
+      }
       case 'slush':
         if (k === 'tl') {
           p.x0 = Math.min(x, p.x1 - 60);
@@ -918,6 +955,19 @@
         ctx.lineTo(p.bx, p.by - lift);
         ctx.stroke();
       }
+    }
+    // hvor langt Sjefen ser (han skyter bare framover)
+    for (const p of doc.pieces) {
+      if (p.type !== 'boss') continue;
+      const gx = p.x + p.dir * 42,
+        gy = p.y - 72,
+        a0 = p.dir > 0 ? -1.1 : Math.PI - 1.1;
+      ctx.strokeStyle = 'rgba(94,242,138,.45)';
+      ctx.beginPath();
+      ctx.moveTo(gx, gy);
+      ctx.arc(gx, gy, p.range, a0, a0 + 2.2);
+      ctx.closePath();
+      ctx.stroke();
     }
     ctx.setLineDash([]);
     // banen raketten skyter kulene (uten andre kuler og bevegelige deler)
@@ -1445,6 +1495,8 @@
     if (p.type === 'rein')
       return `Beitestrekning ${r(Math.hypot(p.bx - p.ax, p.by - p.ay))}`;
     if (p.type === 'slush') return `${r(p.x1 - p.x0)} × ${r(p.y1 - p.y0)}`;
+    if (p.type === 'boss')
+      return `Ser mot ${p.dir > 0 ? 'høyre' : 'venstre'} · rekkevidde ${r(p.range)} · skyter hvert ${secs(p.cd)}<br>${p.zap ? '<span class="warn">⚡ Strålen fordamper kulene – de er ute.</span>' : 'Strålen dytter kulene av gårde.'} Den grønne buen viser hvor han ser.`;
     return `x ${r(p.x)} · y ${r(p.y)}`;
   }
   function piecePanel(p) {

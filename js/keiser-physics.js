@@ -85,7 +85,8 @@
 
   /* ---------- Rydding av løypedata (fra lagring, import og designeren) ---------- */
   const TYPES = ['start', 'finish', 'ramp', 'wall', 'pegs', 'bumper', 'wheel', 'seesaw', 'trap', 'pit', 'wind', 'eagle', 'sign',
-    'vortex', 'belt', 'ferry', 'rocket', 'tunnel', 'rack', 'rein', 'slush', 'arm'];
+    'vortex', 'belt', 'ferry', 'rocket', 'tunnel', 'rack', 'rein', 'slush', 'arm', 'boss'];
+  const BOLT_V = 1700;     // farten på strålene fra Sjefen
   // ingen grenser på antall deler – bare én start og ett mål
   const LIMITS = { start: 1, finish: 1 };
   // i takt: fast startvinkel (grader, 0 = høyre, 90 = opp) i stedet for tilfeldig. Feltene finnes bare når det er på
@@ -111,6 +112,7 @@
       return o;
     },
     arm: (p) => syncOf(p, { type: 'arm', x: XN(p.x, 800), y: YN(p.y, 600), len: num(p.len, 150, 30, 400), speed: num(p.speed, 3, -W_MAX, W_MAX) }),
+    boss: (p) => ({ type: 'boss', x: XN(p.x, 800), y: YN(p.y, 600), dir: +p.dir < 0 ? -1 : 1, range: num(p.range, 600, 150, 1200), cd: num(p.cd, 1.4, 0.4, 4), zap: +p.zap === 1 ? 1 : 0 }),
     seesaw: (p) => {
       const o = { type: 'seesaw', x: XN(p.x, 800), y: YN(p.y, 600), half: num(p.half, 140, 60, 260) };
       if (+p.phys === 1) o.phys = 1; // tyngde-vippe (feltet finnes bare når det er på, så eldre løyper er uendret)
@@ -217,7 +219,7 @@
     const pieces = def.pieces;
     const rnd = u.mulberry32((seed ^ 0x5eed) >>> 0);
     const S = [], pegs = [], bumpers = [], gates = [], wheels = [], seesaws = [], traps = [], winds = [], eagles = [], sensors = [], pits = [], signs = [];
-    const vortexes = [], ferries = [], rockets = [], tunnels = [], racks = [], reins = [], slushes = [];
+    const vortexes = [], ferries = [], rockets = [], tunnels = [], racks = [], reins = [], slushes = [], bosses = [];
     let start = null, fin = null;
     const seg = (ax, ay, bx, by, kind = 'track') => S.push({ ax, ay, bx, by, t: 7, e: 0.3, kind });
     for (const p of pieces) {
@@ -316,9 +318,11 @@
     of('slush').forEach((p) => slushes.push({ x0: p.x0, y0: p.y0, x1: p.x1, y1: p.y1 }));
     // Glimt-armen: én arm som spinner rundt et punkt i enden (samme fysikk som hjulet, uten nav)
     of('arm').forEach((p) => { const W = makeWheel(p, 1); W.arm = true; wheels.push(W); });
+    // Sjefen: står og skyter med strålepistol (skuddene lagres i shots under løpet, så tegningen kan vise dem)
+    of('boss').forEach((p) => bosses.push({ x: p.x, y: p.y, dir: p.dir, range: p.range, cd: p.cd, zap: p.zap, gx: p.x + p.dir * 42, gy: p.y - 72, phase: rnd() * p.cd, shots: [] }));
     return {
       S, pegs, bumpers, gates, wheels, seesaws, traps, winds, eagles, sensors, pits, signs,
-      vortexes, ferries, rockets, tunnels, racks, reins, slushes,
+      vortexes, ferries, rockets, tunnels, racks, reins, slushes, bosses,
       start: { x: start.x, y: start.y }, fin: { x: fin.x, y: fin.y },
       finish: { x0: fin.x, y0: fin.y, x1: fin.x + 40, y1: fin.y + 230 },
       W: WORLD_W, H: fin.y + 390, top: start.y - 440,
@@ -388,6 +392,11 @@
     },
   };
   // kula forsvant ut av verden ved siden av et Glimt-hjul → hjulet slo den ut
+  const segDist = (px, py, g) => {
+    const abx = g.bx - g.ax, aby = g.by - g.ay, l2 = abx * abx + aby * aby;
+    let q = l2 ? ((px - g.ax) * abx + (py - g.ay) * aby) / l2 : 0; q = q < 0 ? 0 : q > 1 ? 1 : q;
+    return Math.hypot(px - g.ax - abx * q, py - g.ay - aby * q);
+  };
   const flung = (C, x, y, arm) => C.wheels.some((w) => !w.arm === !arm && (x < 0 ? w.cx < C.W / 2 : x > C.W && w.cx > C.W / 2) && y > w.cy - 300 && y < w.cy + 250);
 
   /* Banen en kule fra Andøya-raketten vil fly (uten andre kuler og bevegelige deler) – forhåndsvisning i designeren */
@@ -503,6 +512,17 @@
     }
     /* ---- de nye delene (alt her er tomt for løyper uten dem) ---- */
     const NV = C.vortexes.length, NF = C.ferries.length, NK = C.rockets.length, NU = C.tunnels.length, NR = C.reins.length, NL = C.slushes.length;
+    const NB = C.bosses.length, bolts = [], bNext = Float64Array.from(C.bosses, (b) => GATE_T + b.phase);
+    // fri sikt fra pistolen til kula (ingen vegg eller rampe i veien)
+    function clear(x0, y0, x1, y1) {
+      const L = Math.hypot(x1 - x0, y1 - y0), m = Math.ceil(Math.max(0, L - R - 10) / 12);
+      for (let s = 1; s <= m; s++) {
+        const f = (s * 12) / L, px = x0 + (x1 - x0) * f, py = y0 + (y1 - y0) * f;
+        const cell = grid.get(key(Math.floor(px / CELL), Math.floor(py / CELL)));
+        if (cell) for (const it of cell) if (it.s && segDist(px, py, it.s) < it.s.t + 4) return false;
+      }
+      return true;
+    }
     const fish = [];
     C.racks.forEach((rk) => rk.fish.forEach((f) => fish.push(f)));
     const NFI = fish.length;
@@ -749,6 +769,52 @@
         else if (fth[q] < -1.35) { fth[q] = -1.35; if (fom[q] < 0) fom[q] *= -0.3; }
         fdL[q] = 0;
       }
+      // Sjefen sikter på nærmeste kule foran seg (litt foran den) og skyter
+      for (let q = 0; q < NB; q++) {
+        const Bq = C.bosses[q];
+        if (t < bNext[q]) continue;
+        const seen = [];
+        for (let i = 0; i < n; i++) {
+          if (state[i] !== ST.RACE || hold[i]) continue;
+          const dx = X[i] - Bq.gx, dy = Y[i] - Bq.gy;
+          if (Bq.dir * dx < 15 || Math.abs(dy) > Math.abs(dx) * 2 + 40) continue;
+          const d = Math.hypot(dx, dy);
+          if (d <= Bq.range) seen.push([d, i]);
+        }
+        seen.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+        let best = -1, bd = Infinity;
+        for (const [d, i] of seen.slice(0, 6)) if (clear(Bq.gx, Bq.gy, X[i], Y[i])) { best = i; bd = d; break; } // bare kuler han ser
+        if (best < 0) { bNext[q] = t + 0.2; continue; }
+        const tf = bd / BOLT_V, tx = X[best] + VX[best] * tf - Bq.gx, ty = Y[best] + VY[best] * tf - Bq.gy, tl = Math.hypot(tx, ty) || 1;
+        const shot = { t0: t, x: Bq.gx, y: Bq.gy, vx: (tx / tl) * BOLT_V, vy: (ty / tl) * BOLT_V, t1: t + Bq.range / BOLT_V + 0.05, q };
+        Bq.shots.push(shot); bolts.push(shot);
+        events.push({ t, type: 'shot', q, x: Bq.gx, y: Bq.gy });
+        bNext[q] = t + Bq.cd;
+      }
+      // strålene flyr rett fram og stopper i første kule, vegg eller rampe
+      for (let k = bolts.length - 1; k >= 0; k--) {
+        const s = bolts[k], bx = s.x + s.vx * (t - s.t0), by = s.y + s.vy * (t - s.t0);
+        let done = t >= s.t1;
+        if (!done) for (let i = 0; i < n; i++) {
+          if (state[i] !== ST.RACE || hold[i] || Math.abs(X[i] - bx) > R + 8 || Math.abs(Y[i] - by) > R + 8 || Math.hypot(X[i] - bx, Y[i] - by) > R + 7) continue;
+          if (C.bosses[s.q].zap) { // fordampet
+            state[i] = ST.OUT; tDone[i] = t; cause[i] = 'k_sjef'; lastDoneT = t;
+            events.push({ t, type: 'out', i, cause: 'k_sjef' });
+            X[i] = -500; VX[i] = 0; VY[i] = 0;
+          } else { // dyttet av gårde
+            VX[i] += (s.vx / BOLT_V) * 900; VY[i] += (s.vy / BOLT_V) * 900 - 260;
+            cap[i] = V_LAUNCH; launchT[i] = t; launchBy[i] = 5;
+            events.push({ t, type: 'zapped', i, x: X[i], y: Y[i] });
+          }
+          s.hit = i; done = true;
+          break;
+        }
+        if (!done) {
+          const cell = grid.get(key(Math.floor(bx / CELL), Math.floor(by / CELL)));
+          if (cell) for (const it of cell) if (it.s && segDist(bx, by, it.s) < it.s.t + 4) { done = true; break; }
+        }
+        if (done) { s.t1 = Math.min(s.t1, t); bolts.splice(k, 1); }
+      }
       // ørna, sensorer, mål og fall ut av verden
       for (let i = 0; i < n; i++) {
         if (state[i] !== ST.RACE) continue;
@@ -790,7 +856,7 @@
         if (state[i] === ST.RACE && (X[i] < -30 || X[i] > C.W + 30 || Y[i] > C.H)) {
           const lb = t - launchT[i] < 6 ? launchBy[i] : 0;
           state[i] = ST.OUT; tDone[i] = t; lastDoneT = t;
-          cause[i] = lb === 2 ? 'k_rakett' : lb === 3 ? 'k_salt' : lb === 4 ? 'k_arm' : (flung(C, X[i], Y[i]) || lb === 1) ? 'k_glimt'
+          cause[i] = lb === 2 ? 'k_rakett' : lb === 3 ? 'k_salt' : lb === 4 ? 'k_arm' : lb === 5 ? 'k_sjef' : (flung(C, X[i], Y[i]) || lb === 1) ? 'k_glimt'
             : flung(C, X[i], Y[i], true) ? 'k_arm' : t - fishT[i] < 3 ? 'k_fisk' : 'k_kant';
           events.push({ t, type: 'out', i, cause: cause[i] });
         }
@@ -862,6 +928,7 @@
       if (share('k_rakett') > 0.15) reasons.push('Tips: raketten skyter mange ut i verdensrommet. Senk kraften eller sikt bedre – designeren viser banen.');
       if (share('k_fisk') > 0.15) reasons.push('Tips: tørrfisken slår mange ut av løypa. Sett opp vegger ved hjellet.');
       if (share('k_arm') > 0.15) reasons.push('Tips: Glimt-armen slår mange ut av løypa. Sett opp vegger rundt den, eller skru ned farten.');
+      if (share('k_sjef') > 0.15) reasons.push('Tips: Sjefen tar mange. Gi ham kortere rekkevidde, la ham bare dytte, eller sett opp en vegg foran ham.');
     }
     return { ok: !reasons.length, rate, minRate, winT: Number.isFinite(winT) ? winT : null, firstT: Number.isFinite(firstT) ? firstT : null, causes, reasons, runs: runs.length, marbles: tot, need };
   }

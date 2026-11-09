@@ -21,13 +21,14 @@
     k_rakett: (n) => ['Andøya, vi har et problem!', `${n} ble skutt rett ut i verdensrommet!`],
     k_fisk: (n) => ['Tørrfisk!', `${n} fikk en tørrfisk i trynet og forsvant ut av løypa.`],
     k_arm: (n) => ['Glimt-armen!', `${n} fikk et slag av Glimt-armen og forsvant ut av løypa!`],
+    k_sjef: (n) => ['Sjefen!', `${n} ble tatt av Sjefen. Fredagslotteri er visst ikke lov.`],
   };
-  const FUN = ['launch', 'rocket', 'spit', 'tunnel', 'fish', 'rein', 'slaps'];
+  const FUN = ['launch', 'rocket', 'spit', 'tunnel', 'fish', 'rein', 'slaps', 'zapped'];
   // killfeed: kort tekst for hvert utfall (kommentatoren tar bare start og vinnere)
   const KILL = {
     k_vind: 'blåste ned i Juvet', k_ornes: 'tok Ørnes-luka', k_orna: 'tatt av ørna', k_glimt: 'slått ut av Glimt-hjulet',
     k_arm: 'slått ut av Glimt-armen', k_kant: 'utfor kanten', k_fast: 'satt fast', k_salt: 'tatt av Saltstraumen',
-    k_ferje: 'rakk ikke ferga', k_rakett: 'skutt ut i verdensrommet', k_fisk: 'tørrfisk i trynet',
+    k_ferje: 'rakk ikke ferga', k_rakett: 'skutt ut i verdensrommet', k_fisk: 'tørrfisk i trynet', k_sjef: 'tatt av Sjefen',
   };
 
   /* Løypa som er valgt for trekningen: en godkjent egen løype, ellers originalen (null) */
@@ -118,6 +119,10 @@
         if (this.time - (this.tootAt || 0) > 0.35) { this.tootAt = this.time; S().toot(); this.float('TUT!', e.x, e.y - 40, '#ffb08f', 26); }
         return;
       }
+      if (e.type === 'shot') { // Sjefen skyter – bare lyd, og bare når det skjer i nærheten av lederne
+        if (!quiet && Math.abs(this.leaderY - e.y) < 650 && this.once('zapFx', 0.12)) S().zap();
+        return;
+      }
       if (FUN.includes(e.type)) {
         if (!quiet && m && !m.state) this.fun(e, m);
         return;
@@ -157,6 +162,7 @@
         else if (e.cause === 'k_ornes') S().thud();
         else if (e.cause === 'k_salt' || e.cause === 'k_ferje') S().splash(1);
         else if (e.cause === 'k_rakett') S().boom();
+        else if (e.cause === 'k_sjef') S().zap();
         else S().whoosh();
       }
     }
@@ -196,6 +202,8 @@
         if (fresh()) this.feed('🦌', `${who} står fast bak reinen`);
       } else if (e.type === 'slaps') {
         if (e.i === this.leader && fresh()) this.feed('🌨️', `${who} kjørte inn i slapset`);
+      } else if (e.type === 'zapped') {
+        if (fresh()) this.feed('👔', `${who} truffet av Sjefen`);
       }
     }
     raceName() { return this.courseName ? `«${this.courseName}»` : 'Keiservarden Grand Prix'; }

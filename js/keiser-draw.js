@@ -279,6 +279,70 @@
     }
     // varsellampe på rakett-tårnet
     for (const L of C.rockets) { ctx.fillStyle = Math.sin(time * 5 + L.x) > 0 ? '#ff4d3d' : '#5a1a14'; ctx.beginPath(); ctx.arc(L.x - 40, L.y - 100, 5, 0, Math.PI * 2); ctx.fill(); }
+    for (const Bq of C.bosses) boss(ctx, Bq, t, time);
+  }
+
+  /* Sjefen: kontorsjef i dress med strålepistol. Skuddene kommer fra opptaket (Bq.shots) */
+  const rr = (ctx, x, y, w, h, r) => (ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h));
+  const LINES = ['Tilbake på jobb!', 'Fredagslotteri? Ikke på min vakt!', 'Hvem har tatt kaffen min?', 'Dette tar vi på mandagsmøtet!', 'Timelista, takk!'];
+  function boss(ctx, Bq, t, time) {
+    const shots = Bq.shots || [];
+    let last = null, idx = -1;
+    for (let k = shots.length - 1; k >= 0; k--) if (shots[k].t0 <= t) { last = shots[k]; idx = k; break; }
+    const sx = Bq.x + Bq.dir * 12, sy = Bq.y - 86; // skulderen
+    const aim = last && t - last.t0 < 0.9 ? Math.atan2(last.vy, last.vx) : Bq.dir > 0 ? 0.12 : Math.PI - 0.12;
+    // kroppen (speilvendt etter retningen)
+    ctx.save(); ctx.translate(Bq.x, Bq.y); ctx.scale(Bq.dir, 1);
+    ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.beginPath(); ctx.ellipse(0, 2, 26, 5, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#1f2632'; ctx.fillRect(-13, -40, 11, 40); ctx.fillRect(2, -40, 11, 40); // bukse
+    ctx.fillStyle = '#0d1016'; ctx.fillRect(-15, -4, 15, 5); ctx.fillRect(1, -4, 16, 5); // sko
+    ctx.fillStyle = '#2b3445'; ctx.beginPath(); ctx.moveTo(-19, -40); ctx.lineTo(19, -40); ctx.lineTo(16, -92); ctx.lineTo(-16, -92); ctx.closePath(); ctx.fill(); // dressjakke
+    ctx.fillStyle = '#f3f1ea'; ctx.beginPath(); ctx.moveTo(-7, -92); ctx.lineTo(7, -92); ctx.lineTo(0, -70); ctx.closePath(); ctx.fill(); // skjorte
+    ctx.fillStyle = '#c62828'; ctx.beginPath(); ctx.moveTo(-3, -90); ctx.lineTo(3, -90); ctx.lineTo(4, -66); ctx.lineTo(0, -60); ctx.lineTo(-4, -66); ctx.closePath(); ctx.fill(); // slips
+    ctx.strokeStyle = '#2b3445'; ctx.lineWidth = 9; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(-14, -86); ctx.lineTo(-20, -56); ctx.stroke(); // den andre armen
+    ctx.fillStyle = '#e8c4a0'; ctx.beginPath(); ctx.arc(1, -108, 15, 0, Math.PI * 2); ctx.fill(); // hodet
+    ctx.fillStyle = '#6b5a4a'; ctx.fillRect(-14, -112, 4, 10); ctx.fillRect(12, -112, 4, 10); // hår på sidene
+    ctx.strokeStyle = '#111'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(-3, -109, 4, 0, Math.PI * 2); ctx.moveTo(10, -109); ctx.arc(6, -109, 4, 0, Math.PI * 2); ctx.moveTo(1, -109); ctx.lineTo(2, -109); ctx.stroke(); // briller
+    ctx.fillStyle = '#5a4636'; ctx.beginPath(); ctx.ellipse(2, -100, 7, 2.5, 0, 0, Math.PI * 2); ctx.fill(); // bart
+    ctx.restore();
+    // armen og strålepistolen sikter dit han skyter
+    const hx = sx + Math.cos(aim) * 28, hy = sy + Math.sin(aim) * 28;
+    ctx.strokeStyle = '#2b3445'; ctx.lineWidth = 9; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(hx, hy); ctx.stroke();
+    ctx.save(); ctx.translate(hx, hy); ctx.rotate(aim); if (Math.cos(aim) < 0) ctx.scale(1, -1);
+    ctx.fillStyle = '#4a5363'; ctx.fillRect(-4, 2, 7, 12); // skjeftet
+    ctx.fillStyle = '#c9d2dc'; ctx.beginPath(); rr(ctx, -8, -6, 30, 11, 5); ctx.fill(); // løpet
+    ctx.fillStyle = '#1f9e8f'; ctx.beginPath(); ctx.arc(-8, -0.5, 7, 0, Math.PI * 2); ctx.fill(); // tanken bak
+    ctx.strokeStyle = '#1f9e8f'; ctx.lineWidth = 2.4; for (const rx of [10, 15, 20]) { ctx.beginPath(); ctx.ellipse(rx, -0.5, 2, 8, 0, 0, Math.PI * 2); ctx.stroke(); } // ringene
+    const glow = last && t - last.t0 < 0.08;
+    ctx.fillStyle = glow ? '#e8ffe0' : '#5ef28a'; ctx.beginPath(); ctx.arc(25, -0.5, glow ? 6 : 3.5, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+    if (glow) { ctx.fillStyle = 'rgba(94,242,138,.35)'; ctx.beginPath(); ctx.arc(hx + Math.cos(aim) * 25, hy + Math.sin(aim) * 25, 16, 0, Math.PI * 2); ctx.fill(); }
+    // strålene som er i lufta
+    ctx.lineCap = 'round';
+    for (let k = Math.max(0, idx - 4); k <= idx; k++) {
+      const s = shots[k];
+      if (!s || t < s.t0 || t >= s.t1) continue;
+      const dt = t - s.t0, bx = s.x + s.vx * dt, by = s.y + s.vy * dt, l = Math.min(1, dt / 0.03) * 0.022;
+      ctx.strokeStyle = 'rgba(94,242,138,.45)'; ctx.lineWidth = 12; ctx.beginPath(); ctx.moveTo(bx - s.vx * l, by - s.vy * l); ctx.lineTo(bx, by); ctx.stroke();
+      ctx.strokeStyle = '#eaffef'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(bx - s.vx * l * 0.7, by - s.vy * l * 0.7); ctx.lineTo(bx, by); ctx.stroke();
+    }
+    // treffet: et grønt glimt der stråla stoppet
+    for (let k = Math.max(0, idx - 4); k <= idx; k++) {
+      const s = shots[k];
+      if (!s || t < s.t1 || t > s.t1 + 0.25 || s.t1 === Infinity) continue;
+      const bx = s.x + s.vx * (s.t1 - s.t0), by = s.y + s.vy * (s.t1 - s.t0), a = 1 - (t - s.t1) / 0.25;
+      ctx.strokeStyle = `rgba(94,242,138,${(a * 0.9).toFixed(2)})`; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(bx, by, 10 + (1 - a) * 22, 0, Math.PI * 2); ctx.stroke();
+    }
+    // en sjelden replikk (hvert femte skudd)
+    if (last && idx % 5 === 0 && t - last.t0 < 1.4) {
+      const text = LINES[(idx / 5) % LINES.length];
+      ctx.font = '700 13px "Schibsted Grotesk", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const w = ctx.measureText(text).width + 18, bx = Bq.x, by = Bq.y - 150;
+      ctx.fillStyle = 'rgba(243,241,234,.95)'; ctx.beginPath(); rr(ctx, bx - w / 2, by - 13, w, 26, 9); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(bx - 6, by + 12); ctx.lineTo(bx + 2, by + 22); ctx.lineTo(bx + 6, by + 12); ctx.fill();
+      ctx.fillStyle = '#161b24'; ctx.fillText(text, bx, by + 1);
+    }
+    label(ctx, 'SJEFEN', Bq.x, Bq.y + 30, 'rgba(243,236,223,.7)');
   }
 
   /* Faste deler: hull, ramper, vegger, spikerbrett, TUT-bumpere, mål og buret for de som ikke betalte */
