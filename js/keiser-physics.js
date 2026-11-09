@@ -17,6 +17,9 @@
   const AIR = 0.03;
   const E_MM = 0.55;       // kule mot kule
   const VMAX = 700;
+  const W_FAST = 5;        // Glimt-hjul raskere enn dette skyter kulene til værs (opp til 5 går alt som før)
+  const W_MAX = 20;        // høyeste fart et Glimt-hjul kan få
+  const V_LAUNCH = 2400;   // toppfart for en kule som er skutt ut av et raskt Glimt-hjul
   const ST = { RACE: 0, FIN: 1, OUT: 2, CARRY: 3 };
   const WORLD_W = 1600;    // løypa er alltid 1600 bred – høyden følger målet
 
@@ -97,7 +100,7 @@
     eagle: (p) => line('eagle', p),
     pegs: (p) => ({ type: 'pegs', x: XN(p.x, 300), y: YN(p.y, 600), w: num(p.w, 400, 64, 1600), rows: Math.round(num(p.rows, 5, 1, 14)) }),
     bumper: (p) => ({ type: 'bumper', x: XN(p.x, 800), y: YN(p.y, 600) }),
-    wheel: (p) => ({ type: 'wheel', x: XN(p.x, 800), y: YN(p.y, 600), len: num(p.len, 100, 50, 180), speed: num(p.speed, 2.2, -5, 5), arms: Math.round(num(p.arms, 4, 2, 6)) }),
+    wheel: (p) => ({ type: 'wheel', x: XN(p.x, 800), y: YN(p.y, 600), len: num(p.len, 100, 50, 180), speed: num(p.speed, 2.2, -W_MAX, W_MAX), arms: Math.round(num(p.arms, 4, 2, 6)) }),
     seesaw: (p) => ({ type: 'seesaw', x: XN(p.x, 800), y: YN(p.y, 600), half: num(p.half, 140, 60, 260) }),
     pit: (p) => {
       let x0 = XN(p.x0, 750), x1 = XN(p.x1, 860);
@@ -196,7 +199,12 @@
     }
     // bevegelige deler får fase fra seeden, alltid i samme typerekkefølge
     const of = (type) => pieces.filter((p) => p.type === type);
-    of('wheel').forEach((p) => wheels.push({ cx: p.x, cy: p.y, len: p.len, w: p.speed, arms: p.arms, t: 8, a0: rnd() * 6.28 }));
+    of('wheel').forEach((p) => {
+      const W = { cx: p.x, cy: p.y, len: p.len, w: p.speed, arms: p.arms, t: 8, a0: rnd() * 6.28 };
+      // raske hjul sjekkes i små steg, så armene ikke hopper over kulene
+      if (Math.abs(p.speed) > W_FAST) { W.fast = true; W.sub = Math.max(1, Math.ceil((Math.abs(p.speed) * (p.len + R) * DT) / 5)); }
+      wheels.push(W);
+    });
     of('seesaw').forEach((p) => seesaws.push({ px: p.x, py: p.y, half: p.half, amp: 0.2, period: 3.2, phase: rnd() * 3.2, t: 8 }));
     of('trap').forEach((p) => traps.push({ ax: p.ax, ay: p.ay, bx: p.bx, by: p.by, t: 7, period: 2.6, phase: rnd() * 2.6, openFrom: 1.7, openTo: 2.45 }));
     of('wind').forEach((p) => {
@@ -298,6 +306,31 @@
     const wa = new Float64Array(NW), sa = new Float64Array(NS), sr = new Float64Array(NS), topen = new Uint8Array(NT), wv = new Float64Array(NZ);
     const claws = new Array(NE).fill(null), grabbed = C.eagles.map(() => new Set());
     const lastBump = new Float64Array(n).fill(-9);
+    // raske Glimt-hjul: kula får fly fortere enn vanlig toppfart til den har bremset ned igjen
+    const cap = new Float64Array(n).fill(VMAX), launchT = new Float64Array(n).fill(-Infinity), lastLaunch = new Float64Array(n).fill(-9);
+    function spin(i, W, ang1) {
+      let hit = false;
+      for (let s = 1; s <= W.sub; s++) {
+        const base = ang1 - (W.w * DT * (W.sub - s)) / W.sub; // fra forrige stegs vinkel fram til nå
+        let touch = false;
+        for (let a = 0; a < W.arms; a++) {
+          const ang = base + (a * Math.PI * 2) / W.arms, ex = W.cx + Math.cos(ang) * W.len, ey = W.cy + Math.sin(ang) * W.len;
+          const abx = ex - W.cx, aby = ey - W.cy, l2 = abx * abx + aby * aby;
+          let qq = ((X[i] - W.cx) * abx + (Y[i] - W.cy) * aby) / l2; qq = qq < 0 ? 0 : qq > 1 ? 1 : qq;
+          const qx = W.cx + abx * qq, qy = W.cy + aby * qq;
+          if (capsule(i, W.cx, W.cy, ex, ey, W.t, 0.35, -W.w * (qy - W.cy), W.w * (qx - W.cx))) touch = true;
+        }
+        if (!touch) continue;
+        hit = true;
+        // løypa vinner over armen: kula skal ikke dyttes gjennom gulv, vegger eller lukker
+        const cell = grid.get(key(Math.floor(X[i] / CELL), Math.floor(Y[i] / CELL)));
+        if (cell) for (const it of cell) if (it.s) capsule(i, it.s.ax, it.s.ay, it.s.bx, it.s.by, it.s.t, it.s.e, 0, 0);
+        for (let q = 0; q < NT; q++) if (!topen[q]) { const T = C.traps[q]; capsule(i, T.ax, T.ay, T.bx, T.by, T.t, 0.25, 0, 0); }
+      }
+      if (!hit) return;
+      cap[i] = V_LAUNCH; launchT[i] = t;
+      if (Math.hypot(VX[i], VY[i]) > 1100 && t - lastLaunch[i] > 1) { lastLaunch[i] = t; events.push({ t, type: 'launch', i, x: X[i], y: Y[i] }); }
+    }
     let t = 0, step = 0, lastDoneT = -1;
     const active = (i) => state[i] === ST.RACE || state[i] === ST.FIN || (state[i] === ST.OUT && cause[i] !== 'k_orna' && X[i] > -40 && X[i] < C.W + 40 && Y[i] < C.H + 40);
 
@@ -320,8 +353,9 @@
         }
         const damp = 1 - (contact[i] ? ROLL : AIR) * DT;
         VX[i] *= damp; VY[i] *= contact[i] ? damp : 1;
-        const sp = Math.hypot(VX[i], VY[i]);
-        if (sp > VMAX) { VX[i] *= VMAX / sp; VY[i] *= VMAX / sp; }
+        const sp = Math.hypot(VX[i], VY[i]), cp = cap[i];
+        if (sp > cp) { VX[i] *= cp / sp; VY[i] *= cp / sp; }
+        else if (cp > VMAX) cap[i] = sp > VMAX ? sp : VMAX; // en skutt kule bremser ned til vanlig toppfart igjen
         X[i] += VX[i] * DT; Y[i] += VY[i] * DT;
         ANG[i] += (VX[i] / R) * DT;
         contact[i] = 0;
@@ -359,6 +393,7 @@
         for (let q = 0; q < NW; q++) {
           const W = C.wheels[q];
           if (Math.hypot(X[i] - W.cx, Y[i] - W.cy) < W.len + R + W.t + 4) {
+            if (W.fast) { spin(i, W, wa[q]); continue; }
             for (let a = 0; a < W.arms; a++) {
               const ang = wa[q] + (a * Math.PI * 2) / W.arms, ex = W.cx + Math.cos(ang) * W.len, ey = W.cy + Math.sin(ang) * W.len;
               const abx = ex - W.cx, aby = ey - W.cy, l2 = abx * abx + aby * aby;
@@ -404,7 +439,7 @@
             break;
           }
         }
-        if (state[i] === ST.RACE && (X[i] < -30 || X[i] > C.W + 30 || Y[i] > C.H)) { state[i] = ST.OUT; tDone[i] = t; cause[i] = flung(C, X[i], Y[i]) ? 'k_glimt' : 'k_kant'; lastDoneT = t; events.push({ t, type: 'out', i, cause: cause[i] }); }
+        if (state[i] === ST.RACE && (X[i] < -30 || X[i] > C.W + 30 || Y[i] > C.H)) { state[i] = ST.OUT; tDone[i] = t; cause[i] = flung(C, X[i], Y[i]) || t - launchT[i] < 6 ? 'k_glimt' : 'k_kant'; lastDoneT = t; events.push({ t, type: 'out', i, cause: cause[i] }); }
       }
       if (step % REC === 0) {
         const fr = new Float32Array(n * 3);
@@ -463,9 +498,10 @@
       if (share('k_fast') > 0.15) reasons.push('Tips: mange kuler blir liggende fast. Se etter steder der noe sperrer veien, eller ramper som er for slakke.');
       if (share('k_kant') > 0.15) reasons.push('Tips: mange triller utfor kanten. Sett vegger på endene av rampene.');
       if (share('k_hull') > 0.25) reasons.push('Tips: hullene sluker mange. Gjør dem smalere, eller flytt dem litt unna.');
+      if (share('k_glimt') > 0.15) reasons.push('Tips: Glimt-hjulet skyter mange kuler ut av løypa. Sett opp vegger rundt det, eller skru ned farten.');
     }
     return { ok: !reasons.length, rate, minRate, winT: Number.isFinite(winT) ? winT : null, firstT: Number.isFinite(firstT) ? firstT : null, causes, reasons, runs: runs.length, marbles: tot, need };
   }
 
-  FL.KPhys = { R, GATE_T, T_MAX, ST, WORLD_W, TYPES, LIMITS, ORIGINAL, course, compile, normalize, sanePiece, hash, kin, simulate, race, summarize, assess };
+  FL.KPhys = { R, GATE_T, T_MAX, ST, WORLD_W, W_FAST, W_MAX, TYPES, LIMITS, ORIGINAL, course, compile, normalize, sanePiece, hash, kin, simulate, race, summarize, assess };
 })();

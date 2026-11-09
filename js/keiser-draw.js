@@ -67,6 +67,17 @@
     ctx.fillText('BODØ', F.x + 166, F.y + 104); ctx.shadowBlur = 0;
   }
 
+  /* Fartsstripe bak en kule som flyr fortere enn den kan trille (skutt ut av et Glimt-hjul) */
+  function trail(ctx, x0, y0, x1, y1, color) {
+    const d = Math.hypot(x1 - x0, y1 - y0);
+    if (d < 95 || d > 420) return; // vanlig fart eller et hopp i opptaket
+    const g = ctx.createLinearGradient(x0, y0, x1, y1);
+    g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(0.7, 'rgba(255,240,190,.35)'); g.addColorStop(1, color);
+    ctx.save();
+    ctx.globalAlpha = 0.75; ctx.strokeStyle = g; ctx.lineCap = 'round'; ctx.lineWidth = R * 1.5;
+    ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+    ctx.restore();
+  }
   function ball(ctx, x, y, color, label, ang, alpha = 1, ring) {
     ctx.globalAlpha = alpha;
     const gr = ctx.createRadialGradient(x - R * 0.35, y - R * 0.4, R * 0.15, x, y, R);
@@ -131,6 +142,20 @@
     }
     for (const W of C.wheels) {
       const wa = P.kin.wheelAngle(W, t);
+      if (W.fast) { // rakettfart: armene blir en vifte, og den stiplede ringen viser hvor langt de rekker
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255,212,0,.22)'; ctx.lineWidth = 3; ctx.setLineDash([10, 12]);
+        ctx.beginPath(); ctx.arc(W.cx, W.cy, W.len + W.t + 6, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+        ctx.strokeStyle = '#ffd400'; ctx.lineWidth = W.t * 2;
+        for (let g = 3; g >= 1; g--) {
+          ctx.globalAlpha = 0.36 - g * 0.09;
+          const lag = wa - W.w * g * 0.012;
+          ctx.beginPath();
+          for (let a = 0; a < W.arms; a++) { const an = lag + (a * Math.PI * 2) / W.arms; ctx.moveTo(W.cx, W.cy); ctx.lineTo(W.cx + Math.cos(an) * W.len, W.cy + Math.sin(an) * W.len); }
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
       for (let a = 0; a < W.arms; a++) { const an = wa + (a * Math.PI * 2) / W.arms; ctx.strokeStyle = '#111'; ctx.lineWidth = W.t * 2 + 4; ctx.beginPath(); ctx.moveTo(W.cx, W.cy); ctx.lineTo(W.cx + Math.cos(an) * W.len, W.cy + Math.sin(an) * W.len); ctx.stroke(); ctx.strokeStyle = '#ffd400'; ctx.lineWidth = W.t * 2; ctx.stroke(); }
       ctx.fillStyle = '#ffd400'; ctx.beginPath(); ctx.arc(W.cx, W.cy, 24, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#111'; ctx.lineWidth = 4; ctx.stroke();
       ctx.fillStyle = '#111'; ctx.font = '900 10px "JetBrains Mono", monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('GLIMT', W.cx, W.cy + 1);
@@ -190,5 +215,5 @@
     signs(ctx, C);
   }
 
-  FL.KDraw = { EMOJI, stars, sky, mountain, city, track, moving, signs, signW, ball, scene };
+  FL.KDraw = { EMOJI, stars, sky, mountain, city, track, moving, signs, signW, trail, ball, scene };
 })();

@@ -10,7 +10,7 @@ Nettside for fredagslotteriet i Bodø – med spillene «Hurtigbåten til Bodø�
   - Avgangstavla (lyntrekning)
 
   Vinnerne trekkes alltid kryptografisk og låses i skipsloggen før spillet vises.
-- **Løypedesigner** (`designer.html`): bygg egne Keiservarden-løyper av ramper, vegger, hull, Glimt-hjul, vipper, luker, vind og ørn. Testkjør med samme fysikk som spillet, godkjenn løypa (minst 45 % må komme i mål) og velg den i trekningen. Løyper kan deles som lenke.
+- **Løypedesigner** (`designer.html`): bygg egne Keiservarden-løyper av ramper, vegger, hull, Glimt-hjul, vipper, luker, vind og ørn. Skrur du et Glimt-hjul opp over fart 5, skyter det kulene til værs. Testkjør med samme fysikk som spillet, godkjenn løypa (minst 45 % må komme i mål) og velg den i trekningen. Løyper kan deles som lenke.
 - **Skipsloggen:** historikk, vinnertavle og backup.
 
 ## Kjøre lokalt

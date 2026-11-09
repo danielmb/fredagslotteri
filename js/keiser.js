@@ -96,6 +96,16 @@
         if (this.time - (this.tootAt || 0) > 0.35) { this.tootAt = this.time; S().toot(); this.float('TUT!', e.x, e.y - 40, '#ffb08f', 26); }
         return;
       }
+      if (e.type === 'launch') { // et raskt Glimt-hjul skjøt kula til værs
+        if (quiet || !m || m.state) return;
+        if (this.time - (this.launchAt || 0) > 0.3) { this.launchAt = this.time; S().launch(); this.float('SVISJ!', e.x, e.y - 34, '#ffd400', 26); }
+        if (this.time - (this.launchSayAt || 0) > 5) {
+          this.launchSayAt = this.time;
+          const lp = this.pax.get(m.no);
+          if (lp) this.say('🚀', 'Oppskyting!', `Glimt-hjulet sendte ${u.esc(lp.name)} (kule ${u.esc(lp.label)}) til værs!`, 2);
+        }
+        return;
+      }
       const p = this.pax.get(m.no);
       if (e.type === 'finish') {
         m.state = 'fin';
@@ -236,6 +246,7 @@
         const out = m.state === 'out' && m.cause !== 'k_orna';
         const rank = m.state === 'fin' ? this.finished.indexOf(i) + 1 : 0;
         const ring = rank && rank <= this.W ? ['#ffd34d', '#dfe6ee', '#e0a070'][rank - 1] || '#ffd34d' : (i === this.leader && !m.state ? '#5ef2b5' : null);
+        if (m.cause !== 'k_orna') { const [px, py] = this.pos(i, Math.max(0, this.t - 0.1)); D.trail(this.ctx, px, py, x, y, out ? '#6b7480' : p.color); }
         D.ball(this.ctx, x, y, out ? '#6b7480' : p.color, p.label, ang, out ? 0.55 : 1, ring);
       }
     }
