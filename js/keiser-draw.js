@@ -353,6 +353,12 @@
         ctx.restore();
       }
       for (let a = 0; a < W.arms; a++) { const an = wa + (a * Math.PI * 2) / W.arms; ctx.strokeStyle = '#111'; ctx.lineWidth = W.t * 2 + 4; ctx.beginPath(); ctx.moveTo(W.cx, W.cy); ctx.lineTo(W.cx + Math.cos(an) * W.len, W.cy + Math.sin(an) * W.len); ctx.stroke(); ctx.strokeStyle = '#ffd400'; ctx.lineWidth = W.t * 2; ctx.stroke(); }
+      if (W.arm || W.nohub) { // Glimt-armen og hjul uten nav: bare en bolt i midten, og navnet langs armen
+        ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(W.cx, W.cy, 9, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#ffd400'; ctx.beginPath(); ctx.arc(W.cx, W.cy, 3.5, 0, Math.PI * 2); ctx.fill();
+        if (W.len >= 90) { ctx.save(); ctx.translate(W.cx, W.cy); ctx.rotate(wa); ctx.fillStyle = '#111'; ctx.font = '900 10px "JetBrains Mono", monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('GLIMT', W.len * 0.58, 1); ctx.restore(); }
+        continue;
+      }
       ctx.fillStyle = '#ffd400'; ctx.beginPath(); ctx.arc(W.cx, W.cy, 24, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#111'; ctx.lineWidth = 4; ctx.stroke();
       ctx.fillStyle = '#111'; ctx.font = '900 10px "JetBrains Mono", monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('GLIMT', W.cx, W.cy + 1);
     }

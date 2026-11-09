@@ -85,9 +85,11 @@
 
   /* ---------- Rydding av løypedata (fra lagring, import og designeren) ---------- */
   const TYPES = ['start', 'finish', 'ramp', 'wall', 'pegs', 'bumper', 'wheel', 'seesaw', 'trap', 'pit', 'wind', 'eagle', 'sign',
-    'vortex', 'belt', 'ferry', 'rocket', 'tunnel', 'rack', 'rein', 'slush'];
-  const LIMITS = { total: 300, start: 1, finish: 1, ramp: 160, wall: 160, pegs: 8, bumper: 40, wheel: 8, seesaw: 8, trap: 12, pit: 16, wind: 6, eagle: 4, sign: 40,
-    vortex: 4, belt: 40, ferry: 4, rocket: 6, tunnel: 6, rack: 8, rein: 6, slush: 12 };
+    'vortex', 'belt', 'ferry', 'rocket', 'tunnel', 'rack', 'rein', 'slush', 'arm'];
+  // ingen grenser på antall deler – bare én start og ett mål
+  const LIMITS = { start: 1, finish: 1 };
+  // i takt: fast startvinkel (grader, 0 = høyre, 90 = opp) i stedet for tilfeldig. Feltene finnes bare når det er på
+  const syncOf = (p, o) => { if (+p.sync === 1) { o.sync = 1; o.ang = Math.round(num(p.ang, 0, 0, 359)); } return o; };
   const CAUSES = ['k_vind', 'k_ornes'];
   const num = (v, d, a, b) => { const n = typeof v === 'number' ? v : parseFloat(v); return Number.isFinite(n) ? Math.min(b, Math.max(a, n)) : d; };
   const XN = (v, d) => num(v, d, -200, 1800);
@@ -103,7 +105,12 @@
     eagle: (p) => line('eagle', p),
     pegs: (p) => ({ type: 'pegs', x: XN(p.x, 300), y: YN(p.y, 600), w: num(p.w, 400, 64, 1600), rows: Math.round(num(p.rows, 5, 1, 14)) }),
     bumper: (p) => ({ type: 'bumper', x: XN(p.x, 800), y: YN(p.y, 600) }),
-    wheel: (p) => ({ type: 'wheel', x: XN(p.x, 800), y: YN(p.y, 600), len: num(p.len, 100, 50, 180), speed: num(p.speed, 2.2, -W_MAX, W_MAX), arms: Math.round(num(p.arms, 4, 2, 6)) }),
+    wheel: (p) => {
+      const o = syncOf(p, { type: 'wheel', x: XN(p.x, 800), y: YN(p.y, 600), len: num(p.len, 100, 50, 180), speed: num(p.speed, 2.2, -W_MAX, W_MAX), arms: Math.round(num(p.arms, 4, 2, 6)) });
+      if (+p.hub === 0) o.hub = 0; // uten nav i midten (bare utseende – det er armene som slår)
+      return o;
+    },
+    arm: (p) => syncOf(p, { type: 'arm', x: XN(p.x, 800), y: YN(p.y, 600), len: num(p.len, 150, 30, 400), speed: num(p.speed, 3, -W_MAX, W_MAX) }),
     seesaw: (p) => {
       const o = { type: 'seesaw', x: XN(p.x, 800), y: YN(p.y, 600), half: num(p.half, 140, 60, 260) };
       if (+p.phys === 1) o.phys = 1; // tyngde-vippe (feltet finnes bare når det er på, så eldre løyper er uendret)
@@ -146,9 +153,9 @@
     const pieces = [];
     for (const p of raw.pieces) {
       const s = sanePiece(p);
-      if (!s || pieces.length >= LIMITS.total) continue;
+      if (!s) continue;
       count[s.type] = (count[s.type] || 0) + 1;
-      if (count[s.type] > LIMITS[s.type]) continue;
+      if (LIMITS[s.type] && count[s.type] > LIMITS[s.type]) continue;
       pieces.push(s);
     }
     if (!count.start) pieces.unshift({ type: 'start', x: 800, y: 300 });
@@ -250,12 +257,14 @@
     }
     // bevegelige deler får fase fra seeden, alltid i samme typerekkefølge
     const of = (type) => pieces.filter((p) => p.type === type);
-    of('wheel').forEach((p) => {
-      const W = { cx: p.x, cy: p.y, len: p.len, w: p.speed, arms: p.arms, t: 8, a0: rnd() * 6.28 };
+    const makeWheel = (p, arms) => {
+      const W = { cx: p.x, cy: p.y, len: p.len, w: p.speed, arms, t: 8, a0: rnd() * 6.28 };
+      if (p.sync) W.a0 = (-p.ang * Math.PI) / 180; // i takt: fast startvinkel
       // raske hjul sjekkes i små steg, så armene ikke hopper over kulene
       if (Math.abs(p.speed) > W_FAST) { W.fast = true; W.sub = Math.max(1, Math.ceil((Math.abs(p.speed) * (p.len + R) * DT) / 5)); }
-      wheels.push(W);
-    });
+      return W;
+    };
+    of('wheel').forEach((p) => { const W = makeWheel(p, p.arms); if (p.hub === 0) W.nohub = true; wheels.push(W); });
     of('seesaw').forEach((p) => {
       const Pp = { px: p.x, py: p.y, half: p.half, amp: 0.2, period: 3.2, phase: rnd() * 3.2, t: 8 };
       if (p.phys) { // tyngde-vippe: vipper etter vekta av kulene (bjelken veier som ti kuler)
@@ -305,6 +314,8 @@
     });
     of('rein').forEach((p) => reins.push(makeRein(p, rnd)));
     of('slush').forEach((p) => slushes.push({ x0: p.x0, y0: p.y0, x1: p.x1, y1: p.y1 }));
+    // Glimt-armen: én arm som spinner rundt et punkt i enden (samme fysikk som hjulet, uten nav)
+    of('arm').forEach((p) => { const W = makeWheel(p, 1); W.arm = true; wheels.push(W); });
     return {
       S, pegs, bumpers, gates, wheels, seesaws, traps, winds, eagles, sensors, pits, signs,
       vortexes, ferries, rockets, tunnels, racks, reins, slushes,
@@ -377,7 +388,7 @@
     },
   };
   // kula forsvant ut av verden ved siden av et Glimt-hjul → hjulet slo den ut
-  const flung = (C, x, y) => C.wheels.some((w) => (x < 0 ? w.cx < C.W / 2 : x > C.W && w.cx > C.W / 2) && y > w.cy - 300 && y < w.cy + 250);
+  const flung = (C, x, y, arm) => C.wheels.some((w) => !w.arm === !arm && (x < 0 ? w.cx < C.W / 2 : x > C.W && w.cx > C.W / 2) && y > w.cy - 300 && y < w.cy + 250);
 
   /* Banen en kule fra Andøya-raketten vil fly (uten andre kuler og bevegelige deler) – forhåndsvisning i designeren */
   function aimPath(C, L) {
@@ -487,8 +498,8 @@
         for (let q = 0; q < NT; q++) if (!topen[q]) { const T = C.traps[q]; capsule(i, T.ax, T.ay, T.bx, T.by, T.t, 0.25, 0, 0); }
       }
       if (!hit) return;
-      cap[i] = V_LAUNCH; launchT[i] = t; launchBy[i] = 1;
-      if (Math.hypot(VX[i], VY[i]) > 1100 && t - lastLaunch[i] > 1) { lastLaunch[i] = t; events.push({ t, type: 'launch', i, x: X[i], y: Y[i] }); }
+      cap[i] = V_LAUNCH; launchT[i] = t; launchBy[i] = W.arm ? 4 : 1;
+      if (Math.hypot(VX[i], VY[i]) > 1100 && t - lastLaunch[i] > 1) { lastLaunch[i] = t; events.push(W.arm ? { t, type: 'launch', i, x: X[i], y: Y[i], arm: 1 } : { t, type: 'launch', i, x: X[i], y: Y[i] }); }
     }
     /* ---- de nye delene (alt her er tomt for løyper uten dem) ---- */
     const NV = C.vortexes.length, NF = C.ferries.length, NK = C.rockets.length, NU = C.tunnels.length, NR = C.reins.length, NL = C.slushes.length;
@@ -497,9 +508,9 @@
     const NFI = fish.length;
     const launchBy = new Uint8Array(n); // 1 = Glimt-hjul, 2 = Andøya-raketten, 3 = Saltstraumen
     const fishT = new Float64Array(n).fill(-Infinity), lastFish = new Float64Array(n).fill(-9), reinT = new Float64Array(n).fill(-9);
-    const vIn = new Float64Array(n), vCool = new Float64Array(n), slushIn = new Uint16Array(n);
-    const hold = new Uint8Array(n), noCatch = new Float64Array(n), loaded = new Int16Array(NK).fill(-1), loadT = new Float64Array(NK);
-    const tunOut = new Float64Array(n), tunQ = new Int8Array(n), tunV = new Float64Array(n), noTun = new Float64Array(n);
+    const vIn = new Float64Array(n), vCool = new Float64Array(n), slushIn = new Uint8Array(n * NL);
+    const hold = new Int32Array(n), noCatch = new Float64Array(n), loaded = new Int32Array(NK).fill(-1), loadT = new Float64Array(NK);
+    const tunOut = new Float64Array(n), tunQ = new Int32Array(n), tunV = new Float64Array(n), noTun = new Float64Array(n);
     const fa = new Float64Array(NFI), fw = new Float64Array(NFI), fst = new Array(NF), rst = new Array(NR), tclosed = new Uint8Array(NU);
     const fth = Float64Array.from(fish, (f) => f.th0), fom = new Float64Array(NFI), fdL = new Float64Array(NFI), frec = fish.map(() => []);
     const dynS = C.seesaws.map((s) => !!s.dyn), anyDyn = dynS.some(Boolean);
@@ -600,7 +611,7 @@
             if (X[i] > Z.x0 && X[i] < Z.x1 && Y[i] > Z.y0 && Y[i] < Z.y1) {
               const k = 1 - 2.4 * DT;
               VX[i] *= k; VY[i] *= k;
-              if (!(slushIn[i] & (1 << q))) { slushIn[i] |= 1 << q; events.push({ t, type: 'slaps', i, x: X[i], y: Y[i] }); }
+              if (!slushIn[i * NL + q]) { slushIn[i * NL + q] = 1; events.push({ t, type: 'slaps', i, x: X[i], y: Y[i] }); }
             }
           }
         }
@@ -779,7 +790,8 @@
         if (state[i] === ST.RACE && (X[i] < -30 || X[i] > C.W + 30 || Y[i] > C.H)) {
           const lb = t - launchT[i] < 6 ? launchBy[i] : 0;
           state[i] = ST.OUT; tDone[i] = t; lastDoneT = t;
-          cause[i] = lb === 2 ? 'k_rakett' : lb === 3 ? 'k_salt' : (flung(C, X[i], Y[i]) || lb === 1) ? 'k_glimt' : t - fishT[i] < 3 ? 'k_fisk' : 'k_kant';
+          cause[i] = lb === 2 ? 'k_rakett' : lb === 3 ? 'k_salt' : lb === 4 ? 'k_arm' : (flung(C, X[i], Y[i]) || lb === 1) ? 'k_glimt'
+            : flung(C, X[i], Y[i], true) ? 'k_arm' : t - fishT[i] < 3 ? 'k_fisk' : 'k_kant';
           events.push({ t, type: 'out', i, cause: cause[i] });
         }
       }
@@ -849,6 +861,7 @@
       if (share('k_ferje') > 0.15) reasons.push('Tips: mange rekker ikke ferga. La rampene ende rett ved kaiene, og la ferga gå litt saktere.');
       if (share('k_rakett') > 0.15) reasons.push('Tips: raketten skyter mange ut i verdensrommet. Senk kraften eller sikt bedre – designeren viser banen.');
       if (share('k_fisk') > 0.15) reasons.push('Tips: tørrfisken slår mange ut av løypa. Sett opp vegger ved hjellet.');
+      if (share('k_arm') > 0.15) reasons.push('Tips: Glimt-armen slår mange ut av løypa. Sett opp vegger rundt den, eller skru ned farten.');
     }
     return { ok: !reasons.length, rate, minRate, winT: Number.isFinite(winT) ? winT : null, firstT: Number.isFinite(firstT) ? firstT : null, causes, reasons, runs: runs.length, marbles: tot, need };
   }

@@ -20,6 +20,7 @@
     k_ferje: (n) => ['Rakk ikke ferga!', `${n} rakk ikke ferga og havnet i havet. Neste avgang går om en time.`],
     k_rakett: (n) => ['Andøya, vi har et problem!', `${n} ble skutt rett ut i verdensrommet!`],
     k_fisk: (n) => ['Tørrfisk!', `${n} fikk en tørrfisk i trynet og forsvant ut av løypa.`],
+    k_arm: (n) => ['Glimt-armen!', `${n} fikk et slag av Glimt-armen og forsvant ut av løypa!`],
   };
   const FUN = ['rocket', 'spit', 'tunnel', 'fish', 'rein', 'slaps'];
 
@@ -113,7 +114,7 @@
         if (this.time - (this.launchSayAt || 0) > 5) {
           this.launchSayAt = this.time;
           const lp = this.pax.get(m.no);
-          if (lp) this.say('🚀', 'Oppskyting!', `Glimt-hjulet sendte ${u.esc(lp.name)} (kule ${u.esc(lp.label)}) til værs!`, 2);
+          if (lp) this.say(e.arm ? '🦾' : '🚀', e.arm ? 'Glimt-armen slår til!' : 'Oppskyting!', `${e.arm ? 'Glimt-armen slo' : 'Glimt-hjulet sendte'} ${u.esc(lp.name)} (kule ${u.esc(lp.label)}) til værs!`, 2);
         }
         return;
       }

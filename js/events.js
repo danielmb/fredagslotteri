@@ -241,7 +241,8 @@
     k_rakett: { game: 'keiser', title: 'Skutt ut i verdensrommet', name: 'Andøya-raketten', icon: '🚀', color: 'rgba(255,154,122,.22)', ec: '#fbd9cc', desc: 'Andøya skyter opp raketter på ordentlig. Denne er litt for sterk.', t: ['{n} ble skutt rett ut i verdensrommet fra Andøya.'] },
     k_fisk: { game: 'keiser', title: 'Slått ut av tørrfisken', name: 'Tørrfiskhjellet', icon: '🐟', color: 'rgba(201,180,143,.25)', ec: '#efe3cc', desc: 'Lofot-torsk som har hengt i vinden hele vinteren. Hard som en planke.', t: ['{n} fikk en tørrfisk i trynet og forsvant ut av løypa.'] },
   });
-  const ORDER_KEISER = ['k_vind', 'k_ornes', 'k_orna', 'k_glimt', 'k_kant', 'k_fast', 'k_hull', 'k_salt', 'k_ferje', 'k_rakett', 'k_fisk'];
+  EVENTS.k_arm = { game: 'keiser', title: 'Slått ut av Glimt-armen', name: 'Glimt-armen', icon: '🦾', color: 'rgba(255,212,0,.2)', ec: '#fbeaa0', desc: 'Glimt-hjulet uten hjul. Én arm, full fart, null nåde.', t: ['Glimt-armen slo {n} rett ut av løypa.'] };
+  const ORDER_KEISER = ['k_vind', 'k_ornes', 'k_orna', 'k_glimt', 'k_arm', 'k_kant', 'k_fast', 'k_hull', 'k_salt', 'k_ferje', 'k_rakett', 'k_fisk'];
   const ORDER_DRAUGEN = ['kraken', 'draugen', 'malstrom', 'blekk', 'huldra', 'krabbe', 'lyn', 'troll', 'vaffellukt', 'volleyball', 'hurtigrutebolge', 'amulett'];
   const D_SINGLE = ['kraken', 'draugen', 'huldra', 'krabbe', 'lyn', 'vaffellukt', 'volleyball'];
   const D_GROUP = { malstrom: 5, blekk: 4, troll: 3, hurtigrutebolge: 4, kraken: 3 };

@@ -78,8 +78,14 @@
     wheel: {
       name: 'Glimt-hjul',
       ico: '💛',
-      help: 'Spinner som en kontring. Kuler som kommer for nær, kan bli slått rett ut av løypa. Skru farten over 5, så skyter det kulene til værs.',
+      help: 'Spinner som en kontring. Kuler som kommer for nær, kan bli slått rett ut av løypa. Skru farten over 5, så skyter det kulene til værs. Velg «I takt», så går flere hjul helt likt. Navet i midten kan tas bort.',
       make: (x, y) => ({ x, y, len: 100, speed: 2.2, arms: 4 }),
+    },
+    arm: {
+      name: 'Glimt-arm',
+      ico: '🦾',
+      help: 'Glimt-hjulet uten hjul: én arm som spinner rundt bolten i enden. Skru farten over 5, så slår den kulene til værs. Velg «I takt» og en startvinkel for å time flere armer.',
+      make: (x, y) => ({ x, y, len: 150, speed: 3 }),
     },
     seesaw: {
       name: 'Vippe',
@@ -193,6 +199,7 @@
     'pegs',
     'bumper',
     'wheel',
+    'arm',
     'seesaw',
     'trap',
     'pit',
@@ -207,6 +214,25 @@
     'rein',
     'slush',
     'sign',
+  ];
+  // i takt: fast startvinkel i stedet for tilfeldig (vinkelen vises bare når takt er på)
+  const SYNC = [
+    {
+      k: 'sync',
+      label: 'Takt',
+      opts: [
+        [0, 'Tilfeldig'],
+        [1, 'I takt'],
+      ],
+    },
+    {
+      k: 'ang',
+      label: 'Startvinkel (grader, 90 = opp)',
+      min: 0,
+      max: 359,
+      step: 1,
+      when: (p) => p.sync,
+    },
   ];
   const FIELDS = {
     pegs: [
@@ -223,6 +249,27 @@
         step: 0.1,
       },
       { k: 'arms', label: 'Armer', min: 2, max: 6, step: 1 },
+      {
+        k: 'hub',
+        label: 'Nav i midten',
+        def: 1,
+        opts: [
+          [1, 'Med'],
+          [0, 'Uten'],
+        ],
+      },
+      ...SYNC,
+    ],
+    arm: [
+      { k: 'len', label: 'Lengde', min: 30, max: 400, step: 2 },
+      {
+        k: 'speed',
+        label: 'Fart (minus = andre veien)',
+        min: -P.W_MAX,
+        max: P.W_MAX,
+        step: 0.1,
+      },
+      ...SYNC,
     ],
     seesaw: [
       { k: 'half', label: 'Lengde (halv)', min: 60, max: 260, step: 2 },
@@ -296,6 +343,7 @@
     k_ferje: 'rakk ikke ferga og havnet i havet',
     k_rakett: 'ble skutt ut i verdensrommet',
     k_fisk: 'fikk en tørrfisk i trynet',
+    k_arm: 'ble slått ut av Glimt-armen',
   };
   const SIMPLE = [
     { type: 'start', x: 800, y: 300 },
@@ -376,6 +424,7 @@
       case 'bumper':
         return { x0: p.x - 30, y0: p.y - 30, x1: p.x + 30, y1: p.y + 30 };
       case 'wheel':
+      case 'arm':
         return {
           x0: p.x - p.len - 10,
           y0: p.y - p.len - 10,
@@ -467,7 +516,7 @@
     }
     if (p.type === 'bumper')
       return Math.hypot(x - p.x, y - p.y) <= 28 + tol ? 1500 : Infinity;
-    if (p.type === 'wheel')
+    if (p.type === 'wheel' || p.type === 'arm')
       return Math.hypot(x - p.x, y - p.y) <= p.len + 10 + tol
         ? Math.PI * p.len * p.len
         : Infinity;
@@ -539,7 +588,11 @@
       case 'pegs':
         return [{ k: 'se', x: p.x + p.w, y: p.y + (p.rows - 1) * 56 }];
       case 'wheel':
-        return [{ k: 'r', x: p.x + p.len, y: p.y }];
+      case 'arm': {
+        // i takt: håndtaket står der armen starter, så du kan dra den dit du vil
+        const a = p.sync ? (p.ang * Math.PI) / 180 : 0;
+        return [{ k: 'r', x: p.x + Math.cos(a) * p.len, y: p.y - Math.sin(a) * p.len }];
+      }
       case 'seesaw':
         return [{ k: 'r', x: p.x + p.half, y: p.y }];
       case 'pit':
@@ -602,7 +655,15 @@
         p.rows = u.clamp(Math.round((y - p.y) / 56) + 1, 1, 14);
         break;
       case 'wheel':
-        p.len = u.clamp(Math.round(Math.hypot(x - p.x, y - p.y)), 50, 180);
+      case 'arm':
+        p.len = u.clamp(
+          Math.round(Math.hypot(x - p.x, y - p.y)),
+          p.type === 'arm' ? 30 : 50,
+          p.type === 'arm' ? 400 : 180,
+        );
+        if (p.sync)
+          p.ang =
+            (((Math.round((Math.atan2(p.y - y, x - p.x) * 180) / Math.PI)) % 360) + 360) % 360;
         break;
       case 'seesaw':
         p.half = u.clamp(Math.round(Math.abs(x - p.x)), 60, 260);
@@ -976,13 +1037,11 @@
     sel = -1;
     afterEdit();
   }
+  // ingen grenser – bare start og mål finnes én av
   function roomFor(type) {
-    if (doc.pieces.length >= P.LIMITS.total) {
-      u.toast(`Løypa er full (${P.LIMITS.total} deler).`);
-      return false;
-    }
-    if (doc.pieces.filter((p) => p.type === type).length >= P.LIMITS[type]) {
-      u.toast(`Maks ${P.LIMITS[type]} av typen «${KINDS[type].name}».`);
+    const max = P.LIMITS[type];
+    if (max && doc.pieces.filter((p) => p.type === type).length >= max) {
+      u.toast(`Det kan bare være én «${KINDS[type].name}».`);
       return false;
     }
     return true;
@@ -1340,7 +1399,7 @@
       return `<div class="dz-field"><span>${esc(f.label)}</span><div class="dz-seg">${f.opts
         .map(
           ([v, lab]) =>
-            `<button type="button" data-opt="${f.k}" data-v="${v}" class="${(p[f.k] || 0) === v ? 'on' : ''}">${esc(lab)}</button>`,
+            `<button type="button" data-opt="${f.k}" data-v="${v}" class="${(p[f.k] != null ? p[f.k] : f.def || 0) === v ? 'on' : ''}">${esc(lab)}</button>`,
         )
         .join('')}</div></div>`;
     return `<label class="dz-field"><span>${esc(f.label)} <output>${u.nf.format(p[f.k])}</output></span><input type="range" data-f="${f.k}" min="${f.min}" max="${f.max}" step="${f.step}" value="${p[f.k]}"></label>`;
@@ -1365,8 +1424,12 @@
     if (p.type === 'pit')
       return `Bredde ${r(p.x1 - p.x0)} · dybde ${r(p.y1 - Math.max(p.yl, p.yr))}`;
     if (p.type === 'wind') return `${r(p.x1 - p.x0)} × ${r(p.y1 - p.y0)}`;
-    if (p.type === 'wheel' && Math.abs(p.speed) > P.W_FAST)
-      return `x ${r(p.x)} · y ${r(p.y)}<br><span class="warn">🚀 Rakettfart! Hjulet skyter kulene til værs. Pass på at de lander et sted.</span>`;
+    if (p.type === 'wheel' || p.type === 'arm') {
+      const takt = p.sync
+        ? ` · i takt, starter på ${r(p.ang)}°`
+        : ' · tilfeldig start';
+      return `x ${r(p.x)} · y ${r(p.y)}${takt}${Math.abs(p.speed) > P.W_FAST ? `<br><span class="warn">🚀 Rakettfart! ${p.type === 'arm' ? 'Armen slår' : 'Hjulet skyter'} kulene til værs. Pass på at de lander et sted.</span>` : ''}`;
+    }
     if (p.type === 'vortex')
       return `x ${r(p.x)} · y ${r(p.y)} · størrelse ${r(p.r)}`;
     if (p.type === 'ferry') {
@@ -1389,7 +1452,10 @@
     const fixed = p.type === 'start' || p.type === 'finish';
     return `<section class="dz-sec">
       <div class="dz-piece"><span class="dz-piece-ico">${K.ico}</span><div><h3 class="dz-h">${esc(K.name)}</h3><p>${esc(K.help)}</p></div></div>
-      ${(FIELDS[p.type] || []).map((f) => field(p, f)).join('')}
+      ${(FIELDS[p.type] || [])
+        .filter((f) => !f.when || f.when(p))
+        .map((f) => field(p, f))
+        .join('')}
       <p class="dz-pos">${posText(p)}</p>
       <div class="dz-btns">${fixed ? '' : '<button class="btn btn-ghost btn-small" type="button" data-a="dup">Dupliser</button><button class="btn btn-ghost btn-small dz-del" type="button" data-a="del">Slett</button>'}<button class="btn btn-ghost btn-small" type="button" data-a="done">Ferdig</button></div>
     </section>`;
@@ -1663,7 +1729,7 @@
       T.flown[e.i] = 1;
       entry = {
         icon: '🚀',
-        html: `<b>Kule ${e.i + 1}</b> ${e.type === 'rocket' ? 'ble skutt opp fra Andøya' : 'ble skutt til værs'}`,
+        html: `<b>Kule ${e.i + 1}</b> ${e.type === 'rocket' ? 'ble skutt opp fra Andøya' : e.arm ? 'ble slått til værs av Glimt-armen' : 'ble skutt til værs'}`,
         t: Math.max(0, e.t - P.GATE_T),
       };
     } else if (e.type !== 'finish' && e.type !== 'out') {
