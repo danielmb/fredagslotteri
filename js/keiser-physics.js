@@ -85,10 +85,25 @@
 
   /* ---------- Rydding av løypedata (fra lagring, import og designeren) ---------- */
   const TYPES = ['start', 'finish', 'ramp', 'wall', 'pegs', 'bumper', 'wheel', 'seesaw', 'trap', 'pit', 'wind', 'eagle', 'sign',
-    'vortex', 'belt', 'ferry', 'rocket', 'tunnel', 'rack', 'rein', 'slush', 'arm', 'boss'];
+    'vortex', 'belt', 'ferry', 'rocket', 'tunnel', 'rack', 'rein', 'slush', 'arm', 'boss', 'deco', 'shape', 'look'];
+  /* Utseende: pynt, bakgrunnsfelt, utseendet på hele løypa («look») og farger på deler. Ingenting av dette merkes av kulene,
+     så det holdes utenfor godkjenningen (hash) – du kan pynte en godkjent løype uten å godkjenne den på nytt */
+  const VISUAL = ['deco', 'shape', 'look'];
+  const COL = /^#[0-9a-f]{6}$/i;
+  const COLORS = { ramp: '#e9dfc9', wall: '#c9bda5', bumper: '#ee4a2f', sign: '#5a3d27', pegs: '#dbe3ec' }; // standardfargene
+  const SKIES = ['natt', 'skumring', 'dag', 'sol', 'storm'];
+  const colOf = (v, d) => (typeof v === 'string' && COL.test(v) ? v.toLowerCase() : d);
   const BOLT_V = 1700;     // farten på strålene fra Sjefen
+  /* Skinner: ramper, vegger, TUT-bumpere og skilt kan kjøre fram og tilbake på en skinne, alene eller i gruppe.
+     Skinnen er en flytting (dx, dy) fra der delen står, og programmet er en liste med steg som går i ring:
+     { to: 0–100 (% av skinnen), t: sekunder, e: kurve } kjører dit, { t } venter. */
+  const RIDERS = ['ramp', 'wall', 'bumper', 'sign', 'deco'];
+  const EASES = ['smooth', 'linear', 'throw', 'jump']; // myk start og stopp · jevn fart · fortere og fortere (kaster kulene) · hopper dit med en gang
+  const STEPS_MAX = 8;
+  const V_RAIL = 2400;     // toppfart på skinnen (raskere steg strekkes ut, så kulene ikke går gjennom)
+  const GRP = /^[a-z0-9]{1,12}$/i;
   // ingen grenser på antall deler – bare én start og ett mål
-  const LIMITS = { start: 1, finish: 1 };
+  const LIMITS = { start: 1, finish: 1, look: 1 };
   // i takt: fast startvinkel (grader, 0 = høyre, 90 = opp) i stedet for tilfeldig. Feltene finnes bare når det er på
   const syncOf = (p, o) => { if (+p.sync === 1) { o.sync = 1; o.ang = Math.round(num(p.ang, 0, 0, 359)); } return o; };
   const CAUSES = ['k_vind', 'k_ornes'];
@@ -147,8 +162,92 @@
       const x0 = Math.min(ax, bx), y0 = Math.min(ay, by);
       return { type: 'slush', x0, y0, x1: Math.max(ax, bx, x0 + 60), y1: Math.max(ay, by, y0 + 40) };
     },
+    // pynt: en emoji (eller noen få tegn) som tegnes bak eller foran løypa
+    deco: (p) => {
+      const o = { type: 'deco', x: num(p.x, 800, -1400, 3000), y: YN(p.y, 600), ico: txt(p.ico, '🌲', 16), size: Math.round(num(p.size, 120, 24, 600)) };
+      const ang = Math.round(num(p.ang, 0, -180, 180));
+      if (ang) o.ang = ang;
+      if (+p.flip === 1) o.flip = 1;
+      if (+p.front === 1) o.front = 1;
+      return o;
+    },
+    // bakgrunnsfelt: en farget firkant eller oval bak løypa
+    shape: (p) => {
+      const ax = num(p.x0, 500, -1400, 3000), bx = num(p.x1, 900, -1400, 3000), ay = YN(p.y0, 500), by = YN(p.y1, 700);
+      const x0 = Math.min(ax, bx), y0 = Math.min(ay, by);
+      const o = { type: 'shape', x0, y0, x1: Math.max(ax, bx, x0 + 20), y1: Math.max(ay, by, y0 + 20), col: colOf(p.col, '#2a6f8f'), alpha: Math.round(num(p.alpha, 60, 5, 100)) };
+      if (+p.round === 1) o.round = 1;
+      return o;
+    },
+    // utseendet på hele løypa (finnes høyst én gang, og bare feltene som ikke er standard)
+    look: (p) => {
+      const o = { type: 'look' };
+      if (SKIES.includes(p.sky) && p.sky !== 'natt') o.sky = p.sky;
+      if (+p.aur === 0) o.aur = 0;
+      if (+p.mtn === 0) o.mtn = 0;
+      if (+p.city === 0) o.city = 0;
+      if (p.wx === 'sno' || p.wx === 'regn') o.wx = p.wx; // vær: snø eller regn
+      const town = txt(p.town, '', 14).toUpperCase();
+      if (town && town !== 'BODØ') o.town = town;
+      const tr = colOf(p.track, null);
+      if (tr && tr !== COLORS.ramp) o.track = tr;
+      return o;
+    },
   };
-  function sanePiece(p) { return p && SANE[p.type] ? SANE[p.type](p) : null; }
+  function saneRail(r) {
+    if (!r || typeof r !== 'object') return null;
+    const o = { dx: Math.round(num(r.dx, 0, -1800, 1800)), dy: Math.round(num(r.dy, -240, -3000, 3000)) }, prog = [];
+    for (const s of Array.isArray(r.prog) ? r.prog.slice(0, STEPS_MAX) : []) {
+      if (!s || typeof s !== 'object') continue;
+      const t = Math.round(num(s.t, 1, 0.1, 10) * 20) / 20;
+      const o = s.to == null ? { t } : { to: Math.round(num(s.to, 100, 0, 100)), t, e: EASES.includes(s.e) ? s.e : 'smooth' };
+      // tilfeldig tid: et sted mellom t og t2 sekunder, trukket på nytt hver runde (hopp tar ingen tid)
+      if (s.t2 != null && o.e !== 'jump') o.t2 = Math.max(t, Math.round(num(s.t2, t, 0.1, 10) * 20) / 20);
+      prog.push(o);
+    }
+    o.prog = prog.length ? prog : [{ to: 100, t: 2, e: 'smooth' }, { to: 0, t: 2, e: 'smooth' }];
+    if (+r.sync === 1) { o.sync = 1; o.off = Math.round(num(r.off, 0, 0, 20) * 10) / 10; }
+    return o;
+  }
+  // gruppe og skinne: feltene finnes bare når de er i bruk, så eldre løyper er helt uendret
+  function sanePiece(p) {
+    if (!p || !SANE[p.type]) return null;
+    const o = SANE[p.type](p);
+    if (p.type === 'start' || p.type === 'finish' || p.type === 'look') return o;
+    // egen farge (bare når den ikke er standardfargen)
+    if (COLORS[p.type]) { const c = colOf(p.col, null); if (c && c !== COLORS[p.type]) o.col = c; }
+    if (typeof p.grp === 'string' && GRP.test(p.grp)) o.grp = p.grp;
+    if (p.rail && RIDERS.includes(p.type)) { const r = saneRail(p.rail); if (r) o.rail = r; }
+    return o;
+  }
+  /* Midten av det som kjører på skinnen (skinnen tegnes og dras herfra) */
+  function railCenter(ps) {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    const at = (x, y) => { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; };
+    for (const p of ps) { if (p.ax != null) { at(p.ax, p.ay); at(p.bx, p.by); } else at(p.x, p.y); }
+    return x0 <= x1 ? { x: (x0 + x1) / 2, y: (y0 + y1) / 2 } : { x: 0, y: 0 };
+  }
+  /* Programmet som tidslinje: hvert steg går fra s0 til s1 (0–1 langs skinnen). Runden starter der det siste steget slutter.
+     Steg med tilfeldig tid bruker korteste tid, eller en trukket tid når rnd er med (én runde per kall) */
+  function railPlan(rail, rnd) {
+    const L = Math.hypot(rail.dx, rail.dy), keys = [];
+    let s = 0, T = 0, Tmax = 0, rand = false;
+    for (const st of rail.prog) if (st.to != null) s = st.to / 100;
+    rail.prog.forEach((st, i) => {
+      const r = st.t2 != null && st.t2 > st.t;
+      if (r) rand = true;
+      const want = r && rnd ? st.t + rnd() * (st.t2 - st.t) : st.t;
+      if (st.to == null) { keys.push({ t0: T, t1: T + want, s0: s, s1: s, e: 'linear', peak: 0, want, st: i }); T += want; Tmax += r ? st.t2 : st.t; return; }
+      // hopp: forsvinner og dukker opp der med en gang (tar ingen tid, og kulene blir ikke med)
+      if (st.e === 'jump') { keys.push({ t0: T, t1: T, s0: s, s1: st.to / 100, e: 'jump', peak: 0, want: 0, go: 1, jump: 1, st: i }); s = st.to / 100; return; }
+      const s1 = st.to / 100, pf = st.e === 'throw' ? 2 : st.e === 'smooth' ? 1.5 : 1, d = L * Math.abs(s1 - s);
+      const dt = Math.max(want, (pf * d) / V_RAIL);
+      keys.push({ t0: T, t1: T + dt, s0: s, s1, e: st.e, peak: (pf * d) / dt, want, go: 1, st: i });
+      T += dt; Tmax += Math.max(r ? st.t2 : st.t, (pf * d) / V_RAIL); s = s1;
+    });
+    // bare hopp i programmet: står stille der det siste hoppet lander
+    return { keys, period: Math.max(T, 0.05), periodMax: Math.max(Tmax, T, 0.05), rand, L };
+  }
   function normalize(raw) {
     if (!raw || typeof raw !== 'object' || !Array.isArray(raw.pieces)) return null;
     const count = {};
@@ -164,7 +263,10 @@
     if (!count.finish) pieces.push({ type: 'finish', x: 1290, y: 3330 });
     return { id: txt(raw.id, 'c_' + u.hashStr(JSON.stringify(pieces)).toString(36), 40), name: txt(raw.name, 'Min løype', 40), pieces };
   }
-  const hash = (def) => u.hashStr(JSON.stringify(def.pieces)).toString(36);
+  // godkjenningen gjelder bare det kulene merker: pynt, bakgrunn, utseende og farger er ikke med (eldre løyper får samme hash som før)
+  const hash = (def) => u.hashStr(JSON.stringify(def.pieces
+    .filter((p) => !VISUAL.includes(p.type))
+    .map((p) => { if (p.col == null) return p; const { col, ...rest } = p; return rest; }))).toString(36);
   const ORIGINAL = normalize({ id: 'keiservarden', name: 'Keiservarden (original)', pieces: ORIGINAL_PIECES });
 
   /* ---------- Fra deler til en løype fysikken kan kjøre ---------- */
@@ -220,16 +322,24 @@
     const rnd = u.mulberry32((seed ^ 0x5eed) >>> 0);
     const S = [], pegs = [], bumpers = [], gates = [], wheels = [], seesaws = [], traps = [], winds = [], eagles = [], sensors = [], pits = [], signs = [];
     const vortexes = [], ferries = [], rockets = [], tunnels = [], racks = [], reins = [], slushes = [], bosses = [];
-    let start = null, fin = null;
-    const seg = (ax, ay, bx, by, kind = 'track') => S.push({ ax, ay, bx, by, t: 7, e: 0.3, kind });
-    for (const p of pieces) {
+    const decoBack = [], decoFront = [], shapes = [];
+    let start = null, fin = null, look = null;
+    const seg = (ax, ay, bx, by, kind = 'track', col) => { const s = { ax, ay, bx, by, t: 7, e: 0.3, kind }; if (col) s.col = col; S.push(s); };
+    // deler på skinne (alene eller i gruppe med skinne) er ikke en del av den faste løypa.
+    // Skinnen hentes fra en ekte del før pynt, så pynten aldri kan endre hvordan løypa kjører
+    const unitKey = (p, i) => (p.grp ? 'g:' + p.grp : 'p:' + i), railOf = new Map();
+    for (const deco of [false, true]) pieces.forEach((p, i) => { if (p.rail && RIDERS.includes(p.type) && (p.type === 'deco') === deco && !railOf.has(unitKey(p, i))) railOf.set(unitKey(p, i), p.rail); });
+    const rides = (p, i) => railOf.size > 0 && RIDERS.includes(p.type) && railOf.has(unitKey(p, i));
+    for (let pi = 0; pi < pieces.length; pi++) {
+      const p = pieces[pi];
+      if (rides(p, pi)) continue;
       if (p.type === 'start') {
         start = p;
         seg(p.x - 330, p.y - 260, p.x - 60, p.y, 'hopper'); seg(p.x + 330, p.y - 260, p.x + 60, p.y, 'hopper');
         seg(p.x - 330, p.y - 260, p.x - 330, p.y - 360, 'hopper'); seg(p.x + 330, p.y - 260, p.x + 330, p.y - 360, 'hopper');
         gates.push({ ax: p.x - 60, ay: p.y, bx: p.x + 60, by: p.y, t: 7 });
-      } else if (p.type === 'ramp') seg(p.ax, p.ay, p.bx, p.by);
-      else if (p.type === 'wall') seg(p.ax, p.ay, p.bx, p.by, 'wall');
+      } else if (p.type === 'ramp') seg(p.ax, p.ay, p.bx, p.by, 'track', p.col);
+      else if (p.type === 'wall') seg(p.ax, p.ay, p.bx, p.by, 'wall', p.col);
       else if (p.type === 'pit') {
         seg(p.x0, p.yl, p.x0, p.y1, 'pit'); seg(p.x1, p.yr, p.x1, p.y1, 'pit'); seg(p.x0, p.y1, p.x1, p.y1, 'pit');
         const top = p.sy != null ? p.sy : Math.max(p.yl, p.yr) + 2;
@@ -238,8 +348,11 @@
       } else if (p.type === 'finish') {
         fin = p;
         seg(p.x + 40, p.y + 250, p.x + 270, p.y + 280); seg(p.x + 292, p.y + 30, p.x + 292, p.y + 295, 'wall'); seg(p.x + 38, p.y + 210, p.x + 38, p.y + 256, 'wall');
-      } else if (p.type === 'bumper') bumpers.push({ x: p.x, y: p.y, r: 26, kick: 520 });
-      else if (p.type === 'sign') signs.push({ x: p.x, y: p.y, text: p.text });
+      } else if (p.type === 'bumper') bumpers.push(p.col ? { x: p.x, y: p.y, r: 26, kick: 520, col: p.col } : { x: p.x, y: p.y, r: 26, kick: 520 });
+      else if (p.type === 'sign') signs.push({ x: p.x, y: p.y, text: p.text, col: p.col });
+      else if (p.type === 'deco') (p.front ? decoFront : decoBack).push(p);
+      else if (p.type === 'shape') shapes.push(p);
+      else if (p.type === 'look') look = p;
       else if (p.type === 'belt') {
         const L = Math.hypot(p.bx - p.ax, p.by - p.ay) || 1;
         S.push({ ax: p.ax, ay: p.ay, bx: p.bx, by: p.by, t: 7, e: 0.15, kind: 'belt', belt: p.speed, ux: (p.bx - p.ax) / L, uy: (p.by - p.ay) / L });
@@ -253,7 +366,7 @@
         const y = p.y + row * 56, off = row % 2 ? 32 : 0;
         for (let x = p.x + off; x <= p.x + p.w; x += 64) {
           if (bumpers.some((b) => Math.hypot(x - b.x, y - b.y) < b.r + 34)) continue;
-          pegs.push({ x, y, r: 7 });
+          pegs.push(p.col ? { x, y, r: 7, col: p.col } : { x, y, r: 7 });
         }
       }
     }
@@ -320,9 +433,49 @@
     of('arm').forEach((p) => { const W = makeWheel(p, 1); W.arm = true; wheels.push(W); });
     // Sjefen: står og skyter med strålepistol (skuddene lagres i shots under løpet, så tegningen kan vise dem)
     of('boss').forEach((p) => bosses.push({ x: p.x, y: p.y, dir: p.dir, range: p.range, cd: p.cd, zap: p.zap, force: p.force, gx: p.x + p.dir * 42, gy: p.y - 72, phase: rnd() * p.cd, shots: [] }));
+    // skinnene: én «vogn» per del eller gruppe, med alt som kjører på den (trekker fra seeden sist, bare når de finnes)
+    const movers = [];
+    if (railOf.size) {
+      const units = new Map();
+      pieces.forEach((p, i) => { if (!rides(p, i)) return; const k = unitKey(p, i); if (!units.has(k)) units.set(k, []); units.get(k).push(p); });
+      // pynt som kjører alene trekker fra sin egen seed, så den aldri endrer løpet
+      const vrnd = u.mulberry32((seed ^ 0xdec0) >>> 0);
+      units.forEach((ps, k) => {
+        const rail = railOf.get(k), c = railCenter(ps), plan = railPlan(rail), r = ps.every((p) => p.type === 'deco') ? vrnd : rnd;
+        const M = { segs: [], bumps: [], signs: [], decos: [], rx: rail.dx, ry: rail.dy, L: plan.L, cx: c.x, cy: c.y, keys: plan.keys, period: plan.period, sync: rail.sync ? 1 : 0, off: rail.off || 0, phase: 0 };
+        let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+        const box = (x, y, rr) => { x0 = Math.min(x0, x - rr); x1 = Math.max(x1, x + rr); y0 = Math.min(y0, y - rr); y1 = Math.max(y1, y + rr); };
+        for (const p of ps) {
+          if (p.type === 'ramp' || p.type === 'wall') {
+            const g = { ax: p.ax, ay: p.ay, bx: p.bx, by: p.by, t: 7, e: 0.3, kind: p.type === 'wall' ? 'wall' : 'track' };
+            if (p.col) g.col = p.col;
+            M.segs.push(g);
+            box(p.ax, p.ay, 7 + R + 4); box(p.bx, p.by, 7 + R + 4);
+          } else if (p.type === 'bumper') { M.bumps.push({ x: p.x, y: p.y, r: 26, kick: 520, col: p.col }); box(p.x, p.y, 26 + R + 4); }
+          else if (p.type === 'deco') M.decos.push(p);
+          else M.signs.push({ x: p.x, y: p.y, text: p.text, col: p.col });
+        }
+        Object.assign(M, { x0, y0, x1, y1 });
+        if (plan.rand) {
+          // tilfeldig tid: hele løpet trekkes på forhånd fra seeden, runde for runde (så reprisen blir lik)
+          if (!M.sync) M.phase = r() * ((plan.period + plan.periodMax) / 2);
+          const keys = [];
+          let T = 0;
+          while (T < T_MAX + 8 + M.phase) {
+            const c = railPlan(rail, r);
+            for (const kk of c.keys) keys.push({ ...kk, t0: kk.t0 + T, t1: kk.t1 + T });
+            T += c.period;
+          }
+          M.keys = keys;
+          M.period = T;
+        } else if (!M.sync) M.phase = r() * M.period;
+        movers.push(M);
+      });
+    }
     return {
       S, pegs, bumpers, gates, wheels, seesaws, traps, winds, eagles, sensors, pits, signs,
-      vortexes, ferries, rockets, tunnels, racks, reins, slushes, bosses,
+      vortexes, ferries, rockets, tunnels, racks, reins, slushes, bosses, movers,
+      decoBack, decoFront, shapes, look: look || { type: 'look' },
       start: { x: start.x, y: start.y }, fin: { x: fin.x, y: fin.y },
       finish: { x0: fin.x, y0: fin.y, x1: fin.x + 40, y1: fin.y + 230 },
       W: WORLD_W, H: fin.y + 390, top: start.y - 440,
@@ -342,6 +495,23 @@
     if (a < 0) a = 0;
     return arr[a] + (arr[a + 1] - arr[a]) * (k - a);
   }
+  // hvor langt vogna er kommet i runden sin ved tid t
+  const railTau = (M, t) => {
+    const tau = M.sync ? Math.max(0, t - GATE_T - M.off) : t + M.phase;
+    return ((tau % M.period) + M.period) % M.period;
+  };
+  const JUMP_FX = 0.35; // så lenge glimtet etter et hopp vises
+  // hoppet vogna (teleport) mellom tidene ta og tb?
+  const railJumpsBetween = (M, ta, tb) => {
+    if (M.sync && tb - GATE_T - M.off <= 0) return false;
+    const A = railTau(M, ta), B = railTau(M, tb);
+    for (const k of M.keys) {
+      if (!k.jump) continue;
+      const j = k.t1 >= M.period ? k.t1 - M.period : k.t1; // et hopp helt på slutten av runden skjer ved starten av neste
+      if (A <= B ? j > A && j <= B : j > A || j <= B) return true;
+    }
+    return false;
+  };
   /* Tilstander som avhenger av tid (brukes både i simulering og tegning) */
   const kin = {
     gateOpen: (t) => t >= GATE_T,
@@ -389,6 +559,40 @@
         if (t < w.t1 + 0.4) { away = t >= w.t0 && t < w.t1; near = Math.min(1, Math.max(0, Math.max(w.t0 - t, t - w.t1) / 0.4)); break; }
       }
       return { x: Rn.ax + ux * s, y: Rn.ay + uy * s, vx: ux * v, vy: uy * v, dir: v > 0 ? 1 : v < 0 ? -1 : b.f, graze: v === 0, away, near };
+    },
+    // vogna på skinnen: hvor langt den har kjørt (s = 0–1), flyttingen og farten. I takt starter programmet når porten åpner
+    rail: (M, t) => {
+      const tau = railTau(M, t), K = M.keys;
+      // første steg som ikke er ferdig (binærsøk: med tilfeldig tid er hele løpet lagt ut på forhånd)
+      let k = 0, hi = K.length - 1;
+      while (k < hi) { const mid = (k + hi) >> 1; if (tau >= K[mid].t1) k = mid + 1; else hi = mid; }
+      const a = K[k], span = a.t1 - a.t0, x = span > 0 ? Math.min(1, Math.max(0, (tau - a.t0) / span)) : 1;
+      let f = x, df = 1;
+      if (a.e === 'smooth') { f = x * x * (3 - 2 * x); df = 6 * x * (1 - x); }
+      else if (a.e === 'throw') { f = x * x; df = 2 * x; }
+      const s = a.s0 + (a.s1 - a.s0) * f, v = span > 0 ? ((a.s1 - a.s0) * df) / span : 0;
+      return { s, k, ox: M.rx * s, oy: M.ry * s, vx: M.rx * v, vy: M.ry * v };
+    },
+    /* For tegningen: kulene tegnes fra opptaket (30 bilder i sekundet, rett linje imellom), og vogna må tegnes på samme måte –
+       ellers ser kuler som står på en plattform som starter eller stopper brått ut til å sveve eller synke inn mellom bildene
+       (mest synlig med høy skjermfrekvens). Et hopp mellom to bilder vises som et hopp, ikke som en sklie */
+    railDraw: (M, t) => {
+      const k = Math.max(0, t) * FPS, a = Math.floor(k), f = k - a, ta = a / FPS, tb = (a + 1) / FPS;
+      if (f < 1e-9 || railJumpsBetween(M, ta, tb)) return kin.rail(M, t);
+      const A = kin.rail(M, ta), B = kin.rail(M, tb);
+      return { s: A.s + (B.s - A.s) * f, ox: A.ox + (B.ox - A.ox) * f, oy: A.oy + (B.oy - A.oy) * f, vx: B.vx, vy: B.vy };
+    },
+    // et hopp som nettopp skjedde (bare for tegningen): hvor den hoppet fra og til, og hvor lenge siden
+    railJump: (M, t) => {
+      if (M.sync && t - GATE_T - M.off < 0) return null;
+      const tau = railTau(M, t);
+      for (const k of M.keys) {
+        if (!k.jump) continue;
+        let age = tau - k.t1;
+        if (age < 0) age += M.period;
+        if (age < JUMP_FX) return { age, s0: k.s0, s1: k.s1 };
+      }
+      return null;
     },
   };
   // kula forsvant ut av verden ved siden av et Glimt-hjul → hjulet slo den ut
@@ -513,6 +717,12 @@
     /* ---- de nye delene (alt her er tomt for løyper uten dem) ---- */
     const NV = C.vortexes.length, NF = C.ferries.length, NK = C.rockets.length, NU = C.tunnels.length, NR = C.reins.length, NL = C.slushes.length;
     const NB = C.bosses.length, bolts = [], bNext = Float64Array.from(C.bosses, (b) => GATE_T + b.phase);
+    const NMV = C.movers.length, mvs = new Array(NMV);
+    // treffer punktet en rampe eller vegg som kjører på skinne (der den er nå)?
+    const onMover = (px, py) => {
+      for (let q = 0; q < NMV; q++) { const s = mvs[q]; for (const g of C.movers[q].segs) if (segDist(px - s.ox, py - s.oy, g) < g.t + 4) return true; }
+      return false;
+    };
     // fri sikt fra pistolen til kula (ingen vegg eller rampe i veien)
     function clear(x0, y0, x1, y1) {
       const L = Math.hypot(x1 - x0, y1 - y0), m = Math.ceil(Math.max(0, L - R - 10) / 12);
@@ -520,13 +730,29 @@
         const f = (s * 12) / L, px = x0 + (x1 - x0) * f, py = y0 + (y1 - y0) * f;
         const cell = grid.get(key(Math.floor(px / CELL), Math.floor(py / CELL)));
         if (cell) for (const it of cell) if (it.s && segDist(px, py, it.s) < it.s.t + 4) return false;
+        if (NMV && onMover(px, py)) return false;
       }
+      return true;
+    }
+    // TUT-bumper på skinne: som en vanlig bumper, men den kan komme farende
+    function circleV(i, cx, cy, r, e, kick, svx, svy) {
+      const dx = X[i] - cx, dy = Y[i] - cy, min = R + r, d2 = dx * dx + dy * dy;
+      if (d2 >= min * min) return false;
+      const d = Math.sqrt(d2) || 1e-6, nx = dx / d, ny = dy / d;
+      X[i] = cx + nx * min; Y[i] = cy + ny * min;
+      let rvx = VX[i] - svx, rvy = VY[i] - svy;
+      const vn = rvx * nx + rvy * ny;
+      if (vn < 0) { rvx -= (1 + e) * vn * nx; rvy -= (1 + e) * vn * ny; }
+      const out = rvx * nx + rvy * ny;
+      if (out < kick) { rvx += (kick - out) * nx; rvy += (kick - out) * ny; }
+      VX[i] = rvx + svx; VY[i] = rvy + svy;
+      contact[i] = 1;
       return true;
     }
     const fish = [];
     C.racks.forEach((rk) => rk.fish.forEach((f) => fish.push(f)));
     const NFI = fish.length;
-    const launchBy = new Uint8Array(n); // 1 = Glimt-hjul, 2 = Andøya-raketten, 3 = Saltstraumen
+    const launchBy = new Uint8Array(n); // 1 = Glimt-hjul, 2 = Andøya-raketten, 3 = Saltstraumen, 4 = Glimt-armen, 5 = Sjefen, 6 = skinne
     const fishT = new Float64Array(n).fill(-Infinity), lastFish = new Float64Array(n).fill(-9), reinT = new Float64Array(n).fill(-9);
     const vIn = new Float64Array(n), vCool = new Float64Array(n), slushIn = new Uint8Array(n * NL);
     const hold = new Int32Array(n), noCatch = new Float64Array(n), loaded = new Int32Array(NK).fill(-1), loadT = new Float64Array(NK);
@@ -570,6 +796,7 @@
       for (let q = 0; q < NF; q++) fst[q] = kin.ferry(C.ferries[q], t);
       for (let q = 0; q < NR; q++) rst[q] = kin.rein(C.reins[q], t);
       for (let q = 0; q < NU; q++) tclosed[q] = kin.tunnelClosed(C.tunnels[q], t) ? 1 : 0;
+      for (let q = 0; q < NMV; q++) mvs[q] = kin.rail(C.movers[q], t);
       for (let i = 0; i < n; i++) {
         if (state[i] === ST.CARRY) { const cl = claws[carrier[i]]; if (cl) { X[i] = cl.x; Y[i] = cl.y + 24; } else { X[i] = -200; Y[i] = 2500; } continue; }
         if (state[i] === ST.TUNNEL) { // kommer ut av tunnelen igjen
@@ -674,6 +901,28 @@
         }
         if (!gateOpen) for (const g of C.gates) capsule(i, g.ax, g.ay, g.bx, g.by, g.t, 0.2, 0, 0);
         for (let q = 0; q < NT; q++) if (!topen[q]) { const T = C.traps[q]; capsule(i, T.ax, T.ay, T.bx, T.by, T.t, 0.25, 0, 0); }
+        // deler på skinne: kula blir med (og kastes til værs når vogna bråstopper)
+        for (let q = 0; q < NMV; q++) {
+          const M = C.movers[q], s = mvs[q], ox = s.ox, oy = s.oy;
+          if (X[i] < M.x0 + ox || X[i] > M.x1 + ox || Y[i] < M.y0 + oy || Y[i] > M.y1 + oy) continue;
+          let hit = false;
+          for (const g of M.segs) if (capsule(i, g.ax + ox, g.ay + oy, g.bx + ox, g.by + oy, g.t, g.e, s.vx, s.vy)) hit = true;
+          for (const b of M.bumps) {
+            if (!circleV(i, b.x + ox, b.y + oy, b.r, 0.6, b.kick, s.vx, s.vy)) continue;
+            hit = true;
+            if (t - lastBump[i] > 0.25) { lastBump[i] = t; events.push({ t, type: 'bump', i, x: b.x + ox, y: b.y + oy }); }
+          }
+          if (!hit || (!s.vx && !s.vy)) continue;
+          // løypa vinner over vogna: kula skal ikke dyttes gjennom gulv, vegger eller lukker
+          const cell = grid.get(key(Math.floor(X[i] / CELL), Math.floor(Y[i] / CELL)));
+          if (cell) for (const it of cell) if (it.s) capsule(i, it.s.ax, it.s.ay, it.s.bx, it.s.by, it.s.t, it.s.e, 0, 0);
+          for (let k = 0; k < NT; k++) if (!topen[k]) { const T = C.traps[k]; capsule(i, T.ax, T.ay, T.bx, T.by, T.t, 0.25, 0, 0); }
+          const sp = Math.hypot(VX[i], VY[i]);
+          if (sp > VMAX) {
+            cap[i] = V_LAUNCH; launchT[i] = t; launchBy[i] = 6;
+            if (sp > 1100 && t - lastLaunch[i] > 1) { lastLaunch[i] = t; events.push({ t, type: 'launch', i, x: X[i], y: Y[i], lift: 1 }); }
+          }
+        }
         // Glimt-hjul
         for (let q = 0; q < NW; q++) {
           const W = C.wheels[q];
@@ -813,6 +1062,7 @@
         if (!done) {
           const cell = grid.get(key(Math.floor(bx / CELL), Math.floor(by / CELL)));
           if (cell) for (const it of cell) if (it.s && segDist(bx, by, it.s) < it.s.t + 4) { done = true; break; }
+          if (!done && NMV && onMover(bx, by)) done = true;
         }
         if (done) { s.t1 = Math.min(s.t1, t); bolts.splice(k, 1); }
       }
@@ -857,7 +1107,7 @@
         if (state[i] === ST.RACE && (X[i] < -30 || X[i] > C.W + 30 || Y[i] > C.H)) {
           const lb = t - launchT[i] < 6 ? launchBy[i] : 0;
           state[i] = ST.OUT; tDone[i] = t; lastDoneT = t;
-          cause[i] = lb === 2 ? 'k_rakett' : lb === 3 ? 'k_salt' : lb === 4 ? 'k_arm' : lb === 5 ? 'k_sjef' : (flung(C, X[i], Y[i]) || lb === 1) ? 'k_glimt'
+          cause[i] = lb === 2 ? 'k_rakett' : lb === 3 ? 'k_salt' : lb === 4 ? 'k_arm' : lb === 5 ? 'k_sjef' : lb === 6 ? 'k_heis' : (flung(C, X[i], Y[i]) || lb === 1) ? 'k_glimt'
             : flung(C, X[i], Y[i], true) ? 'k_arm' : t - fishT[i] < 3 ? 'k_fisk' : 'k_kant';
           events.push({ t, type: 'out', i, cause: cause[i] });
         }
@@ -885,6 +1135,102 @@
     const fin = idx.filter((i) => state[i] === ST.FIN).sort((a, b) => tDone[a] - tDone[b]);
     const out = idx.filter((i) => state[i] !== ST.FIN).sort((a, b) => tDone[b] - tDone[a]);
     return { C, n, seed, frames, fps: 240 / REC, events, rank: fin.concat(out), finishers: fin.length, tDone, cause, pn, duration: t };
+  }
+
+  /* ---------- Usynlige sjekkpunkter: hvem leder? ----------
+     Hvem som leder kan ikke leses av høyden når løypa går oppover (bagasjebånd, rakett, Glimt-hjul, Sjefen …).
+     Etter simuleringen deles løypa i små ruter, og hver rute blir et usynlig sjekkpunkt med en verdi: hvor fort en
+     kule har kommet seg i mål derfra, langs veiene kulene faktisk kjørte og i den retningen de kjørte (et bånd
+     oppover teller altså som framover). Lederen er kula med minst tid igjen. Opptaket endres ikke, så alt er likt i reprisen. */
+  const CPS = 24;          // sjekkpunkt-rute (mindre enn avstanden mellom en kule oppå og en kule under en rampe)
+  const CP_MED = 5;        // glatting: median over ±5 bilder (±0,17 s), så et kort streif innom en snarvei ikke teller
+  function checkpoints(res) {
+    if (res.left) return res.left;
+    const { n, frames, fps, tDone, C } = res;
+    const F = frames.length;
+    const cell = (x, y) => Math.floor(y / CPS) * 1000 + Math.floor(x / CPS) + 500;
+    const fin = new Uint8Array(n);
+    res.events.forEach((e) => { if (e.type === 'finish') fin[e.i] = 1; });
+    const lastF = (i) => Math.max(0, Math.min(F - 1, fin[i] ? Math.ceil(tDone[i] * fps) : Math.floor(tDone[i] * fps)));
+    // 1) hver gang en kule går fra en rute til en annen: fra → til, med tiden den brukte i ruta den forlot (korteste tid teller)
+    const rev = new Map(), goal = new Set();
+    const link = (a, b, w) => { let m = rev.get(b); if (!m) { m = new Map(); rev.set(b, m); } const o = m.get(a); if (o === undefined || w < o) m.set(a, w); };
+    for (let i = 0; i < n; i++) {
+      const L = lastF(i);
+      let pc = null, enter = 0, px = 0, py = 0, pt = 0;
+      for (let f = 0; f <= L; f++) {
+        const x = frames[f][i * 3], y = frames[f][i * 3 + 1], t = f / fps;
+        if (y < -50000) continue; // inne i en tunnel: tiden der inne regnes med når den kommer ut
+        if (pc === null) { pc = cell(x, y); enter = t; px = x; py = y; pt = t; continue; }
+        const d = Math.hypot(x - px, y - py), steps = d > 260 ? 1 : Math.max(1, Math.ceil(d / (CPS / 2))); // fort → gå gjennom rutene imellom
+        for (let s = 1; s <= steps; s++) {
+          const q = s / steps, c = cell(px + (x - px) * q, py + (y - py) * q);
+          if (c === pc) continue;
+          const ts = pt + (t - pt) * q;
+          link(pc, c, ts - enter); pc = c; enter = ts;
+        }
+        px = x; py = y; pt = t;
+      }
+      if (fin[i] && pc !== null) goal.add(pc);
+    }
+    // 2) korteste tid til mål fra hver rute (Dijkstra baklengs fra rutene der kulene kom i mål)
+    const dist = new Map(), hk = [], hc = [];
+    const push = (k, c) => {
+      let j = hk.length; hk.push(k); hc.push(c);
+      while (j > 0) { const p = (j - 1) >> 1; if (hk[p] <= k) break; hk[j] = hk[p]; hc[j] = hc[p]; j = p; }
+      hk[j] = k; hc[j] = c;
+    };
+    const pop = () => {
+      const k0 = hk[0], c0 = hc[0], k = hk.pop(), c = hc.pop(), N = hk.length;
+      if (N) {
+        let j = 0;
+        for (;;) { let m = 2 * j + 1; if (m >= N) break; if (m + 1 < N && hk[m + 1] < hk[m]) m++; if (hk[m] >= k) break; hk[j] = hk[m]; hc[j] = hc[m]; j = m; }
+        hk[j] = k; hc[j] = c;
+      }
+      return [k0, c0];
+    };
+    goal.forEach((g) => { dist.set(g, 0); push(0, g); });
+    while (hk.length) {
+      const [d, c] = pop();
+      if (d > dist.get(c)) continue;
+      const r = rev.get(c);
+      if (r) for (const [a, w] of r) { const nd = d + w, o = dist.get(a); if (o === undefined || nd < o) { dist.set(a, nd); push(nd, a); } }
+    }
+    let maxD = 0;
+    dist.forEach((v) => { if (v > maxD) maxD = v; });
+    // 3) tid igjen for hver kule i hvert bilde. En rute uten verdi er en rute ingen kom i mål fra – og siden kula selv
+    //    også er med i kartet, kommer den aldri i mål herfra. Den havner bakerst blant dem som er igjen (i samme rekkefølge
+    //    som før), så kameraet ikke følger en kule som faller utfor. Inne i tunnelen beholder kula verdien den hadde.
+    const left = new Float32Array(F * n), raw = new Float64Array(F), win = new Float64Array(2 * CP_MED + 1);
+    for (let i = 0; i < n; i++) {
+      const L = lastF(i);
+      let prev = null, known = 0;
+      for (let f = 0; f < F; f++) {
+        if (f > L) { raw[f] = raw[L]; continue; }
+        const x = frames[f][i * 3], y = frames[f][i * 3 + 1];
+        let v;
+        if (y < -50000) v = prev !== null ? prev : maxD + 1;
+        else if (!goal.size) v = (C.H - y) / 600; // ingen kom i mål (testkjøring i designeren): dypest leder, som før
+        else { const d = dist.get(cell(x, y)); if (d === undefined) v = maxD + 1 + known; else v = known = d; }
+        raw[f] = v; prev = v;
+      }
+      for (let f = 0; f < F; f++) {
+        const a = Math.max(0, f - CP_MED), b = Math.min(F - 1, f + CP_MED), m = b - a + 1;
+        for (let k = 0; k < m; k++) { const v = raw[a + k]; let j = k; while (j > 0 && win[j - 1] > v) { win[j] = win[j - 1]; j--; } win[j] = v; }
+        left[f * n + i] = win[m >> 1];
+      }
+    }
+    res.left = left;
+    return left;
+  }
+  /* Tid igjen til mål for kule i ved tid t (lavest = leder) */
+  function leftAt(res, i, t) {
+    const L = res.left || checkpoints(res), n = res.n, F = res.frames.length, k = t * res.fps;
+    let a = Math.floor(k);
+    if (a >= F - 1) return L[(F - 1) * n + i];
+    if (a < 0) a = 0;
+    const A = L[a * n + i];
+    return A + (L[(a + 1) * n + i] - A) * (k - a);
   }
 
   /* Kjør med nye seeds til minst «need» kuler kommer i mål (løypa er den samme, bare starten varierer) */
@@ -929,10 +1275,11 @@
       if (share('k_rakett') > 0.15) reasons.push('Tips: raketten skyter mange ut i verdensrommet. Senk kraften eller sikt bedre – designeren viser banen.');
       if (share('k_fisk') > 0.15) reasons.push('Tips: tørrfisken slår mange ut av løypa. Sett opp vegger ved hjellet.');
       if (share('k_arm') > 0.15) reasons.push('Tips: Glimt-armen slår mange ut av løypa. Sett opp vegger rundt den, eller skru ned farten.');
+      if (share('k_heis') > 0.15) reasons.push('Tips: delene på skinne kaster mange ut av løypa. Sett opp vegger, kjør kortere, eller bruk «Myk» i stedet for «Kast».');
       if (share('k_sjef') > 0.15) reasons.push('Tips: Sjefen tar mange. Gi ham kortere rekkevidde, la ham bare dytte, eller sett opp en vegg foran ham.');
     }
     return { ok: !reasons.length, rate, minRate, winT: Number.isFinite(winT) ? winT : null, firstT: Number.isFinite(firstT) ? firstT : null, causes, reasons, runs: runs.length, marbles: tot, need };
   }
 
-  FL.KPhys = { R, GATE_T, T_MAX, ST, WORLD_W, W_FAST, W_MAX, TYPES, LIMITS, ORIGINAL, course, compile, normalize, sanePiece, hash, kin, simulate, race, summarize, assess, aimPath };
+  FL.KPhys = { R, GATE_T, T_MAX, ST, WORLD_W, W_FAST, W_MAX, TYPES, LIMITS, ORIGINAL, RIDERS, EASES, STEPS_MAX, V_RAIL, VISUAL, COLORS, SKIES, course, compile, normalize, sanePiece, hash, kin, simulate, race, summarize, assess, aimPath, checkpoints, leftAt, railCenter, railPlan };
 })();

@@ -34,6 +34,71 @@
   ];
   const clone = (o) => JSON.parse(JSON.stringify(o));
 
+  /* ---------- Skinner: ferdige program ---------- */
+  // et program går i ring: { to: % av skinnen, t: sekunder, e: kurve } kjører dit, { t } venter
+  const PRESET = {
+    pendel: {
+      label: '↔ Fram og tilbake',
+      prog: [
+        { to: 100, t: 2, e: 'smooth' },
+        { to: 0, t: 2, e: 'smooth' },
+      ],
+    },
+    heis: {
+      label: '🛗 Heis',
+      prog: [
+        { t: 1.5 },
+        { to: 100, t: 2.5, e: 'smooth' },
+        { t: 1.5 },
+        { to: 0, t: 2.5, e: 'smooth' },
+      ],
+    },
+    kast: {
+      label: '🚀 Utskyter',
+      prog: [
+        { t: 1.5 },
+        { to: 100, t: 0.3, e: 'throw' },
+        { t: 0.5 },
+        { to: 0, t: 2.5, e: 'smooth' },
+      ],
+    },
+    stempel: {
+      label: '💥 Stempel',
+      prog: [
+        { t: 1.2 },
+        { to: 100, t: 0.15, e: 'linear' },
+        { t: 0.3 },
+        { to: 0, t: 1.2, e: 'smooth' },
+      ],
+    },
+    // tilfeldig tid på alt: ingen vet når den går
+    lune: {
+      label: '🎲 Lunefull',
+      prog: [
+        { t: 0.5, t2: 3 },
+        { to: 100, t: 0.4, e: 'smooth', t2: 2 },
+        { t: 0.3, t2: 2 },
+        { to: 0, t: 0.6, e: 'smooth', t2: 2.5 },
+      ],
+    },
+    // kjører fram, og teleporterer tilbake i stedet for å kjøre
+    hopp: {
+      label: '✨ Teleport tilbake',
+      prog: [
+        { t: 1 },
+        { to: 100, t: 2.5, e: 'linear' },
+        { t: 0.6 },
+        { to: 0, t: 1, e: 'jump' },
+      ],
+    },
+  };
+  const EASE_NAME = [
+    ['smooth', 'Myk'],
+    ['linear', 'Jevn'],
+    ['throw', 'Kast'],
+    ['jump', 'Hopp'], // teleporterer dit med en gang
+  ];
+
   /* ---------- Delene ---------- */
   const SVG = {
     ramp: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8 L21 16" stroke="currentColor" stroke-width="3" stroke-linecap="round" fill="none"/><circle cx="7" cy="5.6" r="2.4" fill="#5ef2b5"/></svg>',
@@ -150,6 +215,21 @@
       help: 'Fra Bodø lufthavn: frakter kulene i den retningen pilene går – også oppover. «Kula di kommer på bånd 2.»',
       make: (x, y) => ({ ax: x - 160, ay: y + 30, bx: x + 160, by: y - 30, speed: 240 }),
     },
+    // en rampe på skinne (alt som er på skinne, er vanlige deler med en «rail»)
+    lift: {
+      name: 'Heis',
+      pal: 'Heis',
+      ico: '🛗',
+      as: 'ramp',
+      help: 'En plattform som kjører opp og ned på en skinne.',
+      make: (x, y) => ({
+        ax: x - 100,
+        ay: y,
+        bx: x + 100,
+        by: y + 10,
+        rail: { dx: 0, dy: -300, prog: clone(PRESET.heis.prog) },
+      }),
+    },
     ferry: {
       name: 'Ferga til Lofoten',
       pal: 'Ferga',
@@ -192,6 +272,20 @@
       help: 'November i Bodø. Alt som triller gjennom feltet, sakker kraftig ned.',
       make: (x, y) => ({ x0: x - 150, y0: y - 60, x1: x + 150, y1: y + 60 }),
     },
+    deco: {
+      name: 'Pynt',
+      pal: 'Pynt',
+      ico: '🌲',
+      help: 'Trær, hus, båter, skyer … Bare pynt – kulene merker den ikke, og løypa trenger ikke godkjennes på nytt. Sett den på skinne, så kan skyer og fly kjøre over himmelen.',
+      make: (x, y) => ({ x, y, ico: '🌲', size: 120 }),
+    },
+    shape: {
+      name: 'Bakgrunnsfelt',
+      pal: 'Bakgrunn',
+      ico: '🟦',
+      help: 'Et farget felt bak løypa: sjø, gress, en husvegg … Bare pynt – kulene merker det ikke. Ta tak i kanten for å flytte det, og dra i hjørnene for å endre størrelsen.',
+      make: (x, y) => ({ x0: x - 200, y0: y - 120, x1: x + 200, y1: y + 120, col: '#2a6f8f', alpha: 60 }),
+    },
     boss: {
       name: 'Sjefen',
       pal: 'Sjefen',
@@ -214,6 +308,7 @@
     'eagle',
     'vortex',
     'belt',
+    'lift',
     'ferry',
     'rocket',
     'tunnel',
@@ -222,7 +317,21 @@
     'slush',
     'boss',
     'sign',
+    'deco',
+    'shape',
   ];
+  // pynt å velge mellom (du kan også lime inn en hvilken som helst emoji)
+  const DECOS = ['🌲', '🌳', '🌴', '🌵', '🏔️', '🏠', '🏡', '⛪', '🏰', '🗼', '🏭', '⛵', '🚢', '🛶', '🐋', '🦭', '🐟', '🦌', '🦊', '🐧', '🐻', '☁️', '🌧️', '❄️', '⛄', '🌙', '⭐', '☀️', '🌈', '🎄', '✈️', '🚁', '🎈', '🏆', '⚽', '💛', '☕', '🧇', '🎉', '👻'];
+  // fargeprøver (i tillegg til fri fargevelger)
+  const SWATCH = ['#ffffff', '#e9dfc9', '#c9bda5', '#8b97a6', '#2b2f36', '#ffd400', '#f6bd47', '#ee4a2f', '#df4f86', '#9466ff', '#4f7dff', '#1597bd', '#5ef2b5', '#4fae3e', '#8a5a3b'];
+  const SKY_NAME = [
+    ['natt', '🌌 Natt'],
+    ['skumring', '🌆 Skumring'],
+    ['dag', '☀️ Dag'],
+    ['sol', '🌅 Midnattssol'],
+    ['storm', '⛈️ Storm'],
+  ];
+  const COLOR = { k: 'col', label: 'Farge', color: true };
   // i takt: fast startvinkel i stedet for tilfeldig (vinkelen vises bare når takt er på)
   const SYNC = [
     {
@@ -243,9 +352,46 @@
     },
   ];
   const FIELDS = {
+    ramp: [COLOR],
+    wall: [COLOR],
+    bumper: [COLOR],
     pegs: [
       { k: 'rows', label: 'Rader', min: 1, max: 14, step: 1 },
       { k: 'w', label: 'Bredde', min: 64, max: 1500, step: 2 },
+      COLOR,
+    ],
+    deco: [
+      { k: 'ico', label: 'Figur', deco: true },
+      { k: 'size', label: 'Størrelse', min: 24, max: 600, step: 2 },
+      { k: 'ang', label: 'Vridd (grader)', min: -180, max: 180, step: 1, def: 0 },
+      {
+        k: 'flip',
+        label: 'Speilvendt',
+        opts: [
+          [0, 'Nei'],
+          [1, 'Ja ⇋'],
+        ],
+      },
+      {
+        k: 'front',
+        label: 'Ligger',
+        opts: [
+          [0, 'Bak løypa'],
+          [1, 'Foran løypa'],
+        ],
+      },
+    ],
+    shape: [
+      COLOR,
+      { k: 'alpha', label: 'Synlighet (%)', min: 5, max: 100, step: 1 },
+      {
+        k: 'round',
+        label: 'Form',
+        opts: [
+          [0, '▭ Firkant'],
+          [1, '⬭ Oval'],
+        ],
+      },
     ],
     wheel: [
       { k: 'len', label: 'Armlengde', min: 50, max: 180, step: 1 },
@@ -291,7 +437,7 @@
       },
     ],
     pit: [{ k: 'name', label: 'Navn på hullet', text: 24 }],
-    sign: [{ k: 'text', label: 'Tekst på skiltet', text: 28 }],
+    sign: [{ k: 'text', label: 'Tekst på skiltet', text: 28 }, COLOR],
     wind: [{ k: 'dir', label: 'Blåser mot', dir: true }],
     vortex: [
       { k: 'r', label: 'Størrelse', min: 70, max: 240, step: 2 },
@@ -374,6 +520,7 @@
     k_fisk: 'fikk en tørrfisk i trynet',
     k_arm: 'ble slått ut av Glimt-armen',
     k_sjef: 'ble tatt av Sjefen',
+    k_heis: 'ble kastet ut av løypa av heisen',
   };
   const SIMPLE = [
     { type: 'start', x: 800, y: 300 },
@@ -420,6 +567,28 @@
     { type: 'sign', x: 470, y: 1230, text: 'TØRRFISK OG SLAPS' },
     { type: 'sign', x: 1170, y: 1390, text: 'LOFOTFERGA' },
     { type: 'sign', x: 1040, y: 2150, text: 'ANDØYA' },
+  ];
+
+  // demo med deler på skinne: en heis med skjørt (stenger sjakta når den er oppe) og en utskyter (godkjent: rundt 98 % i mål)
+  const DEMO_RAIL = [
+    { type: 'start', x: 400, y: 300 },
+    { type: 'ramp', ax: 520, ay: 360, bx: 150, by: 520 },
+    { type: 'wall', ax: 100, ay: 420, bx: 100, by: 1560 },
+    { type: 'ramp', ax: 110, ay: 1450, bx: 350, by: 1500 },
+    { type: 'ramp', ax: 360, ay: 1505, bx: 560, by: 1525, grp: 'heis', rail: { dx: 0, dy: -560, prog: clone(PRESET.heis.prog) } },
+    { type: 'wall', ax: 352, ay: 1515, bx: 352, by: 2070, grp: 'heis', rail: { dx: 0, dy: -560, prog: clone(PRESET.heis.prog) } },
+    { type: 'wall', ax: 572, ay: 990, bx: 572, by: 1560 },
+    { type: 'ramp', ax: 572, ay: 966, bx: 1090, by: 1140 },
+    { type: 'ramp', ax: 1100, ay: 1130, bx: 1260, by: 1225, grp: 'kast', rail: { dx: 40, dy: -260, prog: clone(PRESET.kast.prog) } },
+    { type: 'wall', ax: 1268, ay: 1185, bx: 1268, by: 1235, grp: 'kast', rail: { dx: 40, dy: -260, prog: clone(PRESET.kast.prog) } },
+    { type: 'wall', ax: 1590, ay: -200, bx: 1590, by: 1500 },
+    { type: 'ramp', ax: 1585, ay: 1450, bx: 700, by: 1650 },
+    { type: 'wall', ax: 650, ay: 1550, bx: 650, by: 1800 },
+    { type: 'ramp', ax: 660, ay: 1780, bx: 1280, by: 1960 },
+    { type: 'finish', x: 1300, y: 1830 },
+    { type: 'sign', x: 300, y: 110, text: 'HEIS OG UTSKYTER' },
+    { type: 'sign', x: 470, y: 1660, text: 'HEISEN ↑' },
+    { type: 'sign', x: 1180, y: 1330, text: 'UTSKYTEREN' },
   ];
 
   /* ---------- Geometri: rammer, treff og håndtak ---------- */
@@ -524,6 +693,12 @@
         return { x0: p.x0, y0: p.y0, x1: p.x1, y1: p.y1 };
       case 'boss':
         return { x0: p.x - 34, y0: p.y - 128, x1: p.x + 34, y1: p.y + 22 };
+      case 'deco':
+        return { x0: p.x - p.size / 2, y0: p.y - p.size / 2, x1: p.x + p.size / 2, y1: p.y + p.size / 2 };
+      case 'shape':
+        return { x0: p.x0, y0: p.y0, x1: p.x1, y1: p.y1 };
+      case 'look': // utseendet har ingen plass i løypa
+        return { x0: 0, y0: 0, x1: 0, y1: 0 };
       default:
         return {
           x0: Math.min(p.ax, p.bx) - 10,
@@ -535,6 +710,13 @@
   }
   // lavest poeng vinner: små ting foran store felt
   function hitScore(p, x, y, tol) {
+    if (p.type === 'look') return Infinity;
+    if (p.type === 'shape') {
+      // bakgrunnsfeltet tas i kanten, så du kan dra i bakgrunnen inni det for å flytte deg rundt
+      if (x < p.x0 - tol || x > p.x1 + tol || y < p.y0 - tol || y > p.y1 + tol) return Infinity;
+      const edge = Math.min(Math.abs(x - p.x0), Math.abs(p.x1 - x), Math.abs(y - p.y0), Math.abs(p.y1 - y));
+      return edge <= 10 + tol ? (p.x1 - p.x0) * (p.y1 - p.y0) * 2 : Infinity;
+    }
     if (isLine(p)) {
       if (
         p.type === 'eagle' &&
@@ -619,10 +801,13 @@
       case 'boss':
         return [{ k: 'r', x: p.x + p.dir * (42 + p.range), y: p.y - 72 }];
       case 'slush':
+      case 'shape':
         return [
           { k: 'tl', x: p.x0, y: p.y0 },
           { k: 'br', x: p.x1, y: p.y1 },
         ];
+      case 'deco':
+        return [{ k: 's', x: p.x + p.size / 2, y: p.y + p.size / 2 }];
       case 'pegs':
         return [{ k: 'se', x: p.x + p.w, y: p.y + (p.rows - 1) * 56 }];
       case 'wheel':
@@ -671,13 +856,20 @@
         break;
       }
       case 'slush':
+      case 'shape': {
+        const mw = p.type === 'shape' ? 20 : 60,
+          mh = p.type === 'shape' ? 20 : 40;
         if (k === 'tl') {
-          p.x0 = Math.min(x, p.x1 - 60);
-          p.y0 = Math.min(y, p.y1 - 40);
+          p.x0 = Math.min(x, p.x1 - mw);
+          p.y0 = Math.min(y, p.y1 - mh);
         } else {
-          p.x1 = Math.max(x, p.x0 + 60);
-          p.y1 = Math.max(y, p.y0 + 40);
+          p.x1 = Math.max(x, p.x0 + mw);
+          p.y1 = Math.max(y, p.y0 + mh);
         }
+        break;
+      }
+      case 'deco':
+        p.size = u.clamp(Math.round(2 * Math.max(Math.abs(x - p.x), Math.abs(y - p.y))), 24, 600);
         break;
       case 'ramp':
       case 'wall':
@@ -747,7 +939,8 @@
   let C = null; // kompilert løype (det fysikken og tegningen bruker)
   let savedSig = null; // signaturen til den lagrede versjonen
   let dirty = false;
-  let sel = -1,
+  let picked = [], // alle valgte deler (indekser, sortert)
+    sel = -1, // den ene valgte delen (bare når nøyaktig én er valgt)
     hover = -1;
   let snapOn = true;
   let test = null; // pågående testkjøring
@@ -769,9 +962,10 @@
 
   const sv = (v) => (snapOn ? Math.round(v / GRID) * GRID : Math.round(v));
   const def = () => P.normalize(doc);
+  // signaturen for «ulagrede endringer» tar med alt – også pynt og farger, som godkjenningen ser bort fra
   const sigOf = (c) => {
     const d = P.normalize(c);
-    return d ? `${d.name}|${P.hash(d)}` : '';
+    return d ? `${d.name}|${u.hashStr(JSON.stringify(d.pieces)).toString(36)}` : '';
   };
   const isOk = () => !!(doc.ok && doc.ok === P.hash(def()));
   const pct = (r) => `${Math.round(r * 100)} %`;
@@ -786,6 +980,8 @@
       };
     if (kind === 'demo')
       return { id: u.uid('c'), name: 'Alt i ett', pieces: clone(DEMO) };
+    if (kind === 'rail')
+      return { id: u.uid('c'), name: 'Heis og utskyter', pieces: clone(DEMO_RAIL) };
     return { id: u.uid('c'), name: 'Min løype', pieces: clone(SIMPLE) };
   }
 
@@ -883,6 +1079,7 @@
     );
     D.scene(ctx, CC, v, test ? test.t : (time % 80) + 4, time, {
       gateClosed: !test,
+      home: !test, // delene på skinne står hjemme mens du bygger (spøkelset viser programmet)
     });
     if (test) drawMarbles(v);
     else {
@@ -943,6 +1140,10 @@
       if (p.type === 'wind') {
         ctx.strokeStyle = 'rgba(207,230,255,.45)';
         ctx.strokeRect(p.x0, p.y0, p.x1 - p.x0, p.y1 - p.y0);
+      } else if (p.type === 'shape') {
+        // kanten på bakgrunnsfeltet er der du tar tak i det
+        ctx.strokeStyle = 'rgba(255,255,255,.22)';
+        ctx.strokeRect(p.x0, p.y0, p.x1 - p.x0, p.y1 - p.y0);
       } else if (p.type === 'eagle') {
         ctx.strokeStyle = 'rgba(241,217,182,.75)';
         ctx.beginPath();
@@ -1001,11 +1202,39 @@
       ctx.restore();
     }
     ctx.restore();
-    if (hover >= 0 && hover !== sel && doc.pieces[hover])
-      outline(doc.pieces[hover], 'rgba(255,255,255,.55)');
+    drawRails(px);
+    if (hover >= 0 && !isPicked(hover) && doc.pieces[hover])
+      for (const i of grpOf(hover)) outline(doc.pieces[i], 'rgba(255,255,255,.55)');
+    if (drag && drag.kind === 'box') {
+      // rammen du drar for å velge flere
+      const a = drag.w0,
+        b = drag.w1;
+      ctx.save();
+      ctx.fillStyle = 'rgba(94,242,181,.08)';
+      ctx.strokeStyle = 'rgba(94,242,181,.8)';
+      ctx.lineWidth = 1.5 * px;
+      ctx.setLineDash([6 * px, 5 * px]);
+      ctx.fillRect(a.x, a.y, b.x - a.x, b.y - a.y);
+      ctx.strokeRect(a.x, a.y, b.x - a.x, b.y - a.y);
+      ctx.restore();
+    }
+    if (drag && drag.guide) {
+      // Shift: stiplet hjelpelinje langs den rette linjen
+      const g = drag.guide,
+        L = (v.w + v.h) * 2;
+      ctx.save();
+      ctx.setLineDash([10 * px, 8 * px]);
+      ctx.lineWidth = 2 * px;
+      ctx.strokeStyle = 'rgba(94,242,181,.65)';
+      ctx.beginPath();
+      ctx.moveTo(g.x - g.ux * L, g.y - g.uy * L);
+      ctx.lineTo(g.x + g.ux * L, g.y + g.uy * L);
+      ctx.stroke();
+      ctx.restore();
+    }
+    for (const i of picked) if (doc.pieces[i]) outline(doc.pieces[i], '#5ef2b5');
     const p = doc.pieces[sel];
-    if (p) {
-      outline(p, '#5ef2b5');
+    if (p)
       for (const h of handles(p)) {
         ctx.beginPath();
         ctx.arc(h.x, h.y, 8 * px, 0, Math.PI * 2);
@@ -1014,6 +1243,69 @@
         ctx.lineWidth = 3 * px;
         ctx.strokeStyle = '#5ef2b5';
         ctx.stroke();
+      }
+    // skinnehåndtaket: gult, i enden av skinnen
+    const rh = railHandle();
+    if (rh) {
+      ctx.save();
+      ctx.setLineDash([8 * px, 6 * px]);
+      ctx.lineWidth = 2 * px;
+      ctx.strokeStyle = 'rgba(246,189,71,.8)';
+      ctx.beginPath();
+      ctx.moveTo(rh.cx, rh.cy);
+      ctx.lineTo(rh.x, rh.y);
+      ctx.stroke();
+      ctx.restore();
+      ctx.beginPath();
+      ctx.arc(rh.x, rh.y, 10 * px, 0, Math.PI * 2);
+      ctx.fillStyle = '#f6bd47';
+      ctx.fill();
+      ctx.lineWidth = 3 * px;
+      ctx.strokeStyle = '#23272e';
+      ctx.stroke();
+      ctx.fillStyle = '#f6bd47';
+      ctx.font = `800 ${11 * px}px "JetBrains Mono", monospace`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('100 %', rh.x, rh.y - 22 * px);
+    }
+  }
+  /* Skinnene i designeren: spøkelset som kjører programmet, og merker for hvor stegene stopper */
+  function drawRails(px) {
+    if (!C.movers.length) return;
+    const t = (time % 80) + 4;
+    for (const M of C.movers) {
+      const s = P.kin.railDraw(M, t);
+      ctx.save();
+      ctx.globalAlpha = 0.42;
+      D.teleport(ctx, M, t, C.look);
+      D.mover(ctx, M, s.ox, s.oy, {}, C.look);
+      ctx.restore();
+      if (M.L < 2) continue;
+      // stoppene langs skinnen: «1, 3» der steg 1 og 3 kjører til
+      const at = new Map();
+      // (med tilfeldig tid er hele løpet lagt ut, så samme steg finnes mange ganger)
+      for (const k of M.keys) {
+        if (!k.go) continue; // venting
+        const key = k.s1.toFixed(3);
+        if (!at.has(key)) at.set(key, { s: k.s1, n: [] });
+        const g = at.get(key);
+        if (!g.n.includes(k.st + 1)) g.n.push(k.st + 1);
+      }
+      for (const g of at.values()) g.n.sort((a, b) => a - b);
+      ctx.font = `700 ${11 * px}px "JetBrains Mono", monospace`;
+      ctx.textBaseline = 'middle';
+      const nx = -M.ry / M.L,
+        ny = M.rx / M.L;
+      for (const { s, n } of at.values()) {
+        const x = M.cx + M.rx * s,
+          y = M.cy + M.ry * s;
+        ctx.fillStyle = 'rgba(246,189,71,.9)';
+        ctx.beginPath();
+        ctx.arc(x, y, 4.5 * px, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.textAlign = nx >= 0 ? 'left' : 'right';
+        ctx.fillText(n.join(', '), x + nx * 16 * px + (nx >= 0 ? 4 : -4) * px, y + ny * 16 * px);
       }
     }
   }
@@ -1044,7 +1336,11 @@
         String(i + 1),
         ang,
         gone ? 0.55 : 1,
-        rank && rank <= 3 ? ['#ffd34d', '#dfe6ee', '#e0a070'][rank - 1] : null,
+        rank && rank <= 3
+          ? ['#ffd34d', '#dfe6ee', '#e0a070'][rank - 1]
+          : i === T.lead && !st && T.t > P.GATE_T + 1 && !T.fin.length
+            ? '#5ef2b5' // leder etter sjekkpunktene, som i spillet
+            : null,
       );
     }
   }
@@ -1085,15 +1381,153 @@
     if (!undoStack.length || test) return;
     redoStack.push(snapshot());
     doc.pieces = JSON.parse(undoStack.pop());
-    sel = -1;
+    pickQuiet([]);
     afterEdit();
   }
   function redo() {
     if (!redoStack.length || test) return;
     undoStack.push(snapshot());
     doc.pieces = JSON.parse(redoStack.pop());
-    sel = -1;
+    pickQuiet([]);
     afterEdit();
+  }
+
+  /* ---------- Valg, grupper og skinner ---------- */
+  const fixedType = (p) => p.type === 'start' || p.type === 'finish' || p.type === 'look';
+  const isVisual = (p) => P.VISUAL.includes(p.type); // pynt og bakgrunn kan ligge utenfor kanten av løypa
+  const isPicked = (i) => picked.includes(i);
+  // velg uten å tegne panelet på nytt (gjøres av changed/afterEdit)
+  function pickQuiet(arr) {
+    picked = [...new Set(arr)]
+      .filter((i) => doc.pieces[i])
+      .sort((a, b) => a - b);
+    sel = picked.length === 1 ? picked[0] : -1;
+    hover = -1;
+  }
+  function setPicked(arr) {
+    pickQuiet(arr);
+    renderPanel();
+  }
+  // hele gruppa en del hører til (eller bare delen selv)
+  function grpOf(i) {
+    const g = doc.pieces[i] && doc.pieces[i].grp;
+    if (!g) return [i];
+    const out = [];
+    doc.pieces.forEach((p, j) => {
+      if (p.grp === g) out.push(j);
+    });
+    return out;
+  }
+  // gruppa som er valgt, hvis det som er valgt er nøyaktig én hel gruppe
+  function pickedGroup() {
+    if (picked.length < 2) return null;
+    const g = doc.pieces[picked[0]].grp;
+    if (!g) return null;
+    const all = grpOf(picked[0]);
+    return all.length === picked.length && all.every((i, k) => i === picked[k])
+      ? g
+      : null;
+  }
+  // delene som kjører sammen på en skinne: én del uten gruppe, eller en hel gruppe
+  function railUnit() {
+    if (sel >= 0) return grpOf(sel).length > 1 ? null : [sel];
+    return pickedGroup() ? picked.slice() : null;
+  }
+  const riders = (idxs) =>
+    idxs.filter((i) => P.RIDERS.includes(doc.pieces[i].type));
+  function unitRail(idxs) {
+    for (const i of idxs) if (doc.pieces[i] && doc.pieces[i].rail) return doc.pieces[i].rail;
+    return null;
+  }
+  // skinnehåndtaket: der skinnen slutter (fra midten av delene)
+  function railHandle() {
+    const idxs = railUnit(),
+      rail = idxs && unitRail(idxs);
+    if (!rail) return null;
+    const c = P.railCenter(riders(idxs).map((i) => doc.pieces[i]));
+    return { k: 'rail', x: c.x + rail.dx, y: c.y + rail.dy, cx: c.x, cy: c.y };
+  }
+  // samme skinne og program på alle delene som kan kjøre (null = står stille)
+  function setRail(idxs, rail) {
+    for (const i of idxs) {
+      const p = doc.pieces[i];
+      if (!p || !P.RIDERS.includes(p.type)) continue;
+      const c = clone(p);
+      if (rail) c.rail = clone(rail);
+      else delete c.rail;
+      doc.pieces[i] = P.sanePiece(c);
+    }
+  }
+  const curRail = (idxs) =>
+    clone(
+      unitRail(idxs) || { dx: 0, dy: -300, prog: clone(PRESET.pendel.prog) },
+    );
+  function newGrp() {
+    let g;
+    do g = 'g' + Math.random().toString(36).slice(2, 8);
+    while (doc.pieces.some((p) => p.grp === g));
+    return g;
+  }
+  // en gruppe med bare én del igjen er ingen gruppe
+  function tidyGroups() {
+    const n = {};
+    doc.pieces.forEach((p) => {
+      if (p.grp) n[p.grp] = (n[p.grp] || 0) + 1;
+    });
+    doc.pieces.forEach((p, i) => {
+      if (p.grp && n[p.grp] < 2) {
+        const c = clone(p);
+        delete c.grp;
+        doc.pieces[i] = c;
+      }
+    });
+  }
+  // kopier delene (grupper får nye navn, så kopien blir sin egen gruppe)
+  function copyPieces(idxs, off) {
+    const map = {},
+      out = [];
+    for (const i of idxs) {
+      const p = doc.pieces[i];
+      if (!p || fixedType(p)) continue;
+      const c = clone(p);
+      if (c.grp) c.grp = map[c.grp] || (map[c.grp] = newGrp());
+      move(c, off, off);
+      doc.pieces.push(P.sanePiece(c));
+      out.push(doc.pieces.length - 1);
+    }
+    tidyGroups();
+    return out;
+  }
+  function group() {
+    const idxs = picked.filter((i) => !fixedType(doc.pieces[i]));
+    if (idxs.length < 2) {
+      u.toast('Velg minst to deler først (Ctrl + klikk), så kan de grupperes.');
+      return;
+    }
+    const before = snapshot(),
+      g = newGrp(),
+      rail = unitRail(idxs);
+    for (const i of idxs) {
+      const c = clone(doc.pieces[i]);
+      c.grp = g;
+      doc.pieces[i] = P.sanePiece(c);
+    }
+    if (rail) setRail(idxs, rail); // har én av dem skinne, kjører hele gruppa på den
+    tidyGroups();
+    pickQuiet(idxs);
+    changed(before);
+  }
+  function ungroup() {
+    const gs = new Set(picked.map((i) => doc.pieces[i].grp).filter(Boolean));
+    if (!gs.size) return;
+    const before = snapshot();
+    doc.pieces.forEach((p, i) => {
+      if (!gs.has(p.grp)) return;
+      const c = clone(p);
+      delete c.grp;
+      doc.pieces[i] = c;
+    });
+    changed(before);
   }
   // ingen grenser – bare start og mål finnes én av
   function roomFor(type) {
@@ -1106,48 +1540,42 @@
   }
   function add(type) {
     stopTest(true);
-    if (!roomFor(type)) return;
+    const K = KINDS[type],
+      real = K.as || type; // «Heis» er en rampe på skinne
+    if (!roomFor(real)) return;
     const before = snapshot();
     const v = view();
     const p = P.sanePiece({
-      type,
-      ...KINDS[type].make(
-        sv(u.clamp(v.x + v.w / 2, 260, 1340)),
-        sv(v.y + v.h / 2),
-      ),
+      type: real,
+      ...K.make(sv(u.clamp(v.x + v.w / 2, 260, 1340)), sv(v.y + v.h / 2)),
     });
     doc.pieces.push(p);
-    sel = doc.pieces.length - 1;
+    pickQuiet([doc.pieces.length - 1]);
     changed(before);
   }
-  function remove(i) {
-    const p = doc.pieces[i];
-    if (!p) return;
-    if (p.type === 'start' || p.type === 'finish') {
-      u.toast('Start og mål kan flyttes, men ikke slettes.');
+  // slett alt som er valgt (start og mål blir stående)
+  function removeMany(idxs) {
+    const del = idxs.filter((i) => doc.pieces[i] && !fixedType(doc.pieces[i]));
+    if (!del.length) {
+      if (idxs.length) u.toast('Start og mål kan flyttes, men ikke slettes.');
       return;
     }
     const before = snapshot();
-    doc.pieces.splice(i, 1);
-    sel = -1;
-    hover = -1;
+    doc.pieces = doc.pieces.filter((p, i) => !del.includes(i));
+    tidyGroups();
+    pickQuiet([]);
     changed(before);
   }
-  function duplicate(i) {
-    const p = doc.pieces[i];
-    if (!p || p.type === 'start' || p.type === 'finish' || !roomFor(p.type))
-      return;
+  const remove = (i) => removeMany([i]);
+  function duplicateMany(idxs) {
+    if (!idxs.some((i) => doc.pieces[i] && !fixedType(doc.pieces[i]))) return;
     const before = snapshot();
-    const c = clone(p);
-    move(c, 40, 40);
-    doc.pieces.push(P.sanePiece(c));
-    sel = doc.pieces.length - 1;
+    pickQuiet(copyPieces(idxs, 40));
     changed(before);
   }
+  const duplicate = (i) => duplicateMany([i]);
   function select(i) {
-    sel = i;
-    hover = -1;
-    renderPanel();
+    setPicked(i >= 0 ? [i] : []);
   }
   function pick(x, y) {
     const tol = 8 / cam.s;
@@ -1162,20 +1590,156 @@
     });
     return best;
   }
-  function handleAt(i, sx, sy) {
-    const p = doc.pieces[i];
-    if (!p) return null;
+  // håndtakene til den valgte delen, og skinnehåndtaket
+  function handleAt(sx, sy) {
+    const hs = sel >= 0 && doc.pieces[sel] ? handles(doc.pieces[sel]) : [];
+    const rh = railHandle();
+    if (rh) hs.unshift(rh);
     return (
-      handles(p).find((h) => {
+      hs.find((h) => {
         const s = toScreen(h.x, h.y);
         return Math.hypot(s.x - sx, s.y - sy) <= 13;
       }) || null
     );
   }
-  // flytt hele delen uten at den klemmes skjev mot kanten av verden
-  function clampMove(orig, dx) {
-    const b = bounds(orig);
-    return u.clamp(dx, -150 - b.x0, 1750 - b.x1);
+  // flytt delene uten at noen klemmes skjev mot kanten av verden
+  function clampMove(origs, dx) {
+    let x0 = Infinity,
+      x1 = -Infinity;
+    for (const o of [].concat(origs)) {
+      if (isVisual(o)) continue;
+      const b = bounds(o);
+      x0 = Math.min(x0, b.x0);
+      x1 = Math.max(x1, b.x1);
+    }
+    return x0 === Infinity ? dx : u.clamp(dx, -150 - x0, 1750 - x1);
+  }
+  // delene som ligger helt inni rammen (hele grupper)
+  function inBox(a, b) {
+    const x0 = Math.min(a.x, b.x),
+      x1 = Math.max(a.x, b.x),
+      y0 = Math.min(a.y, b.y),
+      y1 = Math.max(a.y, b.y),
+      out = [];
+    doc.pieces.forEach((p, i) => {
+      if (p.type === 'look') return;
+      const r = bounds(p);
+      if (r.x0 >= x0 && r.x1 <= x1 && r.y0 >= y0 && r.y1 <= y1) out.push(...grpOf(i));
+    });
+    return out;
+  }
+
+  /* ---------- Shift: rette linjer ---------- */
+  const LINE_TYPES = ['ramp', 'wall', 'trap', 'eagle', 'belt', 'ferry', 'tunnel', 'rein'];
+  const ROT_STEP = 15; // rakettsiktet og armer i takt går i hopp på 15°
+  // (x, y) trukket inn på nærmeste rette linje fra (ox, oy): vannrett, loddrett eller 45° på skrå
+  function straight(ox, oy, x, y) {
+    const a = Math.round(Math.atan2(y - oy, x - ox) / (Math.PI / 4)) * (Math.PI / 4),
+      ux = Math.round(Math.cos(a)),
+      uy = Math.round(Math.sin(a)),
+      t = sv(((x - ox) * ux + (y - oy) * uy) / (ux * ux + uy * uy));
+    return { x: ox + ux * t, y: oy + uy * t, ux, uy };
+  }
+  // legg inn de nye versjonene av delene (bare hvis noe faktisk endret seg)
+  function putAll(idxs, ps) {
+    let ch = false;
+    idxs.forEach((j, k) => {
+      const clean = P.sanePiece(ps[k]);
+      if (JSON.stringify(clean) !== JSON.stringify(doc.pieces[j])) {
+        doc.pieces[j] = clean;
+        ch = true;
+      }
+    });
+    if (ch) {
+      drag.changed = true;
+      rebuild();
+    }
+  }
+  // flytt delene eller dra håndtaket dit pekeren er. Med Shift: rette linjer og låst retning
+  function dragTo(sx, sy, shift) {
+    const w = toWorld(sx, sy);
+    drag.guide = null; // stiplet hjelpelinje mens Shift holdes
+    if (drag.kind === 'move') {
+      let dx = w.x - drag.w0.x,
+        dy = w.y - drag.w0.y;
+      if (shift) {
+        // bare rett bortover eller rett ned/opp – det du drar mest
+        const flat = Math.abs(dx) >= Math.abs(dy);
+        if (flat) dy = 0;
+        else dx = 0;
+        drag.guide = { x: drag.w0.x, y: drag.w0.y, ux: flat ? 1 : 0, uy: flat ? 0 : 1 };
+      }
+      const mx = clampMove(drag.origs, sv(dx)),
+        my = sv(dy);
+      putAll(
+        drag.idxs,
+        drag.origs.map((o) => {
+          const p = clone(o);
+          move(p, mx, my);
+          return p;
+        }),
+      );
+      return;
+    }
+    if (drag.kind === 'rail') {
+      // skinnen: hvor langt og hvilken vei delene kjører (Shift: rett opp, bortover eller 45°)
+      const c = drag.c;
+      let x = c.x + sv(w.x - c.x),
+        y = c.y + sv(w.y - c.y);
+      if (shift) {
+        const s = straight(c.x, c.y, w.x, w.y);
+        x = s.x;
+        y = s.y;
+        drag.guide = { x: c.x, y: c.y, ux: s.ux, uy: s.uy };
+      }
+      const r = clone(drag.rail);
+      r.dx = Math.round(x - c.x);
+      r.dy = Math.round(y - c.y);
+      putAll(
+        drag.idxs,
+        drag.origs.map((o) => {
+          const p = clone(o);
+          if (P.RIDERS.includes(p.type)) p.rail = r;
+          return p;
+        }),
+      );
+      return;
+    }
+    const o = drag.orig,
+      p = clone(o);
+    // et håndtak på én del
+    {
+      let x = isVisual(o) ? u.clamp(w.x, -1400, 3000) : u.clamp(w.x, -150, 1750),
+        y = w.y;
+      if (shift && LINE_TYPES.includes(o.type)) {
+        // rampa (veggen, båndet …) legger seg rett ut fra den andre enden
+        const ax = drag.key === 'a' ? o.bx : o.ax,
+          ay = drag.key === 'a' ? o.by : o.ay,
+          s = straight(ax, ay, x, y);
+        x = s.x;
+        y = s.y;
+        drag.guide = { x: ax, y: ay, ux: s.ux, uy: s.uy };
+      } else if (shift && o.type === 'pit' && drag.key !== 'b') {
+        // kantene på hullet i samme høyde
+        x = sv(x);
+        y = drag.key === 'l' ? o.yr : o.yl;
+        drag.guide = { x, y, ux: 1, uy: 0 };
+      } else {
+        x = sv(x);
+        y = sv(y);
+      }
+      setHandle(p, drag.key, x, y);
+      if (shift && o.type === 'rocket')
+        p.ang = Math.round(p.ang / ROT_STEP) * ROT_STEP; // 0–180
+      else if (shift && o.sync && (o.type === 'wheel' || o.type === 'arm'))
+        p.ang = (Math.round(p.ang / ROT_STEP) * ROT_STEP) % 360;
+    }
+    const clean = P.sanePiece(p);
+    if (JSON.stringify(clean) !== JSON.stringify(doc.pieces[drag.idx])) {
+      doc.pieces[drag.idx] = clean;
+      drag.changed = true;
+      rebuild();
+    }
   }
 
   /* ---------- Mus, finger og tastatur ---------- */
@@ -1209,7 +1773,21 @@
     }
     if (pointers.size > 2) return;
     if (!test) {
-      const h = sel >= 0 ? handleAt(sel, sx, sy) : null;
+      const h = handleAt(sx, sy);
+      if (h && h.k === 'rail') {
+        // skinnehåndtaket: hele delen eller gruppa følger med
+        const idxs = railUnit();
+        drag = {
+          kind: 'rail',
+          idxs,
+          c: { x: h.cx, y: h.cy },
+          rail: clone(unitRail(idxs)),
+          before: snapshot(),
+          origs: idxs.map((j) => clone(doc.pieces[j])),
+          changed: false,
+        };
+        return;
+      }
       if (h) {
         drag = {
           kind: 'handle',
@@ -1223,31 +1801,47 @@
       }
       const w = toWorld(sx, sy);
       const i = pick(w.x, w.y);
+      // Ctrl/Cmd eller Shift: velg flere (klikk på en valgt del tar den ut igjen)
+      const multi = e.ctrlKey || e.metaKey || e.shiftKey;
       if (i >= 0) {
         const before = snapshot(),
-          src = doc.pieces[i];
-        let idx = i;
-        // Alt + dra: dra ut en kopi, originalen blir stående
-        if (
-          e.altKey &&
-          src.type !== 'start' &&
-          src.type !== 'finish' &&
-          roomFor(src.type)
-        ) {
-          doc.pieces.push(clone(src));
-          idx = doc.pieces.length - 1;
+          unit = grpOf(i); // klikk på en del i en gruppe velger hele gruppa
+        let toggleOff = null,
+          clickSel = null;
+        if (multi) {
+          if (unit.every(isPicked)) toggleOff = unit;
+          else setPicked(picked.concat(unit));
+        } else if (!isPicked(i)) setPicked(unit);
+        else if (picked.length > unit.length) clickSel = unit; // bare et klikk: velg bare denne
+        let idxs = picked.slice(),
+          copied = false;
+        // Alt + dra: dra ut en kopi, originalene blir stående
+        if (e.altKey && idxs.some((j) => !fixedType(doc.pieces[j]))) {
+          idxs = copyPieces(idxs, 0);
+          pickQuiet(idxs);
+          renderPanel();
           rebuild();
+          copied = true;
         }
-        if (idx !== sel) select(idx);
         drag = {
           kind: 'move',
-          idx,
+          idxs,
           w0: w,
+          sx0: sx,
+          sy0: sy,
+          moved: false,
           before,
-          orig: clone(doc.pieces[idx]),
-          changed: idx !== i,
+          origs: idxs.map((j) => clone(doc.pieces[j])),
+          changed: copied,
+          toggleOff,
+          clickSel,
         };
         canvas.style.cursor = 'grabbing';
+        return;
+      }
+      if (multi) {
+        // Shift/Ctrl + dra i bakgrunnen: ramme rundt det som skal velges
+        drag = { kind: 'box', w0: w, w1: w, base: picked.slice() };
         return;
       }
     }
@@ -1259,7 +1853,7 @@
     if (pointers.has(e.pointerId)) pointers.set(e.pointerId, { sx, sy });
     if (!drag) {
       if (test || e.pointerType !== 'mouse') return;
-      const h = sel >= 0 && handleAt(sel, sx, sy);
+      const h = handleAt(sx, sy);
       const w = toWorld(sx, sy);
       hover = h ? -1 : pick(w.x, w.y);
       canvas.style.cursor = h
@@ -1293,20 +1887,28 @@
           renderHud();
         }
       }
+    } else if (drag.kind === 'box') {
+      drag.w1 = toWorld(sx, sy);
+      pickQuiet(drag.base.concat(inBox(drag.w0, drag.w1)));
     } else {
-      const w = toWorld(sx, sy);
-      const p = clone(drag.orig);
-      if (drag.kind === 'move')
-        move(p, clampMove(drag.orig, sv(w.x - drag.w0.x)), sv(w.y - drag.w0.y));
-      else setHandle(p, drag.key, sv(u.clamp(w.x, -150, 1750)), sv(w.y));
-      const clean = P.sanePiece(p);
-      if (JSON.stringify(clean) !== JSON.stringify(doc.pieces[drag.idx])) {
-        doc.pieces[drag.idx] = clean;
-        drag.changed = true;
-        rebuild();
+      // et lite skjelv i klikket flytter ingenting
+      if (drag.kind === 'move' && !drag.moved) {
+        if (Math.hypot(sx - drag.sx0, sy - drag.sy0) < 4) return;
+        drag.moved = true;
       }
+      drag.sx = sx;
+      drag.sy = sy;
+      dragTo(sx, sy, e.shiftKey);
     }
   });
+  // trykker eller slipper du Shift midt i et drag, retter den seg opp med en gang
+  const onShift = (e) => {
+    if (e.key !== 'Shift' || !drag || drag.sx == null) return;
+    if (drag.kind === 'move' || drag.kind === 'handle' || drag.kind === 'rail')
+      dragTo(drag.sx, drag.sy, e.type === 'keydown');
+  };
+  window.addEventListener('keydown', onShift);
+  window.addEventListener('keyup', onShift);
   const endPointer = (e) => {
     pointers.delete(e.pointerId);
     if (!drag) return;
@@ -1315,12 +1917,28 @@
       return;
     }
     if (drag.kind === 'pan' && drag.click && !test) select(-1);
-    if ((drag.kind === 'move' || drag.kind === 'handle') && drag.changed)
+    if (drag.kind === 'move' && !drag.moved) {
+      // bare et klikk
+      if (drag.toggleOff) pickQuiet(picked.filter((j) => !drag.toggleOff.includes(j)));
+      else if (drag.clickSel) pickQuiet(drag.clickSel);
+    }
+    if (
+      (drag.kind === 'move' || drag.kind === 'handle' || drag.kind === 'rail') &&
+      drag.changed
+    )
       changed(drag.before);
     else if (drag.kind !== 'pan') renderPanel();
     drag = null;
     canvas.style.cursor = 'grab';
   };
+  // dobbeltklikk på en del i en gruppe: velg bare den delen
+  canvas.addEventListener('dblclick', (e) => {
+    if (test) return;
+    const { sx, sy } = local(e),
+      w = toWorld(sx, sy),
+      i = pick(w.x, w.y);
+    if (i >= 0 && grpOf(i).length > 1) select(i);
+  });
   canvas.addEventListener('pointerup', endPointer);
   canvas.addEventListener('pointercancel', endPointer);
   canvas.addEventListener('pointerleave', () => {
@@ -1357,30 +1975,48 @@
       redo();
     } else if (mod && key === 'd') {
       e.preventDefault();
-      if (sel >= 0) duplicate(sel);
+      if (picked.length && !test) duplicateMany(picked);
     } else if (mod && key === 's') {
       e.preventDefault();
       save();
+    } else if (mod && key === 'g') {
+      // Ctrl+G grupperer, Ctrl+Shift+G deler opp
+      e.preventDefault();
+      if (test) return;
+      if (e.shiftKey) ungroup();
+      else group();
+    } else if (mod && key === 'a') {
+      e.preventDefault();
+      if (!test)
+        setPicked(
+          doc.pieces.map((p, i) => (p.type === 'look' ? -1 : i)).filter((i) => i >= 0),
+        );
     } else if (
       (e.key === 'Delete' || e.key === 'Backspace') &&
-      sel >= 0 &&
+      picked.length &&
       !test
     ) {
       e.preventDefault();
-      remove(sel);
+      removeMany(picked);
     } else if (e.key === 'Escape') {
       if (test) stopTest();
       else select(-1);
-    } else if (e.key.startsWith('Arrow') && sel >= 0 && !test) {
+    } else if (e.key.startsWith('Arrow') && picked.length && !test) {
       e.preventDefault();
       const step = e.shiftKey ? 50 : snapOn ? GRID : 1;
       const dx =
           e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0,
         dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0;
       if (!nudge) nudge = { before: snapshot() };
-      const p = clone(doc.pieces[sel]);
-      move(p, clampMove(p, dx), dy);
-      doc.pieces[sel] = P.sanePiece(p);
+      const mx = clampMove(
+        picked.map((i) => doc.pieces[i]),
+        dx,
+      );
+      for (const i of picked) {
+        const p = clone(doc.pieces[i]);
+        move(p, mx, dy);
+        doc.pieces[i] = P.sanePiece(p);
+      }
       rebuild();
       clearTimeout(nudge.t);
       nudge.t = setTimeout(() => {
@@ -1433,8 +2069,9 @@
           <button class="btn btn-aurora btn-small" type="button" data-a="validate"${val.running || ok ? ' disabled' : ''}>${ok ? 'Godkjent ✓' : '✓ Godkjenn løypa'}</button>
           <button class="btn btn-primary btn-small" type="button" data-a="use"${ok && !active ? '' : ' disabled'}>${active ? 'Brukes i trekningen' : '🏁 Bruk i trekningen'}</button>
         </div>
-        <dl class="dz-facts"><div><dt>Deler</dt><dd>${doc.pieces.length}</dd></div><div><dt>Fallhøyde</dt><dd>${u.nf.format(Math.round(C.fin.y - C.start.y))}</dd></div><div><dt>Hull</dt><dd>${counts.pit || 0}</dd></div></dl>
+        <dl class="dz-facts"><div><dt>Deler</dt><dd>${doc.pieces.filter((p) => p.type !== 'look').length}</dd></div><div><dt>Fallhøyde</dt><dd>${u.nf.format(Math.round(C.fin.y - C.start.y))}</dd></div><div><dt>Hull</dt><dd>${counts.pit || 0}</dd></div></dl>
       </section>
+      ${lookSection()}
       <section class="dz-sec">
         <h3 class="dz-h">Slik bygger du</h3>
         <ul class="dz-tips">
@@ -1443,12 +2080,70 @@
           <li>Dra i bakgrunnen for å flytte deg rundt. Rull eller knip for å zoome.</li>
           <li><kbd>Delete</kbd> sletter, <kbd>Ctrl</kbd>+<kbd>Z</kbd> angrer, <kbd>Ctrl</kbd>+<kbd>D</kbd> dupliserer, piltastene flytter litt.</li>
           <li>Hold <kbd>Alt</kbd> mens du drar en del, så drar du ut en kopi.</li>
+          <li>Hold <kbd>Shift</kbd> mens du drar, så blir det rett: ramper og vegger legger seg vannrett, loddrett eller 45°, deler flyttes rett bortover eller rett ned, og rakettsiktet går i hopp på 15°.</li>
+          <li><kbd>Ctrl</kbd>+klikk (eller <kbd>Shift</kbd>+klikk) velger flere deler. <kbd>Shift</kbd>+dra i bakgrunnen velger alt inni rammen, og <kbd>Ctrl</kbd>+<kbd>A</kbd> velger alt.</li>
+          <li><kbd>Ctrl</kbd>+<kbd>G</kbd> grupperer det du har valgt, så holder delene sammen. Dobbeltklikk på en del i en gruppe for å endre bare den.</li>
+          <li>Gi deler egen farge i panelet, og pynt løypa med 🌲 Pynt og 🟦 Bakgrunn. Himmel, vær og by velger du under Utseende. Pynt trenger aldri ny godkjenning.</li>
+          <li>Ramper, vegger, TUT-bumpere, skilt og pynt kan kjøre på skinne. Velg «På skinne», dra i det gule håndtaket og lag et program – eller ta en 🛗 Heis fra lista. En gruppe kjører sammen, «Hopp» teleporterer i stedet for å kjøre, og 🎲 gir tilfeldig tid.</li>
           <li>Testkjør ofte. Når du er fornøyd: godkjenn løypa, så kan den brukes i trekningen.</li>
         </ul>
       </section>
       ${saved ? '<section class="dz-sec dz-sec-end"><button class="link-btn danger" type="button" data-a="delete">Slett løypa…</button></section>' : ''}`;
   }
+  // fargeprøver + fri fargevelger. «Standard» tar bort den egne fargen
+  function swatches(attr, cur, std) {
+    return `<div class="dz-swatches">${std ? `<button type="button" ${attr} data-v="" class="dz-sw-std${cur ? '' : ' on'}" title="Standardfarge">Standard</button>` : ''}${SWATCH.map(
+      (c) =>
+        `<button type="button" ${attr} data-v="${c}" class="${cur === c ? 'on' : ''}" style="--c:${c}" title="${c}" aria-label="Farge ${c}"></button>`,
+    ).join('')}</div>`;
+  }
+  /* Utseendet på hele løypa: himmel, vær, nordlys, fjell, byen ved målet og løypefargen */
+  const lookPiece = () => doc.pieces.find((p) => p.type === 'look') || { type: 'look' };
+  function lookSection() {
+    const L = lookPiece();
+    const seg = (k, opts, cur) =>
+      `<div class="dz-seg">${opts.map(([v, l]) => `<button type="button" data-look="${k}" data-v="${v}" class="${cur === v ? 'on' : ''}">${l}</button>`).join('')}</div>`;
+    return `<section class="dz-sec">
+        <h3 class="dz-h">Utseende</h3>
+        <p class="dz-note">Bare pynt – kulene merker det ikke, så en godkjent løype forblir godkjent. Legg til 🌲 Pynt og 🟦 Bakgrunn fra delelista.</p>
+        <div class="dz-field"><span>Himmel</span><div class="dz-presets">${SKY_NAME.map(([k, l]) => `<button type="button" data-look="sky" data-v="${k}" class="${(L.sky || 'natt') === k ? 'on' : ''}">${l}</button>`).join('')}</div></div>
+        <div class="dz-field"><span>Vær</span>${seg('wx', [['', 'Klart'], ['sno', '❄️ Snø'], ['regn', '🌧️ Regn']], L.wx || '')}</div>
+        <div class="dz-field"><span>Nordlys</span>${seg('aur', [['1', 'Med'], ['0', 'Uten']], L.aur === 0 ? '0' : '1')}</div>
+        <div class="dz-field"><span>Fjellet</span>${seg('mtn', [['1', 'Med'], ['0', 'Uten']], L.mtn === 0 ? '0' : '1')}</div>
+        <div class="dz-field"><span>Byen ved målet</span>${seg('city', [['1', 'Med'], ['0', 'Uten']], L.city === 0 ? '0' : '1')}</div>
+        ${L.city === 0 ? '' : `<label class="dz-field"><span>Navn på byen</span><input class="field-input" type="text" data-lf="town" maxlength="14" value="${esc(L.town || 'BODØ')}" spellcheck="false"></label>`}
+        <div class="dz-field"><span>Farge på løypa</span>${swatches('data-look="track"', L.track || '', true)}<label class="dz-ownc">Egen farge <input type="color" data-lf="track" value="${L.track || '#e9dfc9'}"></label></div>
+      </section>`;
+  }
+  // endre utseendet (lages når du endrer noe, og tas bort igjen når alt er standard)
+  function setLook(fn, live) {
+    const before = live ? null : snapshot(),
+      i = doc.pieces.findIndex((p) => p.type === 'look'),
+      L = clone(lookPiece());
+    fn(L);
+    const clean = P.sanePiece(L),
+      plain = Object.keys(clean).length === 1;
+    if (i >= 0) {
+      if (plain) doc.pieces.splice(i, 1);
+      else doc.pieces[i] = clean;
+    } else if (!plain) doc.pieces.push(clean);
+    if (live) {
+      rebuild();
+      dirtyCheck();
+      saveDraft();
+      renderBar();
+    } else if (snapshot() !== before) changed(before);
+    else renderPanel();
+  }
   function field(p, f) {
+    if (f.color) {
+      const std = P.COLORS[p.type]; // deler med standardfarge kan gå tilbake til den
+      return `<div class="dz-field"><span>${esc(f.label)}</span>${swatches(`data-col="${f.k}"`, p[f.k] || '', !!std)}<label class="dz-ownc">Egen farge <input type="color" data-f="${f.k}" value="${p[f.k] || std || '#2a6f8f'}"></label></div>`;
+    }
+    if (f.deco)
+      return `<div class="dz-field"><span>${esc(f.label)}</span><div class="dz-emojis">${DECOS.map(
+        (e) => `<button type="button" data-ico="${e}" class="${p.ico === e ? 'on' : ''}" title="${e}">${e}</button>`,
+      ).join('')}</div><input class="field-input dz-ico-in" type="text" data-f="ico" maxlength="16" value="${esc(p.ico)}" aria-label="Egen figur: lim inn en emoji eller skriv noen tegn" placeholder="…eller lim inn en emoji"></div>`;
     if (f.text)
       return `<label class="dz-field"><span>${esc(f.label)}</span><input class="field-input" type="text" data-f="${f.k}" maxlength="${f.text}" value="${esc(p[f.k])}" spellcheck="false"></label>`;
     if (f.dir)
@@ -1460,7 +2155,8 @@
             `<button type="button" data-opt="${f.k}" data-v="${v}" class="${(p[f.k] != null ? p[f.k] : f.def || 0) === v ? 'on' : ''}">${esc(lab)}</button>`,
         )
         .join('')}</div></div>`;
-    return `<label class="dz-field"><span>${esc(f.label)} <output>${u.nf.format(p[f.k])}</output></span><input type="range" data-f="${f.k}" min="${f.min}" max="${f.max}" step="${f.step}" value="${p[f.k]}"></label>`;
+    const val = p[f.k] != null ? p[f.k] : f.def || 0; // felt som ikke lagres når de er 0 (vridd pynt)
+    return `<label class="dz-field"><span>${esc(f.label)} <output>${u.nf.format(val)}</output></span><input type="range" data-f="${f.k}" min="${f.min}" max="${f.max}" step="${f.step}" value="${val}"></label>`;
   }
   function posText(p) {
     const r = Math.round;
@@ -1503,22 +2199,148 @@
     if (p.type === 'rein')
       return `Beitestrekning ${r(Math.hypot(p.bx - p.ax, p.by - p.ay))}`;
     if (p.type === 'slush') return `${r(p.x1 - p.x0)} × ${r(p.y1 - p.y0)}`;
+    if (p.type === 'deco')
+      return `Størrelse ${r(p.size)}${p.ang ? ` · vridd ${p.ang}°` : ''} · ${p.front ? 'foran' : 'bak'} løypa<br>Bare pynt – kulene merker den ikke.`;
+    if (p.type === 'shape')
+      return `${r(p.x1 - p.x0)} × ${r(p.y1 - p.y0)} · synlighet ${p.alpha} %<br>Bare pynt – kulene merker det ikke. Ta tak i kanten for å flytte det.`;
     if (p.type === 'boss')
       return `Ser mot ${p.dir > 0 ? 'høyre' : 'venstre'} · rekkevidde ${r(p.range)} · skyter hvert ${secs(p.cd)}<br>${p.zap ? '<span class="warn">⚡ Strålen fordamper kulene – de er ute.</span>' : `Strålen dytter kulene av gårde med kraft ${r(p.force)}${p.force >= 1600 ? ' – de flyr langt!' : p.force <= 300 ? ' – bare et lite puff.' : '.'}`} Den grønne buen viser hvor han ser.`;
     return `x ${r(p.x)} · y ${r(p.y)}`;
   }
   function piecePanel(p) {
     const K = KINDS[p.type];
-    const fixed = p.type === 'start' || p.type === 'finish';
+    const fixed = fixedType(p),
+      inGrp = grpOf(sel).length;
     return `<section class="dz-sec">
-      <div class="dz-piece"><span class="dz-piece-ico">${K.ico}</span><div><h3 class="dz-h">${esc(K.name)}</h3><p>${esc(K.help)}</p></div></div>
+      <div class="dz-piece"><span class="dz-piece-ico">${p.rail ? '🛤️' : K.ico}</span><div><h3 class="dz-h">${esc(K.name)}${p.rail ? ' på skinne' : ''}</h3><p>${esc(K.help)}</p></div></div>
       ${(FIELDS[p.type] || [])
         .filter((f) => !f.when || f.when(p))
         .map((f) => field(p, f))
         .join('')}
       <p class="dz-pos">${posText(p)}</p>
+      ${
+        inGrp > 1
+          ? `<div class="dz-grp"><span>🔗 Del av en gruppe med ${inGrp} deler.${p.rail ? ' Bevegelsen styres av gruppa.' : ''}</span><button type="button" data-a="selgrp">Velg hele gruppa</button></div>`
+          : P.RIDERS.includes(p.type)
+            ? motionSection([sel])
+            : ''
+      }
       <div class="dz-btns">${fixed ? '' : '<button class="btn btn-ghost btn-small" type="button" data-a="dup">Dupliser</button><button class="btn btn-ghost btn-small dz-del" type="button" data-a="del">Slett</button>'}<button class="btn btn-ghost btn-small" type="button" data-a="done">Ferdig</button></div>
     </section>`;
+  }
+  // flere deler valgt, eller en hel gruppe
+  function multiPanel() {
+    const g = pickedGroup(),
+      n = picked.length;
+    const chips = picked
+      .map((i) => {
+        const p = doc.pieces[i],
+          K = KINDS[p.type];
+        return `<li><button type="button" data-pick="${i}" title="Velg bare denne">${K.ico.startsWith('<svg') ? '' : K.ico + ' '}${esc(K.pal || K.name)}</button></li>`;
+      })
+      .join('');
+    return `<section class="dz-sec">
+      <div class="dz-piece"><span class="dz-piece-ico">${g ? '🔗' : '▦'}</span><div><h3 class="dz-h">${g ? `Gruppe med ${n} deler` : `${n} deler valgt`}</h3><p>${
+        g
+          ? 'Delene flyttes, kopieres og kjører sammen. Dobbeltklikk på en del (eller trykk på den under) for å endre bare den.'
+          : 'Dra i en av dem for å flytte alle. Grupper dem, så holder de sammen – og kan kjøre sammen på skinne.'
+      }</p></div></div>
+      <ul class="dz-chips">${chips}</ul>
+      ${
+        picked.some((i) => P.COLORS[doc.pieces[i].type] || doc.pieces[i].type === 'shape')
+          ? `<div class="dz-field"><span>Farge på alle</span>${swatches('data-mcol="1"', '', true)}</div>`
+          : ''
+      }
+      ${g ? motionSection(picked) : ''}
+      <div class="dz-btns">${
+        g
+          ? '<button class="btn btn-ghost btn-small" type="button" data-a="ungroup">Del opp gruppa</button>'
+          : '<button class="btn btn-aurora btn-small" type="button" data-a="group">🔗 Grupper</button>'
+      }<button class="btn btn-ghost btn-small" type="button" data-a="dup">Dupliser</button><button class="btn btn-ghost btn-small dz-del" type="button" data-a="del">Slett</button><button class="btn btn-ghost btn-small" type="button" data-a="done">Ferdig</button></div>
+    </section>`;
+  }
+  /* Bevegelse: står stille eller kjører på skinne, med et program som går i ring */
+  // tid eller tidsrom («1–3 s» når tiden er tilfeldig)
+  const stepTime = (st) =>
+    st.t2 != null
+      ? `${u.nf.format(Math.round(st.t * 10) / 10)}–${secs(st.t2)}`
+      : secs(st.t);
+  function stepHead(st, k, n) {
+    const go = st.to != null,
+      jump = go && st.e === 'jump',
+      rnd = st.t2 != null;
+    return `<b>${k + 1}</b><span class="dz-step-t">${
+      jump
+        ? `Hopp til <output>${st.to} %</output> ✨`
+        : `${go ? `Kjør til <output>${st.to} %</output> på` : 'Vent'} <output>${stepTime(st)}</output>`
+    }</span>
+        ${jump ? '' : `<button class="dz-step-x${rnd ? ' on' : ''}" type="button" data-step-rnd="${k}" title="Tilfeldig tid" aria-label="Tilfeldig tid på steg ${k + 1}" aria-pressed="${rnd}">🎲</button>`}<button class="dz-step-x" type="button" data-step-up="${k}" title="Flytt opp" aria-label="Flytt steg ${k + 1} opp"${k ? '' : ' disabled'}>↑</button><button class="dz-step-x" type="button" data-step-del="${k}" title="Fjern" aria-label="Fjern steg ${k + 1}"${n > 1 ? '' : ' disabled'}>✕</button>`;
+  }
+  function stepHtml(st, k, key, n) {
+    const go = st.to != null,
+      jump = go && st.e === 'jump', // hopp tar ingen tid
+      rnd = st.t2 != null,
+      slow = go && !jump && key && key.t1 - key.t0 > st.t + 0.01;
+    const time = (sk, label, v) =>
+      `<label class="dz-step-r">${label}<input type="range" data-rs="${k}" data-sk="${sk}" min="0.1" max="10" step="0.05" value="${v}" aria-label="${label === 'Tid' ? 'Sekunder' : label === 'Min' ? 'Korteste tid i sekunder' : 'Lengste tid i sekunder'}"></label>`;
+    return `<li class="dz-step">
+      <div class="dz-step-h">${stepHead(st, k, n)}</div>
+      ${go ? `<label class="dz-step-r">Til<input type="range" data-rs="${k}" data-sk="to" min="0" max="100" step="5" value="${st.to}" aria-label="Hvor langt på skinnen (prosent)"></label>` : ''}
+      ${jump ? '' : rnd ? time('t', 'Min', st.t) + time('t2', 'Maks', st.t2) : time('t', 'Tid', st.t)}
+      ${go ? `<div class="dz-seg">${EASE_NAME.map(([v, l]) => `<button type="button" data-step-e="${k}" data-v="${v}" class="${st.e === v ? 'on' : ''}">${l}</button>`).join('')}</div>` : ''}
+      ${slow ? `<span class="warn">For fort for skinnen – tar ${secs(key.t1 - key.t0)}.</span>` : ''}
+    </li>`;
+  }
+  function railSum(rail) {
+    const plan = P.railPlan(rail),
+      top = Math.max(0, ...plan.keys.map((k) => k.peak)),
+      dir =
+        Math.abs(rail.dy) > Math.abs(rail.dx) * 2
+          ? rail.dy < 0
+            ? 'opp'
+            : 'ned'
+          : Math.abs(rail.dx) > Math.abs(rail.dy) * 2
+            ? rail.dx > 0
+              ? 'mot høyre'
+              : 'mot venstre'
+            : 'på skrå';
+    const lap = plan.rand
+      ? `${u.nf.format(Math.round(plan.period * 10) / 10)}–${secs(plan.periodMax)} (tilfeldig hver runde)`
+      : secs(plan.period);
+    return `Skinnen er ${Math.round(plan.L)} lang og går ${dir}. En runde tar ${lap}, toppfart ${Math.round(top)}.${
+      top > 1100
+        ? '<br><span class="warn">🚀 Så fort at kulene kan kastes til værs når den stopper.</span>'
+        : ''
+    }`;
+  }
+  function motionSection(idxs) {
+    const rail = unitRail(idxs),
+      can = riders(idxs).length;
+    if (!can)
+      return '<div class="dz-motion"><p class="dz-note">Bare ramper, vegger, TUT-bumpere, skilt og pynt kan kjøre på skinne. Grupper dem med noe av det, så kan resten være med.</p></div>';
+    const off = rail && rail.sync ? rail.off || 0 : 0;
+    let h = `<div class="dz-motion">
+      <div class="dz-field"><span>Bevegelse</span><div class="dz-seg"><button type="button" data-rail="0" class="${rail ? '' : 'on'}">Står stille</button><button type="button" data-rail="1" class="${rail ? 'on' : ''}">🛤️ På skinne</button></div></div>`;
+    if (!rail)
+      return `${h}<p class="dz-note">Sett den på skinne, så kjører den fram og tilbake etter et program du lager selv: heis, stempel, utskyter …</p></div>`;
+    const plan = P.railPlan(rail);
+    h += `<p class="dz-note">Dra i det gule håndtaket for å legge skinnen dit den skal kjøre. 0 % er der den står nå, 100 % er enden av skinnen. «Hopp» teleporterer den dit med en gang i stedet for å kjøre, og 🎲 gir steget tilfeldig tid hver runde.</p>
+      <div class="dz-field"><span>Ferdige program</span><div class="dz-presets">${Object.keys(PRESET)
+        .map((k) => `<button type="button" data-preset="${k}">${PRESET[k].label}</button>`)
+        .join('')}</div></div>
+      <div class="dz-field"><span>Programmet (går i ring)</span></div>
+      <ol class="dz-prog">${rail.prog.map((st, k) => stepHtml(st, k, plan.keys[k], rail.prog.length)).join('')}</ol>
+      ${
+        rail.prog.length < P.STEPS_MAX
+          ? '<div class="dz-btns dz-add"><button class="btn btn-ghost btn-small" type="button" data-step-add="go">＋ Kjør</button><button class="btn btn-ghost btn-small" type="button" data-step-add="wait">＋ Vent</button></div>'
+          : ''
+      }
+      <div class="dz-field"><span>Takt</span><div class="dz-seg"><button type="button" data-rsync="0" class="${rail.sync ? '' : 'on'}">Tilfeldig start</button><button type="button" data-rsync="1" class="${rail.sync ? 'on' : ''}">Starter med løpet</button></div></div>
+      ${rail.sync ? `<label class="dz-field"><span>Venter etter at porten åpner <output data-o="off">${secs(off)}</output></span><input type="range" data-roff="1" min="0" max="20" step="0.1" value="${off}"></label>` : ''}
+      <p class="dz-pos dz-rsum">${railSum(rail)}</p>
+      ${idxs.length > can ? '<p class="dz-note">Hjul, vipper og de andre delene i gruppa står stille. Bare ramper, vegger, TUT-bumpere, skilt og pynt kjører på skinne.</p>' : ''}
+    </div>`;
+    return h;
   }
   function logLi(l) {
     return `<li><span>${l.icon}</span><span>${l.html}</span><small>${secs(l.t)}</small></li>`;
@@ -1546,11 +2368,68 @@
     if (test) panel.innerHTML = testPanel();
     else {
       const p = doc.pieces[sel];
-      panel.innerHTML = p ? piecePanel(p) : coursePanel();
+      panel.innerHTML = p
+        ? piecePanel(p)
+        : picked.length > 1
+          ? multiPanel()
+          : coursePanel();
     }
   }
   let fieldBefore = null;
+  // endre programmet på skinnen (alle delene som kjører sammen får det samme)
+  function editRail(fn, live) {
+    const idxs = railUnit();
+    if (!idxs || test) return;
+    const before = live ? null : snapshot(),
+      r = curRail(idxs);
+    if (fn(r) === false) return;
+    setRail(idxs, r);
+    if (live) return;
+    if (snapshot() !== before) changed(before);
+    else renderPanel();
+  }
   panel.addEventListener('input', (e) => {
+    const lf = e.target.closest('[data-lf]');
+    if (lf) {
+      // navnet på byen og løypefargen: oppdater mens du skriver/velger
+      if (test) return;
+      if (!fieldBefore) fieldBefore = snapshot();
+      const k = lf.dataset.lf,
+        v = lf.value;
+      setLook((L) => {
+        L[k] = v;
+      }, true);
+      return;
+    }
+    const rs = e.target.closest('[data-rs], [data-roff]');
+    if (rs) {
+      // skyvere i programmet: oppdater mens du drar, lagre i angre-lista når du slipper
+      if (!railUnit() || test) return;
+      if (!fieldBefore) fieldBefore = snapshot();
+      const k = +rs.dataset.rs,
+        sk = rs.dataset.sk,
+        v = +rs.value;
+      editRail((r) => {
+        if (rs.dataset.roff) r.off = v;
+        else if (r.prog[k]) r.prog[k][sk] = v;
+      }, true);
+      const sum = panel.querySelector('.dz-rsum'),
+        r = unitRail(railUnit());
+      if (rs.dataset.roff) {
+        const o = panel.querySelector('[data-o="off"]');
+        if (o) o.textContent = secs(v);
+      } else if (r && r.prog[k]) {
+        // overskriften på steget («Kjør til 100 % på 1–3 s»)
+        const h = rs.closest('.dz-step').querySelector('.dz-step-h');
+        if (h) h.innerHTML = stepHead(r.prog[k], k, r.prog.length);
+      }
+      if (sum && r) sum.innerHTML = railSum(r);
+      rebuild();
+      dirtyCheck();
+      saveDraft();
+      renderBar();
+      return;
+    }
     const f = e.target.closest('[data-f]');
     if (!f || sel < 0 || test) return;
     if (!fieldBefore) fieldBefore = snapshot();
@@ -1560,7 +2439,7 @@
     if (p.type === 'pit' && k === 'name') delete p.cause; // omdøpt hull får sitt eget navn i loggen
     doc.pieces[sel] = P.sanePiece(p);
     const out = f.closest('.dz-field').querySelector('output');
-    if (out) out.textContent = u.nf.format(doc.pieces[sel][k]);
+    if (out) out.textContent = u.nf.format(doc.pieces[sel][k] || 0);
     const posEl = panel.querySelector('.dz-pos');
     if (posEl) posEl.innerHTML = posText(doc.pieces[sel]);
     rebuild();
@@ -1569,12 +2448,136 @@
     renderBar();
   });
   panel.addEventListener('change', (e) => {
-    if (!e.target.closest('[data-f]') || !fieldBefore) return;
+    if (!e.target.closest('[data-f], [data-rs], [data-roff], [data-lf]') || !fieldBefore)
+      return;
     const b = fieldBefore;
     fieldBefore = null;
     changed(b);
   });
   panel.addEventListener('click', (e) => {
+    const on = (q) => e.target.closest(q);
+    let el;
+    if ((el = on('[data-pick]'))) {
+      select(+el.dataset.pick);
+      return;
+    }
+    if ((el = on('[data-look]'))) {
+      const k = el.dataset.look,
+        v = el.dataset.v;
+      setLook((L) => {
+        L[k] = v;
+      });
+      return;
+    }
+    // farge og figur på den valgte delen («Standard» tar bort den egne fargen)
+    const setOne = (fn) => {
+      if (sel < 0 || test) return;
+      const before = snapshot(),
+        p = clone(doc.pieces[sel]);
+      fn(p);
+      doc.pieces[sel] = P.sanePiece(p);
+      if (snapshot() !== before) changed(before);
+    };
+    if ((el = on('[data-col]'))) {
+      const k = el.dataset.col,
+        v = el.dataset.v;
+      setOne((p) => {
+        if (v) p[k] = v;
+        else delete p[k];
+      });
+      return;
+    }
+    if ((el = on('[data-ico]'))) {
+      const v = el.dataset.ico;
+      setOne((p) => {
+        p.ico = v;
+      });
+      return;
+    }
+    if ((el = on('[data-mcol]'))) {
+      // samme farge på alt som er valgt
+      const before = snapshot(),
+        v = el.dataset.v;
+      for (const i of picked) {
+        const p = doc.pieces[i];
+        if (!P.COLORS[p.type] && p.type !== 'shape') continue;
+        const c = clone(p);
+        if (v) c.col = v;
+        else if (c.type !== 'shape') delete c.col;
+        doc.pieces[i] = P.sanePiece(c);
+      }
+      if (snapshot() !== before) changed(before);
+      return;
+    }
+    if ((el = on('[data-rail]'))) {
+      const idxs = railUnit();
+      if (!idxs) return;
+      const before = snapshot();
+      setRail(idxs, +el.dataset.rail ? curRail(idxs) : null);
+      if (snapshot() !== before) changed(before);
+      return;
+    }
+    if ((el = on('[data-preset]'))) {
+      const pr = PRESET[el.dataset.preset];
+      editRail((r) => {
+        r.prog = clone(pr.prog);
+      });
+      return;
+    }
+    if ((el = on('[data-step-e]'))) {
+      const k = +el.dataset.stepE;
+      editRail((r) => {
+        if (r.prog[k]) r.prog[k].e = el.dataset.v;
+      });
+      return;
+    }
+    if ((el = on('[data-step-del]'))) {
+      const k = +el.dataset.stepDel;
+      editRail((r) => (r.prog.length > 1 ? void r.prog.splice(k, 1) : false));
+      return;
+    }
+    if ((el = on('[data-step-rnd]'))) {
+      // 🎲 tilfeldig tid: fra tiden steget har nå til dobbelt så lang (minst et halvt sekund mer)
+      const k = +el.dataset.stepRnd;
+      editRail((r) => {
+        const st = r.prog[k];
+        if (!st || st.e === 'jump') return false;
+        if (st.t2 != null) delete st.t2;
+        else st.t2 = Math.min(10, Math.max(st.t + 0.5, st.t * 2));
+      });
+      return;
+    }
+    if ((el = on('[data-step-up]'))) {
+      const k = +el.dataset.stepUp;
+      editRail((r) => {
+        if (k < 1) return false;
+        [r.prog[k - 1], r.prog[k]] = [r.prog[k], r.prog[k - 1]];
+      });
+      return;
+    }
+    if ((el = on('[data-step-add]'))) {
+      const go = el.dataset.stepAdd === 'go';
+      editRail((r) => {
+        if (r.prog.length >= P.STEPS_MAX) return false;
+        // et nytt kjør-steg går til den andre enden av der den står
+        let last = 0;
+        for (const st of r.prog) if (st.to != null) last = st.to;
+        r.prog.push(go ? { to: last >= 50 ? 0 : 100, t: 1.5, e: 'smooth' } : { t: 1 });
+      });
+      return;
+    }
+    if ((el = on('[data-rsync]'))) {
+      editRail((r) => {
+        if (+el.dataset.rsync) {
+          r.sync = 1;
+          r.off = r.off || 0;
+        } else {
+          delete r.sync;
+          delete r.off;
+        }
+      });
+      return;
+    }
     const dir = e.target.closest('[data-dir]');
     if (dir && sel >= 0) {
       const before = snapshot();
@@ -1599,8 +2602,11 @@
     if (a === 'validate') validate();
     else if (a === 'use') use();
     else if (a === 'delete') delCourse();
-    else if (a === 'dup') duplicate(sel);
-    else if (a === 'del') remove(sel);
+    else if (a === 'dup') duplicateMany(picked);
+    else if (a === 'del') removeMany(picked);
+    else if (a === 'group') group();
+    else if (a === 'ungroup') ungroup();
+    else if (a === 'selgrp') setPicked(grpOf(sel));
     else if (a === 'done') select(-1);
     else if (a === 'retest') startTest();
     else if (a === 'stop') stopTest();
@@ -1636,7 +2642,7 @@
     $('#dzOpen').innerHTML =
       `${cur ? '' : `<option value="" selected>${esc(doc.name)} (ikke lagret)</option>`}
       ${list.length ? `<optgroup label="Mine løyper">${list.map((c) => `<option value="${esc(c.id)}"${c.id === cur ? ' selected' : ''}>${esc(c.name)}${mark(c)}${Store.courseId === c.id ? ' · i bruk' : ''}</option>`).join('')}</optgroup>` : ''}
-      <optgroup label="Lag ny"><option value="new:simple">＋ Ny enkel løype</option><option value="new:copy">＋ Kopi av Keiservarden</option><option value="new:demo">＋ Demo med alle delene</option></optgroup>`;
+      <optgroup label="Lag ny"><option value="new:simple">＋ Ny enkel løype</option><option value="new:copy">＋ Kopi av Keiservarden</option><option value="new:demo">＋ Demo med alle delene</option><option value="new:rail">＋ Demo: heis og utskyter</option></optgroup>`;
   }
   function load(c, savedVersion) {
     stopTest(true);
@@ -1652,6 +2658,7 @@
     };
     undoStack.length = 0;
     redoStack.length = 0;
+    picked = [];
     sel = -1;
     hover = -1;
     lastFail = null;
@@ -1721,7 +2728,7 @@
       fillOpen();
       return;
     }
-    if (v === 'new:simple' || v === 'new:copy' || v === 'new:demo') {
+    if (v.startsWith('new:')) {
       const kind = v.slice(4);
       load(fromTemplate(kind), null);
       u.toast(
@@ -1729,7 +2736,9 @@
           ? 'Kopi av originalen – gjør den til din egen!'
           : kind === 'demo'
             ? 'Demo med Saltstraumen, ferga, raketten og resten. Trykk Testkjør!'
-            : 'Ny løype. Start og mål er på plass – resten er opp til deg.',
+            : kind === 'rail'
+              ? 'Heisen og utskyteren kjører på skinner. Trykk på dem for å se programmet – og trykk Testkjør!'
+              : 'Ny løype. Start og mål er på plass – resten er opp til deg.',
       );
     } else {
       const c = Store.getCourse(v);
@@ -1742,6 +2751,7 @@
   function startTest() {
     if (val.running) return;
     stopTest(true);
+    picked = [];
     sel = -1;
     const n = parseInt($('#dzN').value, 10) || 24;
     const msg = $('#dzMsg');
@@ -1749,6 +2759,7 @@
     msg.hidden = false;
     setTimeout(() => {
       const res = P.simulate(n, u.randInt(0x7fffffff), doc);
+      P.checkpoints(res); // usynlige sjekkpunkter: hvem leder, også der løypa går oppover
       msg.hidden = true;
       test = {
         res,
@@ -1756,6 +2767,7 @@
         t: 0,
         speed: 1,
         follow: true,
+        lead: -1,
         ei: 0,
         state: new Array(n).fill(null),
         fin: [],
@@ -1789,7 +2801,7 @@
       T.flown[e.i] = 1;
       entry = {
         icon: '🚀',
-        html: `<b>Kule ${e.i + 1}</b> ${e.type === 'rocket' ? 'ble skutt opp fra Andøya' : e.arm ? 'ble slått til værs av Glimt-armen' : 'ble skutt til værs'}`,
+        html: `<b>Kule ${e.i + 1}</b> ${e.type === 'rocket' ? 'ble skutt opp fra Andøya' : e.lift ? 'ble kastet til værs av heisen' : e.arm ? 'ble slått til værs av Glimt-armen' : 'ble skutt til værs'}`,
         t: Math.max(0, e.t - P.GATE_T),
       };
     } else if (e.type !== 'finish' && e.type !== 'out') {
@@ -1829,6 +2841,7 @@
     T.t = Math.min(T.res.duration, T.t + dt * T.speed);
     while (T.ei < T.res.events.length && T.res.events[T.ei].t <= T.t)
       onTestEvent(T.res.events[T.ei++]);
+    findLeader(T);
     if (T.t >= T.res.duration && !T.done) {
       T.done = true;
       renderPanel();
@@ -1841,27 +2854,58 @@
           ? `Klar … ${Math.ceil(P.GATE_T - T.t)}`
           : secs(T.t - P.GATE_T);
   }
+  /* Leder: kula med minst tid igjen til mål etter de usynlige sjekkpunktene – ikke den
+     som ligger lavest, for løypa kan gå oppover (bånd, rakett, Glimt-hjul …) */
+  function findLeader(T) {
+    let best = -1,
+      bl = Infinity;
+    for (let i = 0; i < T.n; i++) {
+      if (T.state[i]) continue;
+      const l = P.leftAt(T.res, i, T.t);
+      if (l < bl) {
+        bl = l;
+        best = i;
+      }
+    }
+    // litt treghet, så den ikke hopper fram og tilbake mellom to kuler side om side
+    const cur = T.lead;
+    if (
+      best >= 0 &&
+      cur >= 0 &&
+      best !== cur &&
+      !T.state[cur] &&
+      bl > P.leftAt(T.res, cur, T.t) - 0.12
+    )
+      best = cur;
+    T.lead = best;
+  }
   function followCam(dt) {
     const T = test,
       res = T.res;
     let tx = res.C.start.x,
       ty = res.C.start.y - 100;
     if (T.t >= P.GATE_T - 0.3) {
-      let best = -1,
-        by = -1e9;
-      for (let i = 0; i < T.n; i++) {
-        if (T.state[i]) continue;
-        const y = pos(res, i, T.t)[1];
-        if (y < -50000) continue; // inne i en tunnel
-        if (y > by) {
-          by = y;
-          best = i;
+      // lederen, eller den som har kommet lengst av dem som ikke er inne i en tunnel
+      let best = T.lead;
+      if (best >= 0 && pos(res, best, T.t)[1] < -50000) {
+        best = -1;
+        let bl = Infinity;
+        for (let i = 0; i < T.n; i++) {
+          if (T.state[i] || pos(res, i, T.t)[1] < -50000) continue;
+          const l = P.leftAt(res, i, T.t);
+          if (l < bl) {
+            bl = l;
+            best = i;
+          }
         }
       }
       if (best >= 0) {
         const p = pos(res, best, T.t);
         tx = p[0];
         ty = p[1];
+      } else if (T.lead >= 0) {
+        tx = cam.x; // alle som er igjen, er inne i tunnelen
+        ty = cam.y;
       } else {
         tx = res.C.fin.x + 60;
         ty = res.C.fin.y + 120;
@@ -2146,11 +3190,20 @@
     get sel() {
       return sel;
     },
+    get picked() {
+      return picked.slice();
+    },
+    get C() {
+      return C;
+    },
     cam,
     tick,
     load,
     add,
     select,
+    setPicked,
+    group,
+    ungroup,
     startTest,
     stopTest,
     validate,

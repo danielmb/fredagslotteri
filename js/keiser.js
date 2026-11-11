@@ -22,6 +22,7 @@
     k_fisk: (n) => ['Tørrfisk!', `${n} fikk en tørrfisk i trynet og forsvant ut av løypa.`],
     k_arm: (n) => ['Glimt-armen!', `${n} fikk et slag av Glimt-armen og forsvant ut av løypa!`],
     k_sjef: (n) => ['Sjefen!', `${n} ble tatt av Sjefen. Fredagslotteri er visst ikke lov.`],
+    k_heis: (n) => ['Heisen!', `${n} ble kastet til værs av heisen og landet utenfor løypa!`],
   };
   const FUN = ['launch', 'rocket', 'spit', 'tunnel', 'fish', 'rein', 'slaps', 'zapped'];
   // killfeed: kort tekst for hvert utfall (kommentatoren tar bare start og vinnere)
@@ -29,6 +30,7 @@
     k_vind: 'blåste ned i Juvet', k_ornes: 'tok Ørnes-luka', k_orna: 'tatt av ørna', k_glimt: 'slått ut av Glimt-hjulet',
     k_arm: 'slått ut av Glimt-armen', k_kant: 'utfor kanten', k_fast: 'satt fast', k_salt: 'tatt av Saltstraumen',
     k_ferje: 'rakk ikke ferga', k_rakett: 'skutt ut i verdensrommet', k_fisk: 'tørrfisk i trynet', k_sjef: 'tatt av Sjefen',
+    k_heis: 'kastet ut av heisen',
   };
 
   /* Løypa som er valgt for trekningen: en godkjent egen løype, ellers originalen (null) */
@@ -100,6 +102,7 @@
       if (Math.abs(B[i * 3] - A[i * 3]) > 260 || Math.abs(B[i * 3 + 1] - A[i * 3 + 1]) > 260) { const Q = f < 0.5 ? A : B; return [Q[i * 3], Q[i * 3 + 1], Q[i * 3 + 2]]; }
       return [A[i * 3] + (B[i * 3] - A[i * 3]) * f, A[i * 3 + 1] + (B[i * 3 + 1] - A[i * 3 + 1]) * f, A[i * 3 + 2] + (B[i * 3 + 2] - A[i * 3 + 2]) * f];
     }
+    left(i) { return P.leftAt(this.res, i, this.t); } // tid igjen til mål etter de usynlige sjekkpunktene (lavest = leder)
     say(icon, title, text, prio = 1) {
       if (prio < (this.sayPrio || 0) && this.time - (this.sayAt || 0) < 1.8) return;
       this.sayPrio = prio; this.sayAt = this.time;
@@ -185,7 +188,7 @@
       const fresh = () => { const k = `${e.type}:${e.i}`, last = this.fb.get(k); if (last != null && this.time - last < 10) return false; this.fb.set(k, this.time); return true; };
       if (e.type === 'launch') {
         if (this.once('launchFx', 0.3)) S().launch();
-        if (fresh()) this.feed(e.arm ? '🦾' : '💛', `${who} slått til værs`);
+        if (fresh()) this.feed(e.lift ? '🛗' : e.arm ? '🦾' : '💛', `${who} ${e.lift ? 'kastet til værs av heisen' : 'slått til værs'}`);
       } else if (e.type === 'rocket') {
         if (this.once('rocketFx', 0.25)) S().launch();
         if (fresh()) this.feed('🚀', `${who} skutt opp fra Andøya`);
@@ -248,10 +251,13 @@
         if (!P.kin.rein(Rn, prev).away && P.kin.rein(Rn, this.t).away && near(Rn.ay) && this.once('reinAwayFeed', 4)) this.feed('🦌', 'Reinen gikk til skogs – veien er fri');
       }
       while (this.ei < this.res.events.length && this.res.events[this.ei].t <= this.t) this.handle(this.res.events[this.ei++], false);
-      // leder
-      let best = -1, by = -1e9;
-      for (let i = 0; i < this.n; i++) { const m = this.mar[i]; if (m.state) continue; const y = this.pos(i, this.t)[1]; if (y > -50000 && y > by) { by = y; best = i; } }
-      this.leaderY = best >= 0 ? by : this.leaderY;
+      // leder: kula med minst tid igjen til mål etter de usynlige sjekkpunktene – ikke den som ligger lavest (løypa kan gå oppover)
+      let best = -1, bl = Infinity;
+      for (let i = 0; i < this.n; i++) { if (this.mar[i].state) continue; const l = this.left(i); if (l < bl) { bl = l; best = i; } }
+      // litt treghet: en ny leder må være et lite stykke foran, så ringen ikke hopper fram og tilbake mellom to kuler side om side
+      const cur = this.leader;
+      if (best >= 0 && cur >= 0 && best !== cur && !this.mar[cur].state && bl > this.left(cur) - 0.12) best = cur;
+      if (best >= 0) { const y = this.pos(best, this.t)[1]; if (y > -50000) this.leaderY = y; } // inne i tunnelen: forrige høyde
       if (best >= 0 && best !== this.leader && this.t > G + 2 && !this.finished.length) {
         this.leader = best;
         if (this.once('leadFeed', 3.5)) this.feed('🏔️', `${this.who(this.pax.get(this.mar[best].no))} tar ledelsen`, 'lead');
@@ -264,16 +270,17 @@
       if (this.res && this.t > 0.2) {
         if (this.t > this.firstFinT - 1.4) { tx = C.fin.x - 50; ty = C.fin.y + 90; tvh = 660; }
         else if (this.t >= P.GATE_T - 0.4) {
+          // de fire som har kommet lengst etter sjekkpunktene (ikke kuler inne i en tunnel)
           const live = [];
-          for (let i = 0; i < this.n; i++) if (!this.mar[i].state) { const q = this.pos(i, this.t); if (q[1] > -50000) live.push(q); } // ikke kuler inne i en tunnel
-          live.sort((a, b) => b[1] - a[1]);
+          for (let i = 0; i < this.n; i++) if (!this.mar[i].state) { const q = this.pos(i, this.t); if (q[1] > -50000) { q.l = this.left(i); live.push(q); } }
+          live.sort((a, b) => a.l - b.l);
           const top = live.slice(0, 4);
           if (top.length) {
             const w = [0.55, 0.2, 0.15, 0.1];
-            let sx = 0, sy = 0, sw = 0;
-            top.forEach((p, k) => { sx += p[0] * w[k]; sy += p[1] * w[k]; sw += w[k]; });
+            let sx = 0, sy = 0, sw = 0, y0 = Infinity, y1 = -Infinity;
+            top.forEach((p, k) => { sx += p[0] * w[k]; sy += p[1] * w[k]; sw += w[k]; y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); });
             tx = sx / sw; ty = sy / sw + 30;
-            const spread = top.length > 1 ? top[0][1] - top[top.length - 1][1] : 0;
+            const spread = y1 - y0;
             tvh = u.clamp(560 + spread * 0.6, 560, 900);
           }
         }
@@ -358,7 +365,8 @@
       if (!this.res) return;
       const live = [], outs = [];
       for (let i = 0; i < this.n; i++) { const m = this.mar[i]; if (m.state === 'out') outs.push(i); else if (!m.state) live.push(i); }
-      live.sort((a, b) => this.pos(b, this.t)[1] - this.pos(a, this.t)[1]);
+      const left = new Map(live.map((i) => [i, this.left(i)]));
+      live.sort((a, b) => left.get(a) - left.get(b));
       outs.sort((a, b) => this.res.tDone[b] - this.res.tDone[a]);
       const order = this.finished.concat(live, outs);
       const frag = document.createDocumentFragment();
@@ -418,6 +426,7 @@
       this.rec = draw; this.mode = mode;
       const { res, ticketOf } = prepared || this.prepare(draw);
       if (token !== this.token) return;
+      P.checkpoints(res); // usynlige sjekkpunkter: hvem leder, også der løypa går oppover
       this.res = res; this.n = res.n; this.C = res.C;
       this.courseName = draw.course ? draw.course.name : null;
       this.W = Math.min(draw.winners.length, this.n);
