@@ -26,6 +26,7 @@
 .dz-pal button:active { transform: scale(.95); }
 .dz-ico { display: grid; place-items: center; width: 30px; height: 30px; font-size: 21px; line-height: 1; color: var(--paper); }
 .dz-ico svg, .dz-piece-ico svg { width: 26px; height: 26px; }
+.dz-pal-h { flex: none; margin: 8px 0 0; padding-top: 8px; border-top: 1px solid var(--line); font-family: var(--ff-mono); font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase; text-align: center; color: var(--dim); }
 
 .dz-stage { position: relative; min-width: 0; min-height: 0; overflow: hidden; background: #02060f; }
 .dz-canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: grab; }
@@ -115,6 +116,11 @@
 .dz-step-x:hover:not(:disabled) { background: rgba(255, 255, 255, .08); color: var(--text); }
 .dz-step-x:disabled { opacity: .3; }
 .dz-step-x.on { background: rgba(246, 189, 71, .22); }
+.dz-step-x.dz-mag { opacity: .45; filter: grayscale(1); }
+.dz-step-x.dz-mag.on { opacity: 1; filter: none; background: rgba(255, 82, 82, .18); }
+.dz-step.is-drop { border-color: rgba(255, 82, 82, .45); background: rgba(255, 82, 82, .06); }
+.dz-drop { font-style: normal; font-weight: 700; color: #ff8a8a; }
+.dz-magnote b { color: var(--text); font-weight: 650; }
 .dz-step-r { display: grid; grid-template-columns: 30px minmax(0, 1fr); align-items: center; gap: 8px; font-family: var(--ff-mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); }
 .dz-step input[type="range"] { width: 100%; accent-color: var(--sun); }
 .dz-step .dz-seg { margin-top: 6px; }
@@ -122,6 +128,9 @@
 .dz-step .warn { display: block; margin-top: 5px; font-size: 12.5px; color: var(--sun); }
 .dz-add { margin-bottom: 14px; }
 .dz-presets button.on { border-color: var(--sun); background: rgba(246, 189, 71, .16); }
+.dz-motion .dz-field .dz-btns + .dz-seg, .dz-motion .dz-field .dz-seg + .dz-seg { margin-top: 6px; }
+.dz-motion .dz-field .dz-add { margin-bottom: 0; }
+.dz-motion .dz-seg button { padding: 7px 8px; font-size: 13px; }
 
 /* farger og pynt */
 .dz-swatches { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -145,6 +154,7 @@
   .dz-pal { flex-direction: row; overflow-x: auto; overflow-y: hidden; padding: 8px; border-right: 0; border-bottom: 1px solid var(--line); scrollbar-width: none; }
   .dz-pal::-webkit-scrollbar { display: none; }
   .dz-pal button { flex: none; width: 74px; }
+  .dz-pal-h { align-self: center; margin: 0 2px; padding: 0 0 0 8px; border-top: 0; border-left: 1px solid var(--line); writing-mode: vertical-rl; }
   .dz-stage { height: 62vh; min-height: 340px; }
   .dz-panel { border-left: 0; border-top: 1px solid var(--line); }
   .dz-acts { width: 100%; }

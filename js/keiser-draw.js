@@ -143,7 +143,13 @@
     ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
     ctx.restore();
   }
-  function ball(ctx, x, y, color, label, ang, alpha = 1, ring) {
+  function ball(ctx, x, y, color, label, ang, alpha = 1, ring, r = R) {
+    if (r !== R) { // stor eller liten kule (Kantina): samme kule, bare tegnet i en annen størrelse
+      ctx.save(); ctx.translate(x, y); ctx.scale(r / R, r / R);
+      ball(ctx, 0, 0, color, label, ang, alpha, ring);
+      ctx.restore();
+      return;
+    }
     ctx.globalAlpha = alpha;
     const gr = ctx.createRadialGradient(x - R * 0.35, y - R * 0.4, R * 0.15, x, y, R);
     gr.addColorStop(0, '#ffffff'); gr.addColorStop(0.3, color); gr.addColorStop(1, color.startsWith('#') ? darker(color, 0.55) : color);
@@ -430,33 +436,169 @@
   function rails(ctx, C) {
     for (const M of C.movers || []) {
       if (M.L < 2) continue;
-      const x0 = M.cx, y0 = M.cy, x1 = M.cx + M.rx, y1 = M.cy + M.ry;
-      ctx.lineCap = 'round';
-      ctx.strokeStyle = 'rgba(0,0,0,.4)'; ctx.lineWidth = 12; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
-      ctx.strokeStyle = 'rgba(150,162,178,.6)'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
-      for (const [x, y] of [[x0, y0], [x1, y1]]) { ctx.fillStyle = '#4a525e'; ctx.beginPath(); ctx.arc(x, y, 7, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#c4ccd6'; ctx.beginPath(); ctx.arc(x, y, 2.5, 0, Math.PI * 2); ctx.fill(); }
+      const bx = M.cx - (M.bx || 0), by = M.cy - (M.by || 0); // banen går gjennom delene der de står (også med startpunkt i runden)
+      const xs = M.path ? M.path.xs : [0, M.rx], ys = M.path ? M.path.ys : [0, M.ry], n = xs.length;
+      const trace = () => { ctx.beginPath(); ctx.moveTo(bx + xs[0], by + ys[0]); for (let k = 1; k < n; k++) ctx.lineTo(bx + xs[k], by + ys[k]); ctx.stroke(); };
+      ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      ctx.strokeStyle = 'rgba(0,0,0,.4)'; ctx.lineWidth = 12; trace();
+      ctx.strokeStyle = 'rgba(150,162,178,.6)'; ctx.lineWidth = 4; trace();
+      const loop = n > 2 && Math.hypot(xs[n - 1] - xs[0], ys[n - 1] - ys[0]) < 1; // rundbane har ingen ender
+      for (const [x, y] of loop ? [] : [[bx + xs[0], by + ys[0]], [bx + xs[n - 1], by + ys[n - 1]]]) { ctx.fillStyle = '#4a525e'; ctx.beginPath(); ctx.arc(x, y, 7, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#c4ccd6'; ctx.beginPath(); ctx.arc(x, y, 2.5, 0, Math.PI * 2); ctx.fill(); }
     }
   }
-  /* Det som kjører på skinnen, flyttet (ox, oy) fra der det står: vogna, ramper, vegger, bumpere og skilt */
-  function mover(ctx, M, ox, oy, o = {}, L = {}) {
-    const cx = M.cx + ox, cy = M.cy + oy;
+  /* Trampoline: blå duk mellom to stolper */
+  function trampSeg(ctx, ax, ay, bx, by) {
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.lineWidth = 12; ctx.beginPath(); ctx.moveTo(ax + 3, ay + 5); ctx.lineTo(bx + 3, by + 5); ctx.stroke();
+    ctx.strokeStyle = '#2f62d0'; ctx.lineWidth = 12; ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
+    ctx.strokeStyle = '#a9c8ff'; ctx.lineWidth = 3; ctx.setLineDash([3, 9]); ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke(); ctx.setLineDash([]);
+    for (const [x, y] of [[ax, ay], [bx, by]]) { ctx.fillStyle = '#e8eef6'; ctx.beginPath(); ctx.arc(x, y, 8, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#2f62d0'; ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fill(); }
+  }
+  /* Kaffe-boost: mørk stripe med piler som løper fra A mot B, og en kaffekopp der den starter */
+  function boostSeg(ctx, ax, ay, bx, by, time = 0, cup = false) {
+    const L = Math.hypot(bx - ax, by - ay) || 1, ux = (bx - ax) / L, uy = (by - ay) / L, nx = -uy, ny = ux;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.lineWidth = 12; ctx.beginPath(); ctx.moveTo(ax + 3, ay + 5); ctx.lineTo(bx + 3, by + 5); ctx.stroke();
+    ctx.strokeStyle = '#3b2314'; ctx.lineWidth = 12; ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
+    ctx.strokeStyle = '#ff9a3d'; ctx.lineWidth = 2.5; ctx.beginPath();
+    const off = ((time * 260) % 26 + 26) % 26;
+    for (let d = off + 8; d < L - 6; d += 26) {
+      const cx = ax + ux * d, cy = ay + uy * d;
+      ctx.moveTo(cx - ux * 5 + nx * 4, cy - uy * 5 + ny * 4); ctx.lineTo(cx + ux * 3, cy + uy * 3); ctx.lineTo(cx - ux * 5 - nx * 4, cy - uy * 5 - ny * 4);
+    }
+    ctx.stroke();
+    if (cup) { ctx.font = `26px ${EMOJI}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#f3ecdf'; ctx.fillText('☕', ax - ux * 4 + nx * -22, ay - uy * 4 + ny * -22); }
+  }
+  /* Kantina: vaffel, salat eller vann */
+  const KANTINE = { 1: ['🧇', 'rgba(246,189,71,.16)', 'rgba(246,189,71,.55)', 'VAFFEL'], '-1': ['🥗', 'rgba(94,200,120,.15)', 'rgba(94,200,120,.55)', 'SALAT'], 0: ['💧', 'rgba(110,170,240,.14)', 'rgba(110,170,240,.5)', 'VANN'] };
+  function kantiner(ctx, C) {
+    for (const Z of C.kantiner || []) {
+      const [ico, fill, edge, name] = KANTINE[Z.mode] || KANTINE[1], w = Z.x1 - Z.x0, h = Z.y1 - Z.y0;
+      ctx.fillStyle = fill; ctx.fillRect(Z.x0, Z.y0, w, h);
+      ctx.strokeStyle = edge; ctx.lineWidth = 2; ctx.setLineDash([6, 6]); ctx.strokeRect(Z.x0, Z.y0, w, h); ctx.setLineDash([]);
+      ctx.font = `${Math.round(Math.min(46, Math.max(22, Math.min(w, h) * 0.5)))}px ${EMOJI}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.globalAlpha = 0.8; ctx.fillStyle = '#f3ecdf';
+      ctx.fillText(ico, Z.x0 + w / 2, Z.y0 + h / 2); ctx.globalAlpha = 1;
+      label(ctx, 'KANTINA · ' + name, Z.x0 + 8, Z.y0 + 13, 'rgba(243,236,223,.75)', 'left');
+    }
+  }
+  /* Mellomtid: rutete målestrek med navnet på */
+  function splits(ctx, C) {
+    for (const Sp of C.splits || []) {
+      ctx.lineCap = 'butt';
+      ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 5; ctx.setLineDash([8, 8]); ctx.beginPath(); ctx.moveTo(Sp.ax, Sp.ay); ctx.lineTo(Sp.bx, Sp.by); ctx.stroke();
+      ctx.strokeStyle = 'rgba(15,20,30,.6)'; ctx.lineDashOffset = 8; ctx.beginPath(); ctx.moveTo(Sp.ax, Sp.ay); ctx.lineTo(Sp.bx, Sp.by); ctx.stroke();
+      ctx.setLineDash([]); ctx.lineDashOffset = 0; ctx.lineCap = 'round';
+      const top = Sp.ay <= Sp.by ? [Sp.ax, Sp.ay] : [Sp.bx, Sp.by];
+      ctx.font = '800 12px "JetBrains Mono", monospace';
+      const w = ctx.measureText('⏱ ' + Sp.name).width + 14;
+      ctx.fillStyle = 'rgba(8,14,26,.8)'; ctx.beginPath(); rr(ctx, top[0] - w / 2, top[1] - 34, w, 22, 6); ctx.fill();
+      label(ctx, '⏱ ' + Sp.name, top[0], top[1] - 22, '#ffe08a');
+    }
+  }
+  /* Kontorvifta: striper som blåser dit den peker, og vifta som står og går der vinden kommer fra */
+  function fans(ctx, C, time) {
+    for (const Z of C.fans || []) {
+      const w = Z.x1 - Z.x0, h = Z.y1 - Z.y0, cx = Z.x0 + w / 2, cy = Z.y0 + h / 2, ux = Math.cos(Z.ang), uy = -Math.sin(Z.ang);
+      ctx.save();
+      ctx.beginPath(); ctx.rect(Z.x0, Z.y0, w, h); ctx.clip();
+      ctx.fillStyle = 'rgba(190,225,255,.07)'; ctx.fillRect(Z.x0, Z.y0, w, h);
+      // stripene driver med vinden
+      const span = Math.abs(ux) * w + Math.abs(uy) * h, side = Math.abs(uy) * w + Math.abs(ux) * h, sp = 120 + Z.pow * 0.22, n = Math.max(4, Math.round(side / 34));
+      ctx.strokeStyle = 'rgba(220,238,255,.4)'; ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.beginPath();
+      for (let k = 0; k < n; k++) {
+        const across = ((k + 0.5) / n - 0.5) * side, along = (((time * sp + k * 97) % span) + span) % span - span / 2, len = 26 + (k % 3) * 12;
+        const x = cx + ux * along - uy * across, y = cy + uy * along + ux * across;
+        ctx.moveTo(x, y); ctx.lineTo(x - ux * len, y - uy * len);
+      }
+      ctx.stroke();
+      ctx.restore();
+      ctx.strokeStyle = 'rgba(190,225,255,.35)'; ctx.lineWidth = 2; ctx.setLineDash([6, 6]); ctx.strokeRect(Z.x0, Z.y0, w, h); ctx.setLineDash([]);
+      // selve vifta: på kanten der vinden kommer fra
+      const fx = cx - ux * (Math.abs(ux) * w + Math.abs(uy) * h) / 2, fy = cy - uy * (Math.abs(ux) * w + Math.abs(uy) * h) / 2;
+      ctx.save(); ctx.translate(fx, fy);
+      ctx.fillStyle = '#39424f'; ctx.beginPath(); ctx.arc(0, 0, 24, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#aeb9c7'; ctx.lineWidth = 3; ctx.stroke();
+      ctx.rotate(time * (6 + Z.pow / 300));
+      ctx.fillStyle = '#dfe8f2';
+      for (let k = 0; k < 3; k++) { ctx.rotate((Math.PI * 2) / 3); ctx.beginPath(); ctx.ellipse(11, 0, 11, 5, 0.5, 0, Math.PI * 2); ctx.fill(); }
+      ctx.fillStyle = '#39424f'; ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+      label(ctx, 'KONTORVIFTA', Z.x0 + 8, Z.y0 + 13, 'rgba(210,232,255,.75)', 'left');
+    }
+  }
+  /* Svingdøra: glassdører rundt en messingstolpe – kulene dytter den rundt */
+  function doors(ctx, C, t) {
+    for (const Dr of C.doors || []) {
+      const a0 = P.kin.doorAngle(Dr, t);
+      ctx.lineCap = 'round';
+      for (let k = 0; k < Dr.arms; k++) {
+        const an = a0 + (k * Math.PI * 2) / Dr.arms, ex = Dr.cx + Math.cos(an) * Dr.len, ey = Dr.cy + Math.sin(an) * Dr.len;
+        ctx.strokeStyle = '#17323d'; ctx.lineWidth = Dr.t * 2 + 4; ctx.beginPath(); ctx.moveTo(Dr.cx, Dr.cy); ctx.lineTo(ex, ey); ctx.stroke();
+        ctx.strokeStyle = '#8fd6e6'; ctx.lineWidth = Dr.t * 2; ctx.stroke();
+        ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(Dr.cx + Math.cos(an) * 16, Dr.cy + Math.sin(an) * 16); ctx.lineTo(Dr.cx + Math.cos(an) * (Dr.len - 8), Dr.cy + Math.sin(an) * (Dr.len - 8)); ctx.stroke();
+      }
+      ctx.fillStyle = '#c9a24a'; ctx.beginPath(); ctx.arc(Dr.cx, Dr.cy, 11, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#17323d'; ctx.lineWidth = 3; ctx.stroke();
+      ctx.fillStyle = '#17323d'; ctx.beginPath(); ctx.arc(Dr.cx, Dr.cy, 3.5, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  /* Det som kjører på skinnen, der det er nå: flyttet (s.ox, s.oy) fra der det står og vridd s.a rundt dreiepunktet.
+     Vogna, ramper, vegger, trampoliner, bånd og pynt vris med; bumpere, spikre og skilt flyttes med, men står rett */
+  const HOME = { ox: 0, oy: 0, a: 0 };
+  function mover(ctx, M, s = HOME, o = {}, L = {}) {
+    const ox = s.ox || 0, oy = s.oy || 0, a = s.a || 0;
+    const px = M.pvx != null ? M.pvx : M.cx, py = M.pvy != null ? M.pvy : M.cy, c = Math.cos(a), sn = Math.sin(a);
+    const at = (x, y) => [px + ox + (x - px) * c - (y - py) * sn, py + oy + (x - px) * sn + (y - py) * c];
+    ctx.save();
+    ctx.translate(px + ox, py + oy); if (a) ctx.rotate(a); ctx.translate(-px, -py);
     if (M.L >= 2) { // vogna som går på skinnen
-      ctx.save(); ctx.translate(cx, cy); ctx.rotate(Math.atan2(M.ry, M.rx));
+      ctx.save(); ctx.translate(M.cx, M.cy); ctx.rotate(Math.atan2(M.ry, M.rx));
       ctx.fillStyle = '#23272e'; ctx.beginPath(); rr(ctx, -16, -8, 32, 16, 5); ctx.fill();
       ctx.fillStyle = '#f6bd47'; for (let k = -12; k <= 8; k += 8) ctx.fillRect(k, -6, 4, 12);
       ctx.restore();
     }
     ctx.lineCap = 'round';
-    for (const g of M.segs) { ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.lineWidth = g.t * 2; ctx.beginPath(); ctx.moveTo(g.ax + ox + 3, g.ay + oy + 5); ctx.lineTo(g.bx + ox + 3, g.by + oy + 5); ctx.stroke(); }
+    for (const g of M.segs) { if (g.fx) continue; ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.lineWidth = g.t * 2; ctx.beginPath(); ctx.moveTo(g.ax + 3, g.ay + 5); ctx.lineTo(g.bx + 3, g.by + 5); ctx.stroke(); }
+    // magneten: rød stripe som gløder når den holder (sterkere glød jo sterkere den er), og blir matt når den slipper
+    const mg = M.mag, magOn = mg && !(mg.rel === 1 && s.k != null && M.keys[s.k] && M.keys[s.k].drop);
     for (const g of M.segs) {
-      const ax = g.ax + ox, ay = g.ay + oy, bx = g.bx + ox, by = g.by + oy;
-      ctx.strokeStyle = segCol(g, L); ctx.lineWidth = g.t * 2; ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
-      // gul og svart kant: denne kjører
-      ctx.strokeStyle = '#f6bd47'; ctx.lineWidth = 3; ctx.setLineDash([9, 9]); ctx.beginPath(); ctx.moveTo(ax, ay + g.t - 2); ctx.lineTo(bx, by + g.t - 2); ctx.stroke(); ctx.setLineDash([]);
+      if (mg && magOn && !g.fx) {
+        ctx.strokeStyle = `rgba(255,82,82,${(0.14 + 0.2 * Math.min(1, (mg.pull / 1000 + mg.mu) / 2.5)).toFixed(3)})`;
+        ctx.lineWidth = g.t * 2 + 10; ctx.beginPath(); ctx.moveTo(g.ax, g.ay); ctx.lineTo(g.bx, g.by); ctx.stroke();
+      }
     }
-    for (const b of M.bumps) { const p = { x: b.x + ox, y: b.y + oy, r: b.r, col: b.col }; bumper(ctx, p, o.flash && o.flash(p)); }
-    for (const s of M.signs) sign(ctx, s.x + ox, s.y + oy, s.text, s.col);
-    for (const d of M.decos || []) deco(ctx, d, ox, oy);
+    for (const g of M.segs) {
+      if (g.fx === 1) trampSeg(ctx, g.ax, g.ay, g.bx, g.by);
+      else if (g.fx === 2) boostSeg(ctx, g.ax, g.ay, g.bx, g.by, o.time || 0, true);
+      else if (g.fx === 3) { // bagasjebånd på skinne
+        ctx.strokeStyle = '#8b97a6'; ctx.lineWidth = 18; ctx.beginPath(); ctx.moveTo(g.ax, g.ay); ctx.lineTo(g.bx, g.by); ctx.stroke();
+        ctx.strokeStyle = '#23272e'; ctx.lineWidth = 12; ctx.stroke();
+        const dir = g.belt >= 0 ? 1 : -1, len = Math.hypot(g.bx - g.ax, g.by - g.ay), off = ((((o.time || 0) * g.belt * 0.6) % 30) + 30) % 30;
+        ctx.strokeStyle = 'rgba(246,189,71,.8)'; ctx.lineWidth = 2.5; ctx.beginPath();
+        for (let d = off + 12; d < len - 12; d += 30) {
+          const x = g.ax + g.ux * d, y = g.ay + g.uy * d, bx = x - g.ux * 5 * dir, by = y - g.uy * 5 * dir;
+          ctx.moveTo(bx - g.uy * 4, by + g.ux * 4); ctx.lineTo(x + g.ux * 3 * dir, y + g.uy * 3 * dir); ctx.lineTo(bx + g.uy * 4, by - g.ux * 4);
+        }
+        ctx.stroke();
+      } else {
+        ctx.strokeStyle = segCol(g, L); ctx.lineWidth = g.t * 2; ctx.beginPath(); ctx.moveTo(g.ax, g.ay); ctx.lineTo(g.bx, g.by); ctx.stroke();
+        if (mg) { ctx.strokeStyle = magOn ? '#ff5252' : 'rgba(150,70,70,.55)'; ctx.lineWidth = 3; ctx.setLineDash([12, 5]); ctx.stroke(); ctx.setLineDash([]); }
+      }
+      // gul og svart kant: denne kjører
+      ctx.strokeStyle = '#f6bd47'; ctx.lineWidth = 3; ctx.setLineDash([9, 9]); ctx.beginPath(); ctx.moveTo(g.ax, g.ay + g.t - 2); ctx.lineTo(g.bx, g.by + g.t - 2); ctx.stroke(); ctx.setLineDash([]);
+    }
+    for (const d of M.decos || []) deco(ctx, d);
+    if (M.rot) { // bolten delene vrir seg rundt
+      ctx.fillStyle = '#23272e'; ctx.beginPath(); ctx.arc(px, py, 8, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#f6bd47'; ctx.beginPath(); ctx.arc(px, py, 3.5, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+    for (const b of M.bumps) {
+      const [x, y] = at(b.x, b.y);
+      if (b.peg) { ctx.fillStyle = b.col || '#dbe3ec'; ctx.beginPath(); ctx.arc(x, y, b.r, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#b9802a'; ctx.lineWidth = 1.5; ctx.stroke(); continue; }
+      const p = { x, y, r: b.r, col: b.col };
+      bumper(ctx, p, o.flash && o.flash(p));
+    }
+    for (const g of M.signs) { const [x, y] = at(g.x, g.y); sign(ctx, x, y, g.text, g.col); }
   }
 
   /* Hopp på skinnen: delen blekner bort der den var, og et gult glimt der den dukker opp */
@@ -465,12 +607,13 @@
     if (!j) return;
     const a = 1 - j.age / 0.35;
     ctx.save();
+    const from = P.kin.railPos(M, j.s0);
     ctx.globalAlpha *= a * 0.45;
-    mover(ctx, M, M.rx * j.s0, M.ry * j.s0, {}, L);
+    mover(ctx, M, { ox: from.x, oy: from.y, a: j.a0 }, {}, L);
     ctx.restore();
     ctx.save();
     for (const [s, grow] of [[j.s0, 1], [j.s1, -1]]) {
-      const x = M.cx + M.rx * s, y = M.cy + M.ry * s, r = grow > 0 ? 16 + (1 - a) * 46 : 16 + a * 46;
+      const q = P.kin.railPos(M, s), x = M.cx + q.x, y = M.cy + q.y, r = grow > 0 ? 16 + (1 - a) * 46 : 16 + a * 46;
       ctx.strokeStyle = `rgba(246,189,71,${(a * 0.9).toFixed(2)})`; ctx.lineWidth = 3;
       ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.stroke();
       ctx.fillStyle = `rgba(255,236,170,${(a * 0.8).toFixed(2)})`;
@@ -486,7 +629,7 @@
     for (const p of C.pits) { const top = Math.min(p.yl, p.yr); ctx.fillRect(p.x0, top, p.x1 - p.x0, p.y1 - top); }
     racksBack(ctx, C);
     rails(ctx, C);
-    const own = (sg) => sg.kind === 'belt' || sg.kind === 'sea' || sg.kind === 'pad'; // tegnes for seg
+    const own = (sg) => sg.kind === 'belt' || sg.kind === 'sea' || sg.kind === 'pad' || sg.kind === 'tramp' || sg.kind === 'boost'; // tegnes for seg
     for (const sg of C.S) { if (own(sg)) continue; ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.lineWidth = sg.t * 2; ctx.beginPath(); ctx.moveTo(sg.ax + 3, sg.ay + 5); ctx.lineTo(sg.bx + 3, sg.by + 5); ctx.stroke(); }
     const L = lookOf(C);
     for (const sg of C.S) {
@@ -502,6 +645,9 @@
       ctx.fillText(p.name.toUpperCase(), (p.x0 + p.x1) / 2, p.y1 - 18, Math.max(40, p.x1 - p.x0 - 8));
     }
     beltsBase(ctx, C);
+    for (const sg of C.S) { if (sg.kind === 'tramp') trampSeg(ctx, sg.ax, sg.ay, sg.bx, sg.by); else if (sg.kind === 'boost') boostSeg(ctx, sg.ax, sg.ay, sg.bx, sg.by, 0, true); }
+    kantiner(ctx, C);
+    splits(ctx, C);
     slush(ctx, C);
     rocketPads(ctx, C);
     portals(ctx, C);
@@ -573,8 +719,13 @@
     for (const M of C.movers || []) {
       const s = o.home ? null : P.kin.railDraw(M, t); // som kulene: fra opptaksbildene, så de står på plattformen
       if (s) teleport(ctx, M, t, lookOf(C));
-      mover(ctx, M, s ? s.ox : 0, s ? s.oy : 0, o, lookOf(C));
+      o.time = time;
+      mover(ctx, M, s || HOME, o, lookOf(C));
     }
+    // kaffen renner (pilene løper), vifta går og svingdøra snurrer
+    for (const sg of C.S) if (sg.kind === 'boost') boostSeg(ctx, sg.ax, sg.ay, sg.bx, sg.by, time, false);
+    fans(ctx, C, time);
+    doors(ctx, C, t);
     for (const Z of C.winds) {
       const wa = P.kin.windAccel(Z, t);
       const n = Math.round(4 + wa / 30), left = Z.dir < 0;
@@ -599,6 +750,73 @@
     }
   }
 
+  /* Navnelapp over en kule (px = én skjermpiksel i verdensenheter, så lappen er like stor uansett zoom) */
+  function tag(ctx, x, y, text, color, px, rank) {
+    const fs = 12.5 * px, pad = 6 * px, h = 19 * px;
+    ctx.font = `700 ${fs}px "Schibsted Grotesk", sans-serif`; ctx.textBaseline = 'middle';
+    const badge = rank ? 17 * px : 0, w = ctx.measureText(text).width + pad * 2 + badge, x0 = x - w / 2, y0 = y - h - 9 * px;
+    ctx.fillStyle = 'rgba(6,12,22,.82)'; ctx.beginPath(); rr(ctx, x0, y0, w, h, 5 * px); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(x - 4 * px, y0 + h - 0.5 * px); ctx.lineTo(x, y0 + h + 5 * px); ctx.lineTo(x + 4 * px, y0 + h - 0.5 * px); ctx.fill();
+    ctx.fillStyle = color; ctx.fillRect(x0, y0 + h - 2.5 * px, w, 2.5 * px);
+    if (rank) {
+      ctx.fillStyle = ['#ffd34d', '#dfe6ee', '#e0a070'][rank - 1] || '#5ef2b5'; ctx.textAlign = 'center';
+      ctx.font = `800 ${11.5 * px}px "JetBrains Mono", monospace`; ctx.fillText(String(rank), x0 + pad + 5 * px, y0 + h / 2 - px);
+      ctx.font = `700 ${fs}px "Schibsted Grotesk", sans-serif`;
+    }
+    ctx.fillStyle = '#fff'; ctx.textAlign = 'left'; ctx.fillText(text, x0 + pad + badge, y0 + h / 2 - px);
+  }
+
+  /* Minikart: hele løypa i et smalt felt, med kulene som prikker og en ramme rundt det kameraet ser.
+     Tegnes i skjermkoordinater. dots: [{ x, y, color, big }] */
+  function minimap(ctx, C, cw, ch, v, dots, o = {}) {
+    const H = C.H - C.top, sc = Math.min(96 / C.W, Math.min(ch * 0.62, 440) / H), w = C.W * sc, h = H * sc;
+    if (cw < 520 || h < 60) return null;
+    const x0 = o.left ? 12 : cw - w - 12, y0 = Math.max(o.top || 64, (ch - h) / 2);
+    const key = `${Math.round(w)}x${Math.round(h)}`;
+    if (!C.mini || C.mini.key !== key) { // løypa tegnes én gang og gjenbrukes
+      const cv = document.createElement('canvas'), k = 2;
+      cv.width = Math.ceil(w * k); cv.height = Math.ceil(h * k);
+      const m = cv.getContext('2d');
+      m.setTransform(sc * k, 0, 0, sc * k, 0, -C.top * sc * k);
+      m.lineCap = 'round';
+      for (const p of C.pits) { m.fillStyle = 'rgba(0,0,0,.6)'; const top = Math.min(p.yl, p.yr); m.fillRect(p.x0, top, p.x1 - p.x0, p.y1 - top); }
+      for (const sg of C.S) {
+        m.strokeStyle = sg.kind === 'tramp' ? '#6f9cff' : sg.kind === 'boost' ? '#ff9a3d' : sg.kind === 'belt' ? '#f6bd47' : sg.kind === 'sea' ? 'rgba(90,150,200,.6)' : 'rgba(233,223,201,.75)';
+        m.lineWidth = 16; m.beginPath(); m.moveTo(sg.ax, sg.ay); m.lineTo(sg.bx, sg.by); m.stroke();
+      }
+      for (const M of C.movers) { // skinnene: hvor plattformene kjører
+        if (M.L < 2) continue;
+        const bx = M.cx - (M.bx || 0), by = M.cy - (M.by || 0), xs = M.path ? M.path.xs : [0, M.rx], ys = M.path ? M.path.ys : [0, M.ry];
+        m.strokeStyle = 'rgba(246,189,71,.5)'; m.lineWidth = 10; m.beginPath(); m.moveTo(bx + xs[0], by + ys[0]);
+        for (let q = 1; q < xs.length; q++) m.lineTo(bx + xs[q], by + ys[q]);
+        m.stroke();
+      }
+      m.fillStyle = '#ffd400'; for (const W of C.wheels) { m.beginPath(); m.arc(W.cx, W.cy, Math.min(W.len, 70), 0, Math.PI * 2); m.fill(); }
+      m.fillStyle = '#ee4a2f'; for (const b of C.bumpers) { m.beginPath(); m.arc(b.x, b.y, 30, 0, Math.PI * 2); m.fill(); }
+      m.fillStyle = 'rgba(60,160,200,.7)'; for (const V of C.vortexes) { m.beginPath(); m.arc(V.x, V.y, V.r * 0.7, 0, Math.PI * 2); m.fill(); }
+      const f = C.finish;
+      for (let q = 0; q < 6; q++) { m.fillStyle = q % 2 ? '#111' : '#fff'; m.fillRect(f.x0 - 10, f.y0 + q * 38, 60, 38); }
+      C.mini = { key, cv };
+    }
+    ctx.save();
+    if (o.alpha != null) ctx.globalAlpha = o.alpha;
+    ctx.fillStyle = 'rgba(4,10,20,.62)'; ctx.beginPath(); rr(ctx, x0 - 6, y0 - 6, w + 12, h + 12, 10); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,.14)'; ctx.lineWidth = 1; ctx.stroke();
+    ctx.beginPath(); ctx.rect(x0, y0, w, h); ctx.clip();
+    ctx.drawImage(C.mini.cv, x0, y0, w, h);
+    const X = (x) => x0 + x * sc, Y = (y) => y0 + (y - C.top) * sc;
+    // det kameraet ser
+    ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = 1.5; ctx.strokeRect(X(Math.max(0, v.x)), Y(v.y), Math.min(C.W, v.x + v.w) * sc - Math.max(0, v.x) * sc, v.h * sc);
+    for (const d of dots) { if (d.big) continue; ctx.fillStyle = d.color; ctx.beginPath(); ctx.arc(X(d.x), Y(d.y), 2.3, 0, Math.PI * 2); ctx.fill(); }
+    for (const d of dots) { // lederen og kula du følger: større, med ring
+      if (!d.big) continue;
+      ctx.fillStyle = d.color; ctx.beginPath(); ctx.arc(X(d.x), Y(d.y), 3.6, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = d.ring || '#5ef2b5'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(X(d.x), Y(d.y), 5.6, 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.restore();
+    return { x: x0 - 6, y: y0 - 6, w: w + 12, h: h + 12, sc, top: C.top, x0, y0 };
+  }
+
   function signW(ctx, text) { ctx.font = '800 15px "JetBrains Mono", monospace'; return ctx.measureText(text).width + 26; }
   function signs(ctx, C) {
     for (const sg of C.signs) sign(ctx, sg.x, sg.y, sg.text, sg.col);
@@ -618,5 +836,5 @@
     weather(ctx, C, v, time);
   }
 
-  FL.KDraw = { EMOJI, SKY, stars, sky, mountain, city, track, moving, signs, signW, trail, ball, scene, mover, teleport };
+  FL.KDraw = { EMOJI, SKY, stars, sky, mountain, city, track, moving, signs, signW, trail, ball, scene, mover, teleport, tag, minimap, HOME };
 })();

@@ -91,6 +91,120 @@
         { to: 0, t: 1, e: 'jump' },
       ],
     },
+    // venter til en kule går om bord, kjører den over og kommer tilbake
+    vent: {
+      label: '🧍 Venter på kule',
+      rail: { grip: 1 },
+      prog: [
+        { t: 10, hold: 1 },
+        { t: 0.5 },
+        { to: 100, t: 2.5, e: 'smooth' },
+        { t: 1.2 },
+        { to: 0, t: 2.5, e: 'smooth' },
+      ],
+    },
+    // venter på kuler, kjører dem bort og tipper dem av
+    tipp: {
+      label: '🛒 Tippvogn',
+      rail: { grip: 1 },
+      prog: [
+        { t: 8, hold: 1 },
+        { t: 0.6 },
+        { to: 100, t: 2.2, e: 'smooth' },
+        { a: 55, t: 0.6, e: 'smooth' },
+        { t: 1 },
+        { a: 0, t: 0.5, e: 'smooth' },
+        { to: 0, t: 1.8, e: 'smooth' },
+      ],
+    },
+    // slår til når ingen venter det
+    flipper: {
+      label: '🏓 Flipper',
+      prog: [
+        { t: 0.8, t2: 2.2 },
+        { a: -60, t: 0.1, e: 'linear' },
+        { t: 0.25 },
+        { a: 0, t: 0.45, e: 'smooth' },
+      ],
+    },
+    pendel: {
+      label: '🔔 Pendel',
+      prog: [
+        { a: 50, t: 1.1, e: 'smooth' },
+        { a: -50, t: 1.1, e: 'smooth' },
+      ],
+    },
+    bru: {
+      label: '🌉 Vindebru',
+      prog: [
+        { t: 3 },
+        { a: -65, t: 1.2, e: 'smooth' },
+        { t: 2 },
+        { a: 0, t: 1.2, e: 'smooth' },
+      ],
+    },
+    snurr: {
+      label: '🌀 Snurrer rundt',
+      prog: [{ a: 360, t: 3, e: 'linear' }],
+    },
+    // rundbane: kjører runde etter runde
+    rundt: {
+      label: '🎡 Rundtur',
+      rail: { loop: 1 },
+      prog: [{ to: 100, t: 8, e: 'linear' }],
+    },
+    // sterk magnet: venter på kuler, snur seg opp ned med dem og slipper dem i et eget steg
+    snu: {
+      label: '🔄 Snu og slipp',
+      rail: { grip: 1, gs: 260, gr: 1 },
+      prog: [
+        { t: 8, hold: 1 },
+        { t: 0.5 },
+        { a: 180, t: 1.4, e: 'smooth' },
+        { t: 0.8 },
+        { t: 0.8, drop: 1 },
+        { a: 360, t: 1.2, e: 'smooth' },
+      ],
+    },
+    // snurrer og holder hver kule et øyeblikk – så slynges den av
+    slynge: {
+      label: '💫 Slynge',
+      rail: { grip: 1, gs: 200, gr: 2, gt: 0.8 },
+      prog: [{ a: 360, t: 1.6, e: 'linear' }],
+    },
+  };
+  // en sirkel med radius r som bane: starter nederst og går med klokka (åtte punkt og myke svinger)
+  const ringRail = (r, extra) => {
+    const at = (k) => {
+      const a = ((90 + k * 45) * Math.PI) / 180;
+      return [Math.round(r * Math.cos(a)), Math.round(r * (Math.sin(a) - 1))];
+    };
+    const p1 = at(1);
+    return { dx: p1[0], dy: p1[1], pts: [2, 3, 4, 5, 6, 7].map(at), loop: 1, curve: 1, ...extra };
+  };
+  /* Pariserhjulet: jevn fart rundt, en liten stopp til venstre (klokka 9) så kulene rekker å gå om bord,
+     og etter toppen tipper gondolen helt rundt og tømmer seg mot høyre */
+  const WHEEL_PROG = [
+    { to: 25, t: 2.5, e: 'linear' },
+    { t: 1.5 },
+    { to: 58, t: 3.3, e: 'linear' },
+    { to: 66, a: 120, t: 0.8, e: 'linear' },
+    { to: 74, t: 0.8, e: 'linear' },
+    { to: 82, a: 0, t: 0.8, e: 'linear' },
+    { to: 100, t: 1.8, e: 'linear' },
+  ];
+  // én gondol på hjulet som har bunnen i (x, y): står der programmet er kommet ph prosent ut i runden
+  const gondola = (x, y, ph, grp) => {
+    const rail = ringRail(220, { grip: 1, sync: 1, off: 0, ...(ph ? { ph } : {}), prog: clone(WHEEL_PROG) }),
+      q = P.railShift(rail, ph),
+      gx = Math.round(x + q.x),
+      gy = Math.round(y + q.y),
+      g = grp ? { grp } : {};
+    return [
+      { type: 'ramp', ax: gx - 56, ay: gy, bx: gx + 56, by: gy, ...g, rail: clone(rail) },
+      { type: 'wall', ax: gx - 60, ay: gy - 40, bx: gx - 60, by: gy + 2, ...g, rail: clone(rail) },
+      { type: 'wall', ax: gx + 60, ay: gy - 40, bx: gx + 60, by: gy + 2, ...g, rail: clone(rail) },
+    ];
   };
   const EASE_NAME = [
     ['smooth', 'Myk'],
@@ -104,6 +218,8 @@
     ramp: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8 L21 16" stroke="currentColor" stroke-width="3" stroke-linecap="round" fill="none"/><circle cx="7" cy="5.6" r="2.4" fill="#5ef2b5"/></svg>',
     wall: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 V21" stroke="currentColor" stroke-width="3.6" stroke-linecap="round"/></svg>',
     pegs: '<svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><circle cx="5" cy="6" r="2"/><circle cx="12" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="8.5" cy="12" r="2"/><circle cx="15.5" cy="12" r="2"/><circle cx="5" cy="18" r="2"/><circle cx="12" cy="18" r="2"/><circle cx="19" cy="18" r="2"/></svg>',
+    door: '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke-linecap="round"><path d="M12 3 V21 M3 12 H21" stroke="#8fd6e6" stroke-width="3"/><circle cx="12" cy="12" r="2.6" fill="#c9a24a"/></svg>',
+    tramp: '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke-linecap="round"><path d="M3 16 H21" stroke="#4f86ff" stroke-width="3.4"/><path d="M5 16 V21 M19 16 V21" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="8" r="2.6" fill="#5ef2b5"/></svg>',
   };
   const KINDS = {
     start: {
@@ -293,7 +409,131 @@
       help: 'Sjefen liker ikke fredagslotteriet. Han står og skyter grønne stråler med strålepistolen på kulene han ser foran seg. Vegger og ramper stopper strålene. Velg om strålen dytter kulene eller fordamper dem.',
       make: (x, y) => ({ x, y, dir: 1, range: 600, cd: 1.4, zap: 0, force: 900 }),
     },
+    tramp: {
+      name: 'Trampoline',
+      pal: 'Trampoline',
+      ico: SVG.tramp,
+      help: 'Spretter kulene rett ut fra duken. Legg den på skrå, så sender den dem bortover. Kan kjøre på skinne.',
+      make: (x, y) => ({ ax: x - 110, ay: y, bx: x + 110, by: y, pow: 800 }),
+    },
+    boost: {
+      name: 'Kaffe-boost',
+      pal: 'Kaffe',
+      ico: '☕',
+      help: 'Fredagskaffen. Kula som triller over, får et koffeinkick og skyter fart fra A mot B – også oppover. Kan kjøre på skinne.',
+      make: (x, y) => ({ ax: x - 120, ay: y + 10, bx: x + 120, by: y - 10, pow: 1000 }),
+    },
+    fan: {
+      name: 'Kontorvifta',
+      pal: 'Vifte',
+      ico: '💨',
+      help: 'Blåser jevnt dit pila peker – også rett opp, så kulene svever. Dra i pila for å snu den.',
+      make: (x, y) => ({ x0: x - 110, y0: y - 180, x1: x + 110, y1: y + 180, ang: 90, pow: 1600 }),
+    },
+    door: {
+      name: 'Svingdør',
+      pal: 'Svingdør',
+      ico: SVG.door,
+      help: 'Snurrer fritt. Det er kulene som dytter den rundt – jo flere som kommer, jo fortere går den.',
+      make: (x, y) => ({ x, y, len: 90, arms: 4 }),
+    },
+    kantine: {
+      name: 'Kantina',
+      pal: 'Kantina',
+      ico: '🧇',
+      help: 'Fredagsvaffel gjør kula stor og tung, så den dytter de andre unna. Salat gjør den liten og lett. Vann gjør den vanlig igjen.',
+      make: (x, y) => ({ x0: x - 90, y0: y - 70, x1: x + 90, y1: y + 70, mode: 1 }),
+    },
+    split: {
+      name: 'Mellomtid',
+      pal: 'Mellomtid',
+      ico: '⏱️',
+      help: 'En målestrek. Under løpet melder den hvem som passerer først, og hvor langt bak de neste er. Kulene merker den ikke, så løypa trenger ikke godkjennes på nytt.',
+      make: (x, y) => ({ ax: x, ay: y - 90, bx: x, by: y + 90, name: 'MELLOMTID' }),
+    },
+    /* Ferdigbygd: vanlige deler i en gruppe på skinne, med et program som passer. Alt kan endres etterpå */
+    cart: {
+      name: 'Tippvogn',
+      pal: 'Tippvogn',
+      ico: '🛒',
+      help: 'Venter til en kule går om bord, kjører den bortover og tipper den av.',
+      build: (x, y) => {
+        const rail = { dx: 380, dy: 0, grip: 1, prog: clone(PRESET.tipp.prog) };
+        return [
+          [
+            { type: 'ramp', ax: x - 70, ay: y + 6, bx: x + 70, by: y - 6, rail },
+            { type: 'wall', ax: x - 74, ay: y - 40, bx: x - 74, by: y + 8, rail },
+          ],
+        ];
+      },
+    },
+    flipper: {
+      name: 'Flipper',
+      pal: 'Flipper',
+      ico: '🏓',
+      help: 'Som i et flipperspill: slår til rundt bolten i enden, når ingen venter det.',
+      build: (x, y) => [
+        [{ type: 'ramp', ax: x - 80, ay: y - 15, bx: x + 80, by: y + 29, rail: { dx: 0, dy: 0, px: -80, py: -22, prog: clone(PRESET.flipper.prog) } }],
+      ],
+    },
+    pendel: {
+      name: 'Pendel',
+      pal: 'Pendel',
+      ico: '🔔',
+      help: 'En TUT-bumper i enden av ei stang som svinger fram og tilbake.',
+      build: (x, y) => {
+        const rail = { dx: 0, dy: 0, px: 0, py: -110, prog: clone(PRESET.pendel.prog) };
+        return [
+          [
+            { type: 'wall', ax: x, ay: y - 110, bx: x, by: y + 110, rail },
+            { type: 'bumper', x, y: y + 110, rail },
+          ],
+        ];
+      },
+    },
+    bru: {
+      name: 'Vindebru',
+      pal: 'Vindebru',
+      ico: '🌉',
+      help: 'Ei bru som går opp og ned. Er den oppe, må kulene vente – eller falle.',
+      build: (x, y) => [
+        [{ type: 'ramp', ax: x - 130, ay: y - 12, bx: x + 130, by: y + 12, rail: { dx: 0, dy: 0, px: -130, py: -12, prog: clone(PRESET.bru.prog) } }],
+      ],
+    },
+    snuplate: {
+      name: 'Snuplata',
+      pal: 'Snuplata',
+      ico: '🔄',
+      help: 'Ei plate med sterk magnet. Den venter til kulene lander, snur seg opp ned med dem – og slipper dem først i «slipp»-steget.',
+      build: (x, y) => {
+        // starter med løpet og venter (opptil 20 s) til de første kulene lander
+        const rail = { dx: 0, dy: 0, grip: 1, gs: 260, gr: 1, prog: clone(PRESET.snu.prog), sync: 1, off: 0 };
+        rail.prog[0].t = 20;
+        return [
+          [
+            { type: 'ramp', ax: x - 120, ay: y, bx: x + 120, by: y, rail },
+            { type: 'wall', ax: x - 124, ay: y - 40, bx: x - 124, by: y + 2, rail },
+            { type: 'wall', ax: x + 124, ay: y - 40, bx: x + 124, by: y + 2, rail },
+          ],
+        ];
+      },
+    },
+    slynge: {
+      name: 'Slynga',
+      pal: 'Slynga',
+      ico: '💫',
+      help: 'Ei plate som snurrer rundt med magnet. Den holder hver kule et øyeblikk – så slynges kula av gårde. Velg selv hvor lenge den holder.',
+      build: (x, y) => [[{ type: 'ramp', ax: x - 110, ay: y, bx: x + 110, by: y, rail: { dx: 0, dy: 0, grip: 1, gs: 200, gr: 2, gt: 0.8, prog: clone(PRESET.slynge.prog) } }]],
+    },
+    hjul: {
+      name: 'Pariserhjul',
+      pal: 'Pariserhjul',
+      ico: '🎡',
+      help: 'Fire gondoler på samme rundbane. De stopper et øyeblikk til venstre (klokka 9) – la en rampe ende rett over der. Kulene som rekker det, blir med rundt og tippes av mot høyre etter toppen.',
+      build: (x, y) => [0, 25, 50, 75].map((ph) => gondola(x, y + 220, ph)),
+    },
   };
+  // (en tekst som starter med # er en overskrift i lista)
   const PALETTE = [
     'ramp',
     'wall',
@@ -308,7 +548,6 @@
     'eagle',
     'vortex',
     'belt',
-    'lift',
     'ferry',
     'rocket',
     'tunnel',
@@ -316,6 +555,23 @@
     'rein',
     'slush',
     'boss',
+    '#Nytt',
+    'tramp',
+    'boost',
+    'fan',
+    'door',
+    'kantine',
+    'split',
+    '#På skinne',
+    'lift',
+    'cart',
+    'flipper',
+    'pendel',
+    'bru',
+    'hjul',
+    'snuplate',
+    'slynge',
+    '#Pynt',
     'sign',
     'deco',
     'shape',
@@ -484,6 +740,29 @@
       },
     ],
     rack: [{ k: 'len', label: 'Lengde på fisken', min: 40, max: 120, step: 1 }],
+    tramp: [{ k: 'pow', label: 'Sprett', min: 300, max: 1600, step: 20 }],
+    boost: [{ k: 'pow', label: 'Styrke', min: 400, max: 1800, step: 20 }],
+    fan: [
+      { k: 'ang', label: 'Blåser mot (grader, 90 = opp)', min: 0, max: 359, step: 1 },
+      { k: 'pow', label: 'Styrke (1 000 = like sterk som tyngden)', min: 200, max: 3000, step: 50 },
+    ],
+    door: [
+      { k: 'len', label: 'Lengde på dørene', min: 40, max: 200, step: 2 },
+      { k: 'arms', label: 'Dører', min: 2, max: 6, step: 1 },
+    ],
+    split: [{ k: 'name', label: 'Navn på mellomtida', text: 20 }],
+    kantine: [
+      {
+        k: 'mode',
+        label: 'På menyen',
+        def: 1,
+        opts: [
+          [1, '🧇 Vaffel'],
+          [-1, '🥗 Salat'],
+          [0, '💧 Vann'],
+        ],
+      },
+    ],
     boss: [
       { k: 'dir', label: 'Ser mot', dir: true },
       { k: 'range', label: 'Rekkevidde', min: 150, max: 1200, step: 10 },
@@ -521,6 +800,9 @@
     k_arm: 'ble slått ut av Glimt-armen',
     k_sjef: 'ble tatt av Sjefen',
     k_heis: 'ble kastet ut av løypa av heisen',
+    k_tramp: 'spratt ut av løypa på trampolina',
+    k_kaffe: 'fikk for mye kaffe og føk ut av løypa',
+    k_vifte: 'ble blåst ut av løypa av kontorvifta',
   };
   const SIMPLE = [
     { type: 'start', x: 800, y: 300 },
@@ -591,6 +873,65 @@
     { type: 'sign', x: 1180, y: 1330, text: 'UTSKYTEREN' },
   ];
 
+  // demo med det nye: tippvogn, pariserhjul, flipper, trampoline, kaffe, vifte, svingdør, kantine og mellomtid
+  const DEMO_PLAT = [
+    { type: 'start', x: 800, y: 300 },
+    { type: 'wall', ax: 610, ay: 262, bx: 610, by: 346 },
+    { type: 'ramp', ax: 612, ay: 340, bx: 1460, by: 518 },
+    { type: 'wall', ax: 1500, ay: 400, bx: 1500, by: 600 },
+    { type: 'wall', ax: 1550, ay: 380, bx: 1550, by: 640 },
+    { type: 'ramp', ax: 1530, ay: 610, bx: 1100, by: 700 },
+    { type: 'boost', ax: 1100, ay: 700, bx: 800, by: 763, pow: 900 },
+    { type: 'ramp', ax: 800, ay: 763, bx: 330, by: 862 },
+    { type: 'wall', ax: 90, ay: 700, bx: 90, by: 1180 },
+    { type: 'wall', ax: 330, ay: 900, bx: 330, by: 1100 },
+    { type: 'door', x: 210, y: 1000, len: 100, arms: 4 },
+    { type: 'split', ax: 97, ay: 1130, bx: 323, by: 1130, name: 'SVINGDØRA' },
+    { type: 'ramp', ax: 100, ay: 1180, bx: 700, by: 1262 },
+    { type: 'ramp', ax: 716, ay: 1322, bx: 856, by: 1310, grp: 'vogn', rail: { dx: 440, dy: 0, grip: 1, prog: clone(PRESET.tipp.prog) } },
+    { type: 'wall', ax: 712, ay: 1276, bx: 712, by: 1324, grp: 'vogn', rail: { dx: 440, dy: 0, grip: 1, prog: clone(PRESET.tipp.prog) } },
+    { type: 'wall', ax: 600, ay: 1380, bx: 600, by: 1446 },
+    { type: 'ramp', ax: 600, ay: 1440, bx: 1515, by: 1596 },
+    { type: 'slush', x0: 860, y0: 1400, x1: 1140, y1: 1540 },
+    { type: 'wall', ax: 1580, ay: 1250, bx: 1580, by: 1860 },
+    { type: 'kantine', x0: 1250, y0: 1350, x1: 1430, y1: 1570, mode: 1 },
+    { type: 'kantine', x0: 700, y0: 1345, x1: 980, y1: 1500, mode: -1 },
+    { type: 'tramp', ax: 1390, ay: 1812, bx: 1572, by: 1752, pow: 560 },
+    { type: 'ramp', ax: 1392, ay: 1836, bx: 520, by: 1970 },
+    { type: 'split', ax: 900, ay: 1780, bx: 900, by: 1905, name: 'TRAMPOLINA' },
+    { type: 'fan', x0: 290, y0: 1780, x1: 540, y1: 2090, ang: 110, pow: 1150 },
+    { type: 'ramp', ax: 300, ay: 1975, bx: 165, by: 2003 },
+    { type: 'wall', ax: 90, ay: 1650, bx: 90, by: 2400 },
+    { type: 'ramp', ax: 560, ay: 2110, bx: 165, by: 2160 },
+    { type: 'ramp', ax: 100, ay: 2290, bx: 518, by: 2356 },
+    ...[0, 25, 50, 75].flatMap((ph, k) => gondola(820, 2640, ph, 'gondol' + (k + 1))),
+    { type: 'ramp', ax: 1100, ay: 2590, bx: 1515, by: 2666 },
+    { type: 'wall', ax: 460, ay: 2640, bx: 460, by: 2750 },
+    { type: 'ramp', ax: 470, ay: 2740, bx: 1515, by: 2887 },
+    { type: 'wall', ax: 1580, ay: 2500, bx: 1580, by: 3060 },
+    { type: 'ramp', ax: 1570, ay: 3000, bx: 620, by: 3153 },
+    { type: 'wall', ax: 185, ay: 3105, bx: 185, by: 3245, grp: 'pendel', rail: { dx: 0, dy: 0, px: 0, py: -70, prog: [{ a: 40, t: 1, e: 'smooth' }, { a: -40, t: 1, e: 'smooth' }] } },
+    { type: 'bumper', x: 185, y: 3245, grp: 'pendel', rail: { dx: 0, dy: 0, px: 0, py: -70, prog: [{ a: 40, t: 1, e: 'smooth' }, { a: -40, t: 1, e: 'smooth' }] } },
+    { type: 'ramp', ax: 620, ay: 3153, bx: 360, by: 3195, rail: { dx: 0, dy: 0, px: -130, py: 21, prog: [{ t: 6.5 }, { a: -65, t: 0.7, e: 'smooth' }, { t: 0.6 }, { a: 0, t: 0.7, e: 'smooth' }] } },
+    { type: 'pit', x0: 372, x1: 612, yl: 3200, yr: 3160, y1: 3330, name: 'Vollgrava' },
+    { type: 'ramp', ax: 360, ay: 3195, bx: 330, by: 3200 },
+    { type: 'wall', ax: 90, ay: 3050, bx: 90, by: 3420 },
+    { type: 'ramp', ax: 100, ay: 3400, bx: 620, by: 3474 },
+    { type: 'ramp', ax: 620, ay: 3474, bx: 800, by: 3500, rail: { dx: 0, dy: 0, px: -90, py: -13, prog: [{ t: 1.2, t2: 3 }, { a: -25, t: 0.15, e: 'linear' }, { t: 0.25 }, { a: 0, t: 0.45, e: 'smooth' }] } },
+    { type: 'ramp', ax: 800, ay: 3500, bx: 1360, by: 3580 },
+    { type: 'finish', x: 1290, y: 3440 },
+    { type: 'sign', x: 300, y: 110, text: 'FREDAGSPARKEN' },
+    { type: 'sign', x: 950, y: 640, text: 'FREDAGSKAFFEN' },
+    { type: 'sign', x: 520, y: 1000, text: 'SVINGDØRA' },
+    { type: 'sign', x: 1040, y: 1200, text: 'TIPPVOGNA' },
+    { type: 'sign', x: 1250, y: 1740, text: 'TRAMPOLINA' },
+    { type: 'sign', x: 700, y: 1830, text: 'MEDVIND' },
+    { type: 'sign', x: 820, y: 2420, text: 'PARISERHJULET' },
+    { type: 'sign', x: 420, y: 3300, text: 'PENDELEN' },
+    { type: 'sign', x: 520, y: 3080, text: 'VINDEBRUA' },
+    { type: 'sign', x: 980, y: 3420, text: 'FLIPPEREN' },
+  ];
+
   /* ---------- Geometri: rammer, treff og håndtak ---------- */
   const mctx = document.createElement('canvas').getContext('2d');
   const isLine = (p) =>
@@ -598,7 +939,10 @@
     p.type === 'wall' ||
     p.type === 'trap' ||
     p.type === 'eagle' ||
-    p.type === 'belt';
+    p.type === 'belt' ||
+    p.type === 'tramp' ||
+    p.type === 'boost' ||
+    p.type === 'split';
   const segD = (px, py, ax, ay, bx, by) => {
     const abx = bx - ax,
       aby = by - ay,
@@ -624,12 +968,16 @@
         return { x0: p.x - 30, y0: p.y - 30, x1: p.x + 30, y1: p.y + 30 };
       case 'wheel':
       case 'arm':
+      case 'door':
         return {
           x0: p.x - p.len - 10,
           y0: p.y - p.len - 10,
           x1: p.x + p.len + 10,
           y1: p.y + p.len + 10,
         };
+      case 'fan':
+      case 'kantine':
+        return { x0: p.x0, y0: p.y0, x1: p.x1, y1: p.y1 };
       case 'seesaw':
         return {
           x0: p.x - p.half - 10,
@@ -730,7 +1078,7 @@
     }
     if (p.type === 'bumper')
       return Math.hypot(x - p.x, y - p.y) <= 28 + tol ? 1500 : Infinity;
-    if (p.type === 'wheel' || p.type === 'arm')
+    if (p.type === 'wheel' || p.type === 'arm' || p.type === 'door')
       return Math.hypot(x - p.x, y - p.y) <= p.len + 10 + tol
         ? Math.PI * p.len * p.len
         : Infinity;
@@ -773,6 +1121,7 @@
       (p.type === 'start' || p.type === 'finish' ? 1.5 : 1)
     );
   }
+  const FAN_ARM = 70; // lengden på pila som viser hvor vifta blåser
   function handles(p) {
     switch (p.type) {
       case 'ramp':
@@ -783,10 +1132,31 @@
       case 'ferry':
       case 'tunnel':
       case 'rein':
+      case 'tramp':
+      case 'boost':
+      case 'split':
         return [
           { k: 'a', x: p.ax, y: p.ay },
           { k: 'b', x: p.bx, y: p.by },
         ];
+      case 'fan': {
+        // pila i midten viser hvor den blåser – dra i spissen for å snu den
+        const a = (p.ang * Math.PI) / 180,
+          cx = (p.x0 + p.x1) / 2,
+          cy = (p.y0 + p.y1) / 2;
+        return [
+          { k: 'tl', x: p.x0, y: p.y0 },
+          { k: 'br', x: p.x1, y: p.y1 },
+          { k: 'aim', x: cx + Math.cos(a) * FAN_ARM, y: cy - Math.sin(a) * FAN_ARM },
+        ];
+      }
+      case 'kantine':
+        return [
+          { k: 'tl', x: p.x0, y: p.y0 },
+          { k: 'br', x: p.x1, y: p.y1 },
+        ];
+      case 'door':
+        return [{ k: 'r', x: p.x + p.len, y: p.y }];
       case 'vortex':
         return [{ k: 'r', x: p.x + p.r, y: p.y }];
       case 'rocket': {
@@ -855,7 +1225,24 @@
         p.range = u.clamp(Math.round(Math.hypot(x - (p.x + p.dir * 42), y - (p.y - 72)) / 10) * 10, 150, 1200);
         break;
       }
+      case 'door':
+        p.len = u.clamp(Math.round(Math.hypot(x - p.x, y - p.y)), 40, 200);
+        break;
+      case 'fan':
+        if (k === 'aim') {
+          const cx = (p.x0 + p.x1) / 2,
+            cy = (p.y0 + p.y1) / 2;
+          p.ang = (((Math.round((Math.atan2(cy - y, x - cx) * 180) / Math.PI)) % 360) + 360) % 360;
+        } else if (k === 'tl') {
+          p.x0 = Math.min(x, p.x1 - 60);
+          p.y0 = Math.min(y, p.y1 - 60);
+        } else {
+          p.x1 = Math.max(x, p.x0 + 60);
+          p.y1 = Math.max(y, p.y0 + 60);
+        }
+        break;
       case 'slush':
+      case 'kantine':
       case 'shape': {
         const mw = p.type === 'shape' ? 20 : 60,
           mh = p.type === 'shape' ? 20 : 40;
@@ -879,6 +1266,9 @@
       case 'ferry':
       case 'tunnel':
       case 'rein':
+      case 'tramp':
+      case 'boost':
+      case 'split':
         if (k === 'a') {
           p.ax = x;
           p.ay = y;
@@ -982,6 +1372,8 @@
       return { id: u.uid('c'), name: 'Alt i ett', pieces: clone(DEMO) };
     if (kind === 'rail')
       return { id: u.uid('c'), name: 'Heis og utskyter', pieces: clone(DEMO_RAIL) };
+    if (kind === 'plat')
+      return { id: u.uid('c'), name: 'Fredagsparken', pieces: clone(DEMO_PLAT) };
     return { id: u.uid('c'), name: 'Min løype', pieces: clone(SIMPLE) };
   }
 
@@ -1080,9 +1472,21 @@
     D.scene(ctx, CC, v, test ? test.t : (time % 80) + 4, time, {
       gateClosed: !test,
       home: !test, // delene på skinne står hjemme mens du bygger (spøkelset viser programmet)
+      time,
     });
-    if (test) drawMarbles(v);
-    else {
+    if (test) {
+      drawMarbles(v);
+      // minikart: hele løypa, med kulene som prikker
+      const T = test,
+        dots = [];
+      for (let i = 0; i < T.n; i++) {
+        if (T.state[i]) continue;
+        const q = pos(T.res, i, T.t);
+        if (q[1] > -50000) dots.push({ x: q[0], y: q[1], color: COLORS[i % COLORS.length], big: i === T.lead });
+      }
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      D.minimap(ctx, CC, cw, ch, v, dots, { top: 60 });
+    } else {
       if (snapOn) drawGrid(v);
       drawOverlay(v);
     }
@@ -1144,6 +1548,20 @@
         // kanten på bakgrunnsfeltet er der du tar tak i det
         ctx.strokeStyle = 'rgba(255,255,255,.22)';
         ctx.strokeRect(p.x0, p.y0, p.x1 - p.x0, p.y1 - p.y0);
+      } else if (p.type === 'fan') {
+        // pila viser hvor vifta blåser
+        const a = (p.ang * Math.PI) / 180,
+          cx = (p.x0 + p.x1) / 2,
+          cy = (p.y0 + p.y1) / 2;
+        ctx.save();
+        ctx.setLineDash([]);
+        ctx.strokeStyle = 'rgba(210,232,255,.8)';
+        ctx.lineWidth = 3 * px;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(cx + Math.cos(a) * FAN_ARM, cy - Math.sin(a) * FAN_ARM);
+        ctx.stroke();
+        ctx.restore();
       } else if (p.type === 'eagle') {
         ctx.strokeStyle = 'rgba(241,217,182,.75)';
         ctx.beginPath();
@@ -1244,30 +1662,49 @@
         ctx.strokeStyle = '#5ef2b5';
         ctx.stroke();
       }
-    // skinnehåndtaket: gult, i enden av skinnen
-    const rh = railHandle();
-    if (rh) {
+    // skinnehåndtakene: gule, ett for hvert punkt på banen – og bolten delene vrir seg rundt
+    const rhs = railHandles(),
+      rpts = rhs.filter((h) => h.k === 'rail');
+    if (rpts.length) {
       ctx.save();
       ctx.setLineDash([8 * px, 6 * px]);
       ctx.lineWidth = 2 * px;
       ctx.strokeStyle = 'rgba(246,189,71,.8)';
       ctx.beginPath();
-      ctx.moveTo(rh.cx, rh.cy);
-      ctx.lineTo(rh.x, rh.y);
+      ctx.moveTo(rpts[0].cx, rpts[0].cy);
+      for (const h of rpts) ctx.lineTo(h.x, h.y);
+      if (rpts[0].loop) ctx.lineTo(rpts[0].cx, rpts[0].cy);
       ctx.stroke();
       ctx.restore();
+    }
+    ctx.font = `800 ${11 * px}px "JetBrains Mono", monospace`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (const h of rhs) {
+      const pivot = h.k === 'pivot';
       ctx.beginPath();
-      ctx.arc(rh.x, rh.y, 10 * px, 0, Math.PI * 2);
-      ctx.fillStyle = '#f6bd47';
+      ctx.arc(h.x, h.y, (pivot ? 11 : h.last ? 10 : 8) * px, 0, Math.PI * 2);
+      ctx.fillStyle = pivot ? '#23272e' : '#f6bd47';
       ctx.fill();
       ctx.lineWidth = 3 * px;
-      ctx.strokeStyle = '#23272e';
+      ctx.strokeStyle = pivot ? '#f6bd47' : '#23272e';
       ctx.stroke();
+      if (pivot) {
+        // bolten: et kryss i midten
+        ctx.lineWidth = 2 * px;
+        ctx.beginPath();
+        ctx.moveTo(h.x - 5 * px, h.y);
+        ctx.lineTo(h.x + 5 * px, h.y);
+        ctx.moveTo(h.x, h.y - 5 * px);
+        ctx.lineTo(h.x, h.y + 5 * px);
+        ctx.stroke();
+      }
       ctx.fillStyle = '#f6bd47';
-      ctx.font = `800 ${11 * px}px "JetBrains Mono", monospace`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('100 %', rh.x, rh.y - 22 * px);
+      ctx.fillText(
+        pivot ? 'DREIEPUNKT' : h.last ? (h.loop ? '↺ RUNDT' : '100 %') : String(h.pt + 1),
+        h.x,
+        h.y - (pivot ? 24 : 22) * px,
+      );
     }
   }
   /* Skinnene i designeren: spøkelset som kjører programmet, og merker for hvor stegene stopper */
@@ -1279,7 +1716,7 @@
       ctx.save();
       ctx.globalAlpha = 0.42;
       D.teleport(ctx, M, t, C.look);
-      D.mover(ctx, M, s.ox, s.oy, {}, C.look);
+      D.mover(ctx, M, s, { time }, C.look);
       ctx.restore();
       if (M.L < 2) continue;
       // stoppene langs skinnen: «1, 3» der steg 1 og 3 kjører til
@@ -1295,11 +1732,13 @@
       for (const g of at.values()) g.n.sort((a, b) => a - b);
       ctx.font = `700 ${11 * px}px "JetBrains Mono", monospace`;
       ctx.textBaseline = 'middle';
-      const nx = -M.ry / M.L,
-        ny = M.rx / M.L;
+      const l0 = Math.hypot(M.rx, M.ry) || 1,
+        nx = -M.ry / l0,
+        ny = M.rx / l0;
       for (const { s, n } of at.values()) {
-        const x = M.cx + M.rx * s,
-          y = M.cy + M.ry * s;
+        const q = P.kin.railPos(M, s),
+          x = M.cx + q.x,
+          y = M.cy + q.y;
         ctx.fillStyle = 'rgba(246,189,71,.9)';
         ctx.beginPath();
         ctx.arc(x, y, 4.5 * px, 0, Math.PI * 2);
@@ -1324,6 +1763,7 @@
       const st = T.state[i];
       const gone = st === 'out' && res.cause[i] !== 'k_orna';
       const rank = st === 'fin' ? T.fin.indexOf(i) + 1 : 0;
+      T.rv[i] += (T.rad[i] - T.rv[i]) * 0.25; // vokser og krymper mykt
       if (!(st === 'out' && res.cause[i] === 'k_orna')) {
         const [px, py] = pos(res, i, Math.max(0, T.t - 0.1));
         D.trail(ctx, px, py, x, y, gone ? '#6b7480' : COLORS[i % COLORS.length]);
@@ -1341,6 +1781,7 @@
           : i === T.lead && !st && T.t > P.GATE_T + 1 && !T.fin.length
             ? '#5ef2b5' // leder etter sjekkpunktene, som i spillet
             : null,
+        T.rv[i],
       );
     }
   }
@@ -1434,24 +1875,48 @@
     return pickedGroup() ? picked.slice() : null;
   }
   const riders = (idxs) =>
-    idxs.filter((i) => P.RIDERS.includes(doc.pieces[i].type));
+    idxs.filter((i) => P.canRide(doc.pieces[i].type));
   function unitRail(idxs) {
     for (const i of idxs) if (doc.pieces[i] && doc.pieces[i].rail) return doc.pieces[i].rail;
     return null;
   }
-  // skinnehåndtaket: der skinnen slutter (fra midten av delene)
-  function railHandle() {
+  const centerOf = (idxs) => P.railCenter(riders(idxs).map((i) => doc.pieces[i]));
+  // hvor langt delene rekker fra dreiepunktet (det ytterste går fortest når de vris)
+  const reachOf = (idxs, rail) => P.railReach(riders(idxs).map((i) => doc.pieces[i]), rail);
+  // «vogna» i den kompilerte løypa som hører til delene
+  function moverOf(idxs) {
+    const r = riders(idxs);
+    if (!r.length) return null;
+    const p = doc.pieces[r[0]],
+      key = p.grp ? 'g:' + p.grp : 'p:' + r[0];
+    return C.movers.find((M) => M.key === key) || null;
+  }
+  /* Håndtakene på skinnen: ett gult for hvert punkt på banen, og bolten (dreiepunktet) når programmet vrir delene.
+     Banen starter i midten av delene – eller litt forskjøvet når vogna har startpunkt et stykke ut i runden */
+  function railHandles() {
     const idxs = railUnit(),
       rail = idxs && unitRail(idxs);
-    if (!rail) return null;
-    const c = P.railCenter(riders(idxs).map((i) => doc.pieces[i]));
-    return { k: 'rail', x: c.x + rail.dx, y: c.y + rail.dy, cx: c.x, cy: c.y };
+    if (!rail) return [];
+    const c = centerOf(idxs),
+      M = moverOf(idxs),
+      bx = c.x - ((M && M.bx) || 0),
+      by = c.y - ((M && M.by) || 0);
+    const pts = [[rail.dx, rail.dy]].concat(rail.pts || []),
+      turns = rail.prog.some((st) => st.a != null),
+      travels = rail.dx || rail.dy || rail.pts || rail.prog.some((st) => st.to != null);
+    const out = [];
+    if (travels || !turns)
+      pts.forEach((q, j) =>
+        out.push({ k: 'rail', pt: j, x: bx + q[0], y: by + q[1], cx: bx, cy: by, last: j === pts.length - 1, loop: !!rail.loop }),
+      );
+    if (turns) out.push({ k: 'pivot', pt: -1, x: c.x + (rail.px || 0), y: c.y + (rail.py || 0), cx: c.x, cy: c.y });
+    return out;
   }
   // samme skinne og program på alle delene som kan kjøre (null = står stille)
   function setRail(idxs, rail) {
     for (const i of idxs) {
       const p = doc.pieces[i];
-      if (!p || !P.RIDERS.includes(p.type)) continue;
+      if (!p || !P.canRide(p.type)) continue;
       const c = clone(p);
       if (rail) c.rail = clone(rail);
       else delete c.rail;
@@ -1462,6 +1927,69 @@
     clone(
       unitRail(idxs) || { dx: 0, dy: -300, prog: clone(PRESET.pendel.prog) },
     );
+  // en rundbane trenger flere punkt: lag en firkant ut fra skinnen som er der
+  function makeLoop(r) {
+    r.loop = 1;
+    if (r.pts && r.pts.length) return;
+    if (Math.hypot(r.dx, r.dy) < 2) {
+      r.dx = 0;
+      r.dy = -240;
+    }
+    const l = Math.hypot(r.dx, r.dy),
+      k = Math.min(300, Math.max(120, l)) / l,
+      qx = -r.dy * k,
+      qy = r.dx * k;
+    r.pts = [
+      [Math.round(r.dx + qx), Math.round(r.dy + qy)],
+      [Math.round(qx), Math.round(qy)],
+    ];
+    r.curve = 1;
+  }
+  /* Enda en vogn på samme bane: den valgte kopieres, og alle vognene på banen fordeles jevnt rundt
+     (startpunkt i runden). Banen blir liggende der den ligger */
+  function addCart() {
+    const idxs = railUnit(),
+      rail = idxs && unitRail(idxs);
+    if (!rail || test) return;
+    const before = snapshot();
+    const sig = (r) => JSON.stringify({ ...r, ph: 0, sync: 1, off: 0 }),
+      mine = sig(rail),
+      units = new Map();
+    doc.pieces.forEach((p, i) => {
+      if (!p.rail || sig(p.rail) !== mine) return;
+      const k = p.grp ? 'g:' + p.grp : 'p:' + i;
+      if (!units.has(k)) units.set(k, grpOf(i));
+    });
+    const phOf = (unit) => (unitRail(unit) || {}).ph || 0;
+    const list = [...units.values()].sort((a, b) => phOf(a) - phOf(b));
+    // banen ligger fast: der den første vogna ville stått med startpunkt 0
+    const c0 = centerOf(list[0]),
+      s0 = P.railShift(rail, phOf(list[0])),
+      T0 = { x: c0.x - s0.x, y: c0.y - s0.y };
+    const copy = copyPieces(idxs, 0);
+    list.push(copy);
+    list.forEach((unit, k) => {
+      const ph = Math.round((100 * k) / list.length) % 100,
+        sh = P.railShift(rail, ph),
+        c = centerOf(unit),
+        dx = Math.round(T0.x + sh.x - c.x),
+        dy = Math.round(T0.y + sh.y - c.y);
+      for (const i of unit) {
+        const p = clone(doc.pieces[i]);
+        move(p, dx, dy);
+        if (p.rail) {
+          p.rail.sync = 1;
+          p.rail.off = rail.off || 0;
+          if (ph) p.rail.ph = ph;
+          else delete p.rail.ph;
+        }
+        doc.pieces[i] = P.sanePiece(p);
+      }
+    });
+    pickQuiet(copy);
+    changed(before);
+    u.toast(`${list.length} vogner på banen – jevnt fordelt.`);
+  }
   function newGrp() {
     let g;
     do g = 'g' + Math.random().toString(36).slice(2, 8);
@@ -1542,6 +2070,24 @@
     stopTest(true);
     const K = KINDS[type],
       real = K.as || type; // «Heis» er en rampe på skinne
+    if (K.build) {
+      // ferdigbygd: flere deler, hver enhet i sin egen gruppe (alt kan endres etterpå)
+      const before = snapshot(),
+        v = view(),
+        idxs = [];
+      for (const unit of K.build(sv(u.clamp(v.x + v.w / 2, 320, 1280)), sv(v.y + v.h / 2))) {
+        const g = unit.length > 1 ? newGrp() : null;
+        for (const raw of unit) {
+          const p = P.sanePiece(g ? { ...raw, grp: g } : raw);
+          if (!p) continue;
+          doc.pieces.push(p);
+          idxs.push(doc.pieces.length - 1);
+        }
+      }
+      pickQuiet(idxs);
+      changed(before);
+      return;
+    }
     if (!roomFor(real)) return;
     const before = snapshot();
     const v = view();
@@ -1590,11 +2136,11 @@
     });
     return best;
   }
-  // håndtakene til den valgte delen, og skinnehåndtaket
+  // håndtakene til den valgte delen, og håndtakene på skinnen (bolten først, så den er lett å få tak i)
   function handleAt(sx, sy) {
-    const hs = sel >= 0 && doc.pieces[sel] ? handles(doc.pieces[sel]) : [];
-    const rh = railHandle();
-    if (rh) hs.unshift(rh);
+    const hs = railHandles()
+      .reverse()
+      .concat(sel >= 0 && doc.pieces[sel] ? handles(doc.pieces[sel]) : []);
     return (
       hs.find((h) => {
         const s = toScreen(h.x, h.y);
@@ -1630,7 +2176,7 @@
   }
 
   /* ---------- Shift: rette linjer ---------- */
-  const LINE_TYPES = ['ramp', 'wall', 'trap', 'eagle', 'belt', 'ferry', 'tunnel', 'rein'];
+  const LINE_TYPES = ['ramp', 'wall', 'trap', 'eagle', 'belt', 'ferry', 'tunnel', 'rein', 'tramp', 'boost', 'split'];
   const ROT_STEP = 15; // rakettsiktet og armer i takt går i hopp på 15°
   // (x, y) trukket inn på nærmeste rette linje fra (ox, oy): vannrett, loddrett eller 45° på skrå
   function straight(ox, oy, x, y) {
@@ -1682,24 +2228,47 @@
       return;
     }
     if (drag.kind === 'rail') {
-      // skinnen: hvor langt og hvilken vei delene kjører (Shift: rett opp, bortover eller 45°)
-      const c = drag.c;
+      // et punkt på banen (Shift: rett opp, bortover eller 45° fra punktet før), eller dreiepunktet
+      const c = drag.c,
+        r = clone(drag.rail);
       let x = c.x + sv(w.x - c.x),
         y = c.y + sv(w.y - c.y);
-      if (shift) {
-        const s = straight(c.x, c.y, w.x, w.y);
-        x = s.x;
-        y = s.y;
-        drag.guide = { x: c.x, y: c.y, ux: s.ux, uy: s.uy };
+      if (drag.pt < 0) {
+        if (shift) {
+          // Shift: bolten fester seg i nærmeste ende av en rampe eller vegg (eller i midten)
+          let best = Infinity;
+          const spots = [[c.x, c.y]];
+          for (const o of drag.origs) if (o.ax != null && P.canRide(o.type)) spots.push([o.ax, o.ay], [o.bx, o.by]);
+          for (const q of spots) {
+            const d = Math.hypot(q[0] - w.x, q[1] - w.y);
+            if (d < best) {
+              best = d;
+              x = q[0];
+              y = q[1];
+            }
+          }
+        }
+        r.px = Math.round(x - c.x);
+        r.py = Math.round(y - c.y);
+      } else {
+        const pts = [[r.dx, r.dy]].concat(r.pts || []),
+          prev = drag.pt > 0 ? pts[drag.pt - 1] : [0, 0];
+        if (shift) {
+          const st = straight(c.x + prev[0], c.y + prev[1], w.x, w.y);
+          x = st.x;
+          y = st.y;
+          drag.guide = { x: c.x + prev[0], y: c.y + prev[1], ux: st.ux, uy: st.uy };
+        }
+        if (drag.pt === 0) {
+          r.dx = Math.round(x - c.x);
+          r.dy = Math.round(y - c.y);
+        } else r.pts[drag.pt - 1] = [Math.round(x - c.x), Math.round(y - c.y)];
       }
-      const r = clone(drag.rail);
-      r.dx = Math.round(x - c.x);
-      r.dy = Math.round(y - c.y);
       putAll(
         drag.idxs,
         drag.origs.map((o) => {
           const p = clone(o);
-          if (P.RIDERS.includes(p.type)) p.rail = r;
+          if (P.canRide(p.type)) p.rail = r;
           return p;
         }),
       );
@@ -1731,6 +2300,8 @@
       setHandle(p, drag.key, x, y);
       if (shift && o.type === 'rocket')
         p.ang = Math.round(p.ang / ROT_STEP) * ROT_STEP; // 0–180
+      else if (shift && o.type === 'fan' && drag.key === 'aim')
+        p.ang = (Math.round(p.ang / ROT_STEP) * ROT_STEP) % 360;
       else if (shift && o.sync && (o.type === 'wheel' || o.type === 'arm'))
         p.ang = (Math.round(p.ang / ROT_STEP) * ROT_STEP) % 360;
     }
@@ -1774,11 +2345,12 @@
     if (pointers.size > 2) return;
     if (!test) {
       const h = handleAt(sx, sy);
-      if (h && h.k === 'rail') {
-        // skinnehåndtaket: hele delen eller gruppa følger med
+      if (h && (h.k === 'rail' || h.k === 'pivot')) {
+        // skinnehåndtakene: hele delen eller gruppa følger med (pt = hvilket punkt, -1 = dreiepunktet)
         const idxs = railUnit();
         drag = {
           kind: 'rail',
+          pt: h.pt,
           idxs,
           c: { x: h.cx, y: h.cy },
           rail: clone(unitRail(idxs)),
@@ -2084,7 +2656,8 @@
           <li><kbd>Ctrl</kbd>+klikk (eller <kbd>Shift</kbd>+klikk) velger flere deler. <kbd>Shift</kbd>+dra i bakgrunnen velger alt inni rammen, og <kbd>Ctrl</kbd>+<kbd>A</kbd> velger alt.</li>
           <li><kbd>Ctrl</kbd>+<kbd>G</kbd> grupperer det du har valgt, så holder delene sammen. Dobbeltklikk på en del i en gruppe for å endre bare den.</li>
           <li>Gi deler egen farge i panelet, og pynt løypa med 🌲 Pynt og 🟦 Bakgrunn. Himmel, vær og by velger du under Utseende. Pynt trenger aldri ny godkjenning.</li>
-          <li>Ramper, vegger, TUT-bumpere, skilt og pynt kan kjøre på skinne. Velg «På skinne», dra i det gule håndtaket og lag et program – eller ta en 🛗 Heis fra lista. En gruppe kjører sammen, «Hopp» teleporterer i stedet for å kjøre, og 🎲 gir tilfeldig tid.</li>
+          <li>Ramper, vegger, TUT-bumpere, trampoliner, kaffe, bånd, spikerbrett, skilt og pynt kan kjøre på skinne. Velg «På skinne», dra i de gule håndtakene og lag et program – eller ta noe ferdigbygd under «På skinne» i lista. En gruppe kjører sammen, «Hopp» teleporterer i stedet for å kjøre, og 🎲 gir tilfeldig tid.</li>
+          <li>Skinnen kan gå i knekk og i ring: legg til punkt, velg myke svinger eller rundbane, og sett flere vogner på samme bane. «Vri» tipper og svinger delene rundt bolten, og «Vent på kule» lar vogna stå til noen går om bord. Slå på 🧲 Magnet, så blir kulene med plata: velg hvor sterk den er (sterk nok holder den selv opp ned), og om den slipper når plata heller, i steg du velger, eller etter en viss tid.</li>
           <li>Testkjør ofte. Når du er fornøyd: godkjenn løypa, så kan den brukes i trekningen.</li>
         </ul>
       </section>
@@ -2166,6 +2739,15 @@
       const len = Math.hypot(dx, dy),
         deg = (Math.atan2(Math.abs(dy), Math.abs(dx)) * 180) / Math.PI;
       if (p.type === 'wall' || p.type === 'eagle') return `Lengde ${r(len)}`;
+      if (p.type === 'split')
+        return `Lengde ${r(len)}<br>Legg streken tvers over der kulene kommer. Kulene merker den ikke.`;
+      if (p.type === 'tramp') {
+        // rett ut fra duken, oppover
+        const up = (Math.atan2(Math.abs(dx), Math.abs(dy)) * 180) / Math.PI;
+        return `Lengde ${r(len)} · spretter ${r((p.pow * p.pow) / 2000)} høyt${up < 80 ? ` · på skrå (${r(90 - up)}°), så kulene sendes bortover` : ''}${p.pow > 1200 ? '<br><span class="warn">🚀 Høyt sprett! Pass på at kulene lander et sted.</span>' : ''}`;
+      }
+      if (p.type === 'boost')
+        return `Lengde ${r(len)} · skyter mot ${dx >= 0 ? 'høyre' : 'venstre'}${dy < -2 ? ' og oppover' : dy > 2 ? ' og nedover' : ''}${p.pow > 1400 ? '<br><span class="warn">☕ Trippel espresso! Sett noe i enden som tar imot.</span>' : ''}`;
       if (p.type === 'belt') {
         const fwd = p.speed >= 0,
           to = fwd ? { x: p.bx, y: p.by } : { x: p.ax, y: p.ay },
@@ -2199,6 +2781,14 @@
     if (p.type === 'rein')
       return `Beitestrekning ${r(Math.hypot(p.bx - p.ax, p.by - p.ay))}`;
     if (p.type === 'slush') return `${r(p.x1 - p.x0)} × ${r(p.y1 - p.y0)}`;
+    if (p.type === 'fan') {
+      const up = Math.sin((p.ang * Math.PI) / 180) * p.pow;
+      return `${r(p.x1 - p.x0)} × ${r(p.y1 - p.y0)} · blåser mot ${r(p.ang)}°<br>${up > 1050 ? 'Sterkere enn tyngden: kulene løftes til værs.' : up > 600 ? 'Kulene faller sakte gjennom feltet.' : 'Dra i pila for å snu vifta.'}`;
+    }
+    if (p.type === 'door')
+      return `x ${r(p.x)} · y ${r(p.y)} · ${p.arms} dører<br>Står stille til kulene dytter den rundt.`;
+    if (p.type === 'kantine')
+      return `${r(p.x1 - p.x0)} × ${r(p.y1 - p.y0)}<br>${p.mode > 0 ? 'Kulene som triller gjennom, blir store og tunge. Pass på at de får plass videre i løypa.' : p.mode < 0 ? 'Kulene som triller gjennom, blir små og lette.' : 'Kulene som triller gjennom, blir vanlige igjen.'}`;
     if (p.type === 'deco')
       return `Størrelse ${r(p.size)}${p.ang ? ` · vridd ${p.ang}°` : ''} · ${p.front ? 'foran' : 'bak'} løypa<br>Bare pynt – kulene merker den ikke.`;
     if (p.type === 'shape')
@@ -2221,7 +2811,7 @@
       ${
         inGrp > 1
           ? `<div class="dz-grp"><span>🔗 Del av en gruppe med ${inGrp} deler.${p.rail ? ' Bevegelsen styres av gruppa.' : ''}</span><button type="button" data-a="selgrp">Velg hele gruppa</button></div>`
-          : P.RIDERS.includes(p.type)
+          : P.canRide(p.type)
             ? motionSection([sel])
             : ''
       }
@@ -2265,35 +2855,48 @@
     st.t2 != null
       ? `${u.nf.format(Math.round(st.t * 10) / 10)}–${secs(st.t2)}`
       : secs(st.t);
-  function stepHead(st, k, n) {
+  /* Fire slags steg: kjør (to), vri (a) – eller begge på én gang –, vent, og vent på kule (hold) */
+  function stepHead(st, k, n, mag) {
     const go = st.to != null,
-      jump = go && st.e === 'jump',
-      rnd = st.t2 != null;
-    return `<b>${k + 1}</b><span class="dz-step-t">${
-      jump
-        ? `Hopp til <output>${st.to} %</output> ✨`
-        : `${go ? `Kjør til <output>${st.to} %</output> på` : 'Vent'} <output>${stepTime(st)}</output>`
-    }</span>
-        ${jump ? '' : `<button class="dz-step-x${rnd ? ' on' : ''}" type="button" data-step-rnd="${k}" title="Tilfeldig tid" aria-label="Tilfeldig tid på steg ${k + 1}" aria-pressed="${rnd}">🎲</button>`}<button class="dz-step-x" type="button" data-step-up="${k}" title="Flytt opp" aria-label="Flytt steg ${k + 1} opp"${k ? '' : ' disabled'}>↑</button><button class="dz-step-x" type="button" data-step-del="${k}" title="Fjern" aria-label="Fjern steg ${k + 1}"${n > 1 ? '' : ' disabled'}>✕</button>`;
-  }
-  function stepHtml(st, k, key, n) {
-    const go = st.to != null,
-      jump = go && st.e === 'jump', // hopp tar ingen tid
+      turn = st.a != null,
+      jump = (go || turn) && st.e === 'jump',
       rnd = st.t2 != null,
-      slow = go && !jump && key && key.t1 - key.t0 > st.t + 0.01;
-    const time = (sk, label, v) =>
-      `<label class="dz-step-r">${label}<input type="range" data-rs="${k}" data-sk="${sk}" min="0.1" max="10" step="0.05" value="${v}" aria-label="${label === 'Tid' ? 'Sekunder' : label === 'Min' ? 'Korteste tid i sekunder' : 'Lengste tid i sekunder'}"></label>`;
-    return `<li class="dz-step">
-      <div class="dz-step-h">${stepHead(st, k, n)}</div>
+      drop = mag && st.drop;
+    const txt = st.hold
+      ? `Vent på kule, maks <output>${secs(st.t)}</output> 🧍`
+      : jump
+        ? `Hopp til ${go ? `<output>${st.to} %</output>` : ''}${go && turn ? ' og ' : ''}${turn ? `<output>${st.a}°</output>` : ''} ✨`
+        : go
+          ? `Kjør til <output>${st.to} %</output>${turn ? ` og vri til <output>${st.a}°</output>` : ''} på <output>${stepTime(st)}</output>`
+          : turn
+            ? `Vri til <output>${st.a}°</output> på <output>${stepTime(st)}</output>`
+            : `Vent <output>${stepTime(st)}</output>`;
+    return `<b>${k + 1}</b><span class="dz-step-t">${txt}${drop ? ' <em class="dz-drop">· slipper</em>' : ''}</span>
+        ${mag ? `<button class="dz-step-x dz-mag${drop ? '' : ' on'}" type="button" data-step-drop="${k}" title="${drop ? 'Magneten er av – slipper kulene i dette steget' : 'Magneten holder i dette steget'}" aria-label="Magneten i steg ${k + 1}" aria-pressed="${!drop}">🧲</button>` : ''}${go ? `<button class="dz-step-x${turn ? ' on' : ''}" type="button" data-step-rot="${k}" title="Vri mens den kjører" aria-label="Vri mens steg ${k + 1} kjører" aria-pressed="${turn}">⟳</button>` : ''}${jump || st.hold ? '' : `<button class="dz-step-x${rnd ? ' on' : ''}" type="button" data-step-rnd="${k}" title="Tilfeldig tid" aria-label="Tilfeldig tid på steg ${k + 1}" aria-pressed="${rnd}">🎲</button>`}<button class="dz-step-x" type="button" data-step-up="${k}" title="Flytt opp" aria-label="Flytt steg ${k + 1} opp"${k ? '' : ' disabled'}>↑</button><button class="dz-step-x" type="button" data-step-del="${k}" title="Fjern" aria-label="Fjern steg ${k + 1}"${n > 1 ? '' : ' disabled'}>✕</button>`;
+  }
+  function stepHtml(st, k, key, n, mag) {
+    const go = st.to != null,
+      turn = st.a != null,
+      moves = go || turn,
+      jump = moves && st.e === 'jump', // hopp tar ingen tid
+      rnd = st.t2 != null,
+      slow = moves && !jump && key && key.t1 - key.t0 > st.t + 0.01;
+    const time = (sk, label, v, max = 10) =>
+      `<label class="dz-step-r">${label}<input type="range" data-rs="${k}" data-sk="${sk}" min="${max > 10 ? 0.5 : 0.1}" max="${max}" step="${max > 10 ? 0.5 : 0.05}" value="${v}" aria-label="${label === 'Tid' ? 'Sekunder' : label === 'Min' ? 'Korteste tid i sekunder' : 'Lengste tid i sekunder'}"></label>`;
+    return `<li class="dz-step${mag && st.drop ? ' is-drop' : ''}">
+      <div class="dz-step-h">${stepHead(st, k, n, mag)}</div>
       ${go ? `<label class="dz-step-r">Til<input type="range" data-rs="${k}" data-sk="to" min="0" max="100" step="5" value="${st.to}" aria-label="Hvor langt på skinnen (prosent)"></label>` : ''}
-      ${jump ? '' : rnd ? time('t', 'Min', st.t) + time('t2', 'Maks', st.t2) : time('t', 'Tid', st.t)}
-      ${go ? `<div class="dz-seg">${EASE_NAME.map(([v, l]) => `<button type="button" data-step-e="${k}" data-v="${v}" class="${st.e === v ? 'on' : ''}">${l}</button>`).join('')}</div>` : ''}
-      ${slow ? `<span class="warn">For fort for skinnen – tar ${secs(key.t1 - key.t0)}.</span>` : ''}
+      ${turn ? `<label class="dz-step-r">Vri<input type="range" data-rs="${k}" data-sk="a" min="-360" max="360" step="5" value="${st.a}" aria-label="Hvor mange grader delene er vridd (med klokka)"></label>` : ''}
+      ${st.hold ? time('t', 'Maks', st.t, 30) : jump ? '' : rnd ? time('t', 'Min', st.t) + time('t2', 'Maks', st.t2) : time('t', 'Tid', st.t)}
+      ${moves ? `<div class="dz-seg">${EASE_NAME.map(([v, l]) => `<button type="button" data-step-e="${k}" data-v="${v}" class="${st.e === v ? 'on' : ''}">${l}</button>`).join('')}</div>` : ''}
+      ${slow ? `<span class="warn">For fort – tar ${secs(key.t1 - key.t0)}.</span>` : ''}
     </li>`;
   }
-  function railSum(rail) {
-    const plan = P.railPlan(rail),
+  function railSum(rail, reach = 0) {
+    const plan = P.railPlan(rail, null, reach),
       top = Math.max(0, ...plan.keys.map((k) => k.peak)),
+      npts = 1 + (rail.pts ? rail.pts.length : 0),
+      turns = rail.prog.some((st) => st.a != null),
       dir =
         Math.abs(rail.dy) > Math.abs(rail.dx) * 2
           ? rail.dy < 0
@@ -2307,38 +2910,99 @@
     const lap = plan.rand
       ? `${u.nf.format(Math.round(plan.period * 10) / 10)}–${secs(plan.periodMax)} (tilfeldig hver runde)`
       : secs(plan.period);
-    return `Skinnen er ${Math.round(plan.L)} lang og går ${dir}. En runde tar ${lap}, toppfart ${Math.round(top)}.${
+    const where =
+      plan.L < 2
+        ? `Delene står på stedet${turns ? ' og vrir seg rundt bolten' : ''}.`
+        : rail.loop
+          ? `Rundbanen er ${Math.round(plan.L)} lang.`
+          : npts > 1
+            ? `Banen er ${Math.round(plan.L)} lang og går innom ${npts} punkt.`
+            : `Skinnen er ${Math.round(plan.L)} lang og går ${dir}.`;
+    return `${where} En runde tar ${lap}${rail.prog.some((st) => st.hold) ? ' (kortere når kulene går om bord)' : ''}, toppfart ${Math.round(top)}.${
       top > 1100
-        ? '<br><span class="warn">🚀 Så fort at kulene kan kastes til værs når den stopper.</span>'
+        ? '<br><span class="warn">🚀 Så fort at kulene kan kastes til værs.</span>'
         : ''
     }`;
+  }
+  /* Magneten: hvor lenge den holder (fra styrken), og hvordan den slipper */
+  function magNote(rail) {
+    const h = P.magHold(rail),
+      gr = rail.gr || 0,
+      gt = rail.gt || 2;
+    const hold =
+      h > 180
+        ? '<b>Holder kulene selv opp ned.</b>'
+        : h >= 90
+          ? `<b>Holder kulene selv på høykant</b> – til plata heller rundt ${h}°.`
+          : `<b>Holder kulene til plata heller rundt ${h}°.</b>`;
+    const how =
+      gr === 1
+        ? 'Den slipper i stegene der 🧲 er slått av – trykk på 🧲 i et steg. Slipper den mens plata er i fart, slenges kulene av gårde.'
+        : gr === 2
+          ? `Hver kule holdes i ${secs(gt)} fra den lander. Så slipper magneten den, og fanger den bare igjen om den forlater plata og lander på nytt.`
+          : 'Den slipper når plata heller mer enn det, eller rykker hardere enn magneten tåler.';
+    const none = gr === 1 && !rail.prog.some((st) => st.drop) ? '<br><span class="warn">Ingen steg slipper ennå – trykk på 🧲 i et steg.</span>' : '';
+    return `${hold} ${how}${none}`;
+  }
+  function magSection(rail) {
+    const gs = rail.gs || 100,
+      gr = rail.gr || 0,
+      gt = rail.gt || 2;
+    return `<label class="dz-field"><span>Styrke <output data-o="gs">${gs} %</output></span><input type="range" data-rgs="1" min="10" max="400" step="5" value="${gs}" aria-label="Hvor sterk magneten er, i prosent"></label>
+      <div class="dz-field"><span>Slipper kulene</span><div class="dz-seg">${[
+        [0, 'Ved helling'],
+        [1, 'I stegene'],
+        [2, 'Etter tid'],
+      ]
+        .map(([v, l]) => `<button type="button" data-rgr="${v}" class="${gr === v ? 'on' : ''}">${l}</button>`)
+        .join('')}</div></div>
+      ${gr === 2 ? `<label class="dz-field"><span>Holder hver kule <output data-o="gt">${secs(gt)}</output></span><input type="range" data-rgt="1" min="0.2" max="10" step="0.1" value="${gt}" aria-label="Sekunder magneten holder hver kule"></label>` : ''}
+      <p class="dz-note dz-magnote">${magNote(rail)}</p>`;
   }
   function motionSection(idxs) {
     const rail = unitRail(idxs),
       can = riders(idxs).length;
     if (!can)
-      return '<div class="dz-motion"><p class="dz-note">Bare ramper, vegger, TUT-bumpere, skilt og pynt kan kjøre på skinne. Grupper dem med noe av det, så kan resten være med.</p></div>';
+      return '<div class="dz-motion"><p class="dz-note">Bare ramper, vegger, TUT-bumpere, trampoliner, kaffe, bånd, spikerbrett, skilt og pynt kan kjøre på skinne. Grupper dem med noe av det, så kan resten være med.</p></div>';
     const off = rail && rail.sync ? rail.off || 0 : 0;
     let h = `<div class="dz-motion">
       <div class="dz-field"><span>Bevegelse</span><div class="dz-seg"><button type="button" data-rail="0" class="${rail ? '' : 'on'}">Står stille</button><button type="button" data-rail="1" class="${rail ? 'on' : ''}">🛤️ På skinne</button></div></div>`;
     if (!rail)
       return `${h}<p class="dz-note">Sett den på skinne, så kjører den fram og tilbake etter et program du lager selv: heis, stempel, utskyter …</p></div>`;
-    const plan = P.railPlan(rail);
-    h += `<p class="dz-note">Dra i det gule håndtaket for å legge skinnen dit den skal kjøre. 0 % er der den står nå, 100 % er enden av skinnen. «Hopp» teleporterer den dit med en gang i stedet for å kjøre, og 🎲 gir steget tilfeldig tid hver runde.</p>
+    const reach = reachOf(idxs, rail),
+      plan = P.railPlan(rail, null, reach),
+      npts = 1 + (rail.pts ? rail.pts.length : 0),
+      turns = rail.prog.some((st) => st.a != null);
+    const two = (attr, cur, a, b) =>
+      `<div class="dz-seg"><button type="button" ${attr}="0" class="${cur ? '' : 'on'}">${a}</button><button type="button" ${attr}="1" class="${cur ? 'on' : ''}">${b}</button></div>`;
+    h += `<p class="dz-note">Dra i de gule håndtakene for å legge banen. 0 % er der delene står nå, 100 % er enden av banen.${turns ? ' Bolten er dreiepunktet – dra den dit delene skal vri seg rundt (hold Shift for å feste den i en ende).' : ''}</p>
       <div class="dz-field"><span>Ferdige program</span><div class="dz-presets">${Object.keys(PRESET)
         .map((k) => `<button type="button" data-preset="${k}">${PRESET[k].label}</button>`)
         .join('')}</div></div>
+      <div class="dz-field"><span>Banen <output>${npts} punkt${rail.loop ? ' · rundbane' : ''}</output></span>
+        <div class="dz-btns dz-add"><button class="btn btn-ghost btn-small" type="button" data-pt="add"${npts > P.PTS_MAX ? ' disabled' : ''}>＋ Punkt</button><button class="btn btn-ghost btn-small" type="button" data-pt="del"${npts > 1 ? '' : ' disabled'}>− Punkt</button></div>
+        ${two('data-rloop', rail.loop, '↔ Fram og tilbake', '↺ Rundbane')}
+        ${npts > 1 ? two('data-rcurve', rail.curve, 'Rette strekk', 'Myke svinger') : ''}
+      </div>
+      <div class="dz-field"><span>Underlag</span>${two('data-rgrip', rail.grip, 'Glatt', '🧲 Magnet')}</div>
+      ${rail.grip ? magSection(rail) : '<p class="dz-note">Glatt: kulene sklir når plata kjører bortover. Slå på magneten for vogner som skal frakte kuler.</p>'}
       <div class="dz-field"><span>Programmet (går i ring)</span></div>
-      <ol class="dz-prog">${rail.prog.map((st, k) => stepHtml(st, k, plan.keys[k], rail.prog.length)).join('')}</ol>
+      <ol class="dz-prog">${rail.prog.map((st, k) => stepHtml(st, k, plan.keys[k], rail.prog.length, rail.grip && rail.gr === 1)).join('')}</ol>
       ${
         rail.prog.length < P.STEPS_MAX
-          ? '<div class="dz-btns dz-add"><button class="btn btn-ghost btn-small" type="button" data-step-add="go">＋ Kjør</button><button class="btn btn-ghost btn-small" type="button" data-step-add="wait">＋ Vent</button></div>'
+          ? '<div class="dz-btns dz-add"><button class="btn btn-ghost btn-small" type="button" data-step-add="go">＋ Kjør</button><button class="btn btn-ghost btn-small" type="button" data-step-add="turn">＋ Vri</button><button class="btn btn-ghost btn-small" type="button" data-step-add="wait">＋ Vent</button><button class="btn btn-ghost btn-small" type="button" data-step-add="hold" title="Står til en kule går om bord">＋ Vent på kule</button></div>'
           : ''
       }
       <div class="dz-field"><span>Takt</span><div class="dz-seg"><button type="button" data-rsync="0" class="${rail.sync ? '' : 'on'}">Tilfeldig start</button><button type="button" data-rsync="1" class="${rail.sync ? 'on' : ''}">Starter med løpet</button></div></div>
-      ${rail.sync ? `<label class="dz-field"><span>Venter etter at porten åpner <output data-o="off">${secs(off)}</output></span><input type="range" data-roff="1" min="0" max="20" step="0.1" value="${off}"></label>` : ''}
-      <p class="dz-pos dz-rsum">${railSum(rail)}</p>
-      ${idxs.length > can ? '<p class="dz-note">Hjul, vipper og de andre delene i gruppa står stille. Bare ramper, vegger, TUT-bumpere, skilt og pynt kjører på skinne.</p>' : ''}
+      ${
+        rail.sync
+          ? `<label class="dz-field"><span>Venter etter at porten åpner <output data-o="off">${secs(off)}</output></span><input type="range" data-roff="1" min="0" max="20" step="0.1" value="${off}"></label>
+      <label class="dz-field"><span>Startpunkt i runden <output data-o="ph">${rail.ph || 0} %</output></span><input type="range" data-rph="1" min="0" max="99" step="1" value="${rail.ph || 0}"></label>`
+          : ''
+      }
+      <div class="dz-btns dz-add"><button class="btn btn-ghost btn-small" type="button" data-a="cart" title="Kopierer denne og fordeler alle vognene jevnt på banen">＋ Vogn til på samme bane</button></div>
+      <p class="dz-pos dz-rsum">${railSum(rail, reach)}</p>
+      ${idxs.length > can ? '<p class="dz-note">Hjul, vipper og de andre delene i gruppa står stille. Bare ramper, vegger, TUT-bumpere, trampoliner, kaffe, bånd, spikerbrett, skilt og pynt kjører på skinne.</p>' : ''}
     </div>`;
     return h;
   }
@@ -2401,7 +3065,7 @@
       }, true);
       return;
     }
-    const rs = e.target.closest('[data-rs], [data-roff]');
+    const rs = e.target.closest('[data-rs], [data-roff], [data-rph], [data-rgs], [data-rgt]');
     if (rs) {
       // skyvere i programmet: oppdater mens du drar, lagre i angre-lista når du slipper
       if (!railUnit() || test) return;
@@ -2409,21 +3073,47 @@
       const k = +rs.dataset.rs,
         sk = rs.dataset.sk,
         v = +rs.value;
+      if (rs.dataset.rph) {
+        // startpunkt i runden: vogna flytter seg langs banen, og banen blir liggende
+        const idxs = railUnit(),
+          old = unitRail(idxs),
+          a = P.railShift(old, old.ph || 0),
+          b = P.railShift(old, v),
+          dx = Math.round(b.x - a.x),
+          dy = Math.round(b.y - a.y);
+        for (const i of idxs) {
+          const p = clone(doc.pieces[i]);
+          move(p, dx, dy);
+          doc.pieces[i] = P.sanePiece(p);
+        }
+      }
       editRail((r) => {
         if (rs.dataset.roff) r.off = v;
+        else if (rs.dataset.rph) r.ph = v;
+        else if (rs.dataset.rgs) r.gs = v;
+        else if (rs.dataset.rgt) r.gt = v;
         else if (r.prog[k]) r.prog[k][sk] = v;
       }, true);
       const sum = panel.querySelector('.dz-rsum'),
         r = unitRail(railUnit());
-      if (rs.dataset.roff) {
+      if (rs.dataset.rgs || rs.dataset.rgt) {
+        // magneten: tallet og forklaringen («holder til plata heller rundt 60°»)
+        const o = panel.querySelector(rs.dataset.rgs ? '[data-o="gs"]' : '[data-o="gt"]'),
+          note = panel.querySelector('.dz-magnote');
+        if (o) o.textContent = rs.dataset.rgs ? `${v} %` : secs(v);
+        if (note && r) note.innerHTML = magNote(r);
+      } else if (rs.dataset.rph) {
+        const o = panel.querySelector('[data-o="ph"]');
+        if (o) o.textContent = `${v} %`;
+      } else if (rs.dataset.roff) {
         const o = panel.querySelector('[data-o="off"]');
         if (o) o.textContent = secs(v);
       } else if (r && r.prog[k]) {
         // overskriften på steget («Kjør til 100 % på 1–3 s»)
         const h = rs.closest('.dz-step').querySelector('.dz-step-h');
-        if (h) h.innerHTML = stepHead(r.prog[k], k, r.prog.length);
+        if (h) h.innerHTML = stepHead(r.prog[k], k, r.prog.length, r.grip && r.gr === 1);
       }
-      if (sum && r) sum.innerHTML = railSum(r);
+      if (sum && r) sum.innerHTML = railSum(r, reachOf(railUnit(), r));
       rebuild();
       dirtyCheck();
       saveDraft();
@@ -2448,7 +3138,7 @@
     renderBar();
   });
   panel.addEventListener('change', (e) => {
-    if (!e.target.closest('[data-f], [data-rs], [data-roff], [data-lf]') || !fieldBefore)
+    if (!e.target.closest('[data-f], [data-rs], [data-roff], [data-rph], [data-rgs], [data-rgt], [data-lf]') || !fieldBefore)
       return;
     const b = fieldBefore;
     fieldBefore = null;
@@ -2518,9 +3208,108 @@
       return;
     }
     if ((el = on('[data-preset]'))) {
+      // ferdig program (noen tar også med grep eller rundbane)
       const pr = PRESET[el.dataset.preset];
       editRail((r) => {
         r.prog = clone(pr.prog);
+        if (pr.rail && pr.rail.grip) {
+          // programmet er laget for en bestemt magnet: styrken og hvordan den slipper følger med
+          r.grip = 1;
+          for (const k of ['gs', 'gr', 'gt']) {
+            if (pr.rail[k] != null) r[k] = pr.rail[k];
+            else delete r[k];
+          }
+        }
+        if (pr.rail && pr.rail.loop) makeLoop(r);
+      });
+      return;
+    }
+    if ((el = on('[data-pt]'))) {
+      // flere eller færre punkt på banen
+      const more = el.dataset.pt === 'add';
+      editRail((r) => {
+        const pts = [[r.dx, r.dy]].concat(r.pts || []);
+        if (!more) {
+          if (!r.pts || !r.pts.length) return false;
+          r.pts.pop();
+          if (!r.pts.length) {
+            delete r.pts;
+            delete r.curve;
+          }
+          return;
+        }
+        if (pts.length > P.PTS_MAX) return false;
+        // neste punkt: en sving til høyre fra strekket før
+        const a = pts[pts.length - 1],
+          b = pts.length > 1 ? pts[pts.length - 2] : [0, 0];
+        let vx = a[0] - b[0],
+          vy = a[1] - b[1];
+        if (Math.hypot(vx, vy) < 2) {
+          vx = 0;
+          vy = -200;
+        }
+        const l = Math.hypot(vx, vy),
+          k = Math.min(300, Math.max(120, l)) / l;
+        r.pts = (r.pts || []).concat([[Math.round(a[0] - vy * k), Math.round(a[1] + vx * k)]]);
+      });
+      return;
+    }
+    if ((el = on('[data-rloop]'))) {
+      const v = +el.dataset.rloop;
+      editRail((r) => {
+        if (v) makeLoop(r);
+        else delete r.loop;
+      });
+      return;
+    }
+    if ((el = on('[data-rcurve]'))) {
+      const v = +el.dataset.rcurve;
+      editRail((r) => {
+        if (v) r.curve = 1;
+        else delete r.curve;
+      });
+      return;
+    }
+    if ((el = on('[data-rgrip]'))) {
+      const v = +el.dataset.rgrip;
+      editRail((r) => {
+        if (v) r.grip = 1;
+        else delete r.grip;
+      });
+      return;
+    }
+    if ((el = on('[data-rgr]'))) {
+      const v = +el.dataset.rgr;
+      editRail((r) => {
+        if (v) r.gr = v;
+        else delete r.gr;
+        if (v === 2 && r.gt == null) r.gt = 2;
+      });
+      return;
+    }
+    if ((el = on('[data-step-drop]'))) {
+      // 🧲 i et steg: magneten på (holder) eller av (slipper)
+      const k = +el.dataset.stepDrop;
+      editRail((r) => {
+        const st = r.prog[k];
+        if (!st) return false;
+        if (st.drop) delete st.drop;
+        else st.drop = 1;
+      });
+      return;
+    }
+    if ((el = on('[data-step-rot]'))) {
+      // ⟳ vri mens den kjører (av og på)
+      const k = +el.dataset.stepRot;
+      editRail((r) => {
+        const st = r.prog[k];
+        if (!st || st.to == null) return false;
+        if (st.a != null) delete st.a;
+        else {
+          let last = 0;
+          for (const q of r.prog) if (q.a != null) last = q.a;
+          st.a = last ? 0 : 45;
+        }
       });
       return;
     }
@@ -2556,13 +3345,25 @@
       return;
     }
     if ((el = on('[data-step-add]'))) {
-      const go = el.dataset.stepAdd === 'go';
+      const kind = el.dataset.stepAdd;
       editRail((r) => {
         if (r.prog.length >= P.STEPS_MAX) return false;
-        // et nytt kjør-steg går til den andre enden av der den står
-        let last = 0;
-        for (const st of r.prog) if (st.to != null) last = st.to;
-        r.prog.push(go ? { to: last >= 50 ? 0 : 100, t: 1.5, e: 'smooth' } : { t: 1 });
+        // et nytt kjør-steg går til den andre enden av der den står, og et nytt vri-steg vrir tilbake igjen
+        let last = 0,
+          ang = 0;
+        for (const st of r.prog) {
+          if (st.to != null) last = st.to;
+          if (st.a != null) ang = st.a;
+        }
+        r.prog.push(
+          kind === 'go'
+            ? { to: last >= 50 ? 0 : 100, t: 1.5, e: 'smooth' }
+            : kind === 'turn'
+              ? { a: ang ? 0 : 45, t: 1, e: 'smooth' }
+              : kind === 'hold'
+                ? { t: 8, hold: 1 }
+                : { t: 1 },
+        );
       });
       return;
     }
@@ -2607,6 +3408,7 @@
     else if (a === 'group') group();
     else if (a === 'ungroup') ungroup();
     else if (a === 'selgrp') setPicked(grpOf(sel));
+    else if (a === 'cart') addCart();
     else if (a === 'done') select(-1);
     else if (a === 'retest') startTest();
     else if (a === 'stop') stopTest();
@@ -2642,7 +3444,7 @@
     $('#dzOpen').innerHTML =
       `${cur ? '' : `<option value="" selected>${esc(doc.name)} (ikke lagret)</option>`}
       ${list.length ? `<optgroup label="Mine løyper">${list.map((c) => `<option value="${esc(c.id)}"${c.id === cur ? ' selected' : ''}>${esc(c.name)}${mark(c)}${Store.courseId === c.id ? ' · i bruk' : ''}</option>`).join('')}</optgroup>` : ''}
-      <optgroup label="Lag ny"><option value="new:simple">＋ Ny enkel løype</option><option value="new:copy">＋ Kopi av Keiservarden</option><option value="new:demo">＋ Demo med alle delene</option><option value="new:rail">＋ Demo: heis og utskyter</option></optgroup>`;
+      <optgroup label="Lag ny"><option value="new:simple">＋ Ny enkel løype</option><option value="new:copy">＋ Kopi av Keiservarden</option><option value="new:demo">＋ Demo med alle delene</option><option value="new:rail">＋ Demo: heis og utskyter</option><option value="new:plat">＋ Demo: Fredagsparken (nye deler)</option></optgroup>`;
   }
   function load(c, savedVersion) {
     stopTest(true);
@@ -2738,6 +3540,8 @@
             ? 'Demo med Saltstraumen, ferga, raketten og resten. Trykk Testkjør!'
             : kind === 'rail'
               ? 'Heisen og utskyteren kjører på skinner. Trykk på dem for å se programmet – og trykk Testkjør!'
+              : kind === 'plat'
+                ? 'Tippvogn, pariserhjul, flipper, trampoline, kaffe, vifte, svingdør og kantine. Trykk Testkjør!'
               : 'Ny løype. Start og mål er på plass – resten er opp til deg.',
       );
     } else {
@@ -2775,6 +3579,8 @@
         done: false,
         log: [],
         flown: new Uint8Array(n),
+        rad: new Float32Array(n).fill(P.R), // Kantina: hvor stor kula er nå, og hvor stor den tegnes
+        rv: new Float32Array(n).fill(P.R),
       };
       cam.x = res.C.start.x;
       cam.y = res.C.start.y - 100;
@@ -2794,6 +3600,7 @@
   }
   function onTestEvent(e) {
     const T = test;
+    if (e.type === 'size') T.rad[e.i] = e.r;
     if (e.type === 'bump') return;
     let entry;
     if (e.type === 'launch' || e.type === 'rocket') {
@@ -2801,7 +3608,7 @@
       T.flown[e.i] = 1;
       entry = {
         icon: '🚀',
-        html: `<b>Kule ${e.i + 1}</b> ${e.type === 'rocket' ? 'ble skutt opp fra Andøya' : e.lift ? 'ble kastet til værs av heisen' : e.arm ? 'ble slått til værs av Glimt-armen' : 'ble skutt til værs'}`,
+        html: `<b>Kule ${e.i + 1}</b> ${e.type === 'rocket' ? 'ble skutt opp fra Andøya' : e.mag ? 'ble slynget av gårde fra magneten' : e.lift ? 'ble kastet til værs av heisen' : e.arm ? 'ble slått til værs av Glimt-armen' : 'ble skutt til værs'}`,
         t: Math.max(0, e.t - P.GATE_T),
       };
     } else if (e.type !== 'finish' && e.type !== 'out') {
@@ -3095,9 +3902,10 @@
   });
 
   /* ---------- Verktøy på lerretet og delelista ---------- */
-  $('#dzPal').innerHTML = PALETTE.map(
-    (t) =>
-      `<button type="button" data-add="${t}" title="Legg til ${esc(KINDS[t].name.toLowerCase())}"><span class="dz-ico">${KINDS[t].ico}</span>${esc(KINDS[t].pal || KINDS[t].name)}</button>`,
+  $('#dzPal').innerHTML = PALETTE.map((t) =>
+    t[0] === '#'
+      ? `<p class="dz-pal-h">${esc(t.slice(1))}</p>`
+      : `<button type="button" data-add="${t}" title="Legg til ${esc(KINDS[t].name.toLowerCase())}"><span class="dz-ico">${KINDS[t].ico}</span>${esc(KINDS[t].pal || KINDS[t].name)}</button>`,
   ).join('');
   $('#dzPal').addEventListener('click', (e) => {
     const b = e.target.closest('[data-add]');

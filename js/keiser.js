@@ -23,14 +23,18 @@
     k_arm: (n) => ['Glimt-armen!', `${n} fikk et slag av Glimt-armen og forsvant ut av løypa!`],
     k_sjef: (n) => ['Sjefen!', `${n} ble tatt av Sjefen. Fredagslotteri er visst ikke lov.`],
     k_heis: (n) => ['Heisen!', `${n} ble kastet til værs av heisen og landet utenfor løypa!`],
+    k_tramp: (n) => ['Trampolina!', `${n} spratt litt for høyt på trampolina og landet utenfor løypa.`],
+    k_kaffe: (n) => ['For mye kaffe!', `${n} tok en kopp for mye og føk rett ut av løypa.`],
+    k_vifte: (n) => ['Kontorvifta!', `${n} ble blåst ut av løypa av kontorvifta. Hvem satte den på fullt?`],
   };
-  const FUN = ['launch', 'rocket', 'spit', 'tunnel', 'fish', 'rein', 'slaps', 'zapped'];
+  const FUN = ['launch', 'rocket', 'spit', 'tunnel', 'fish', 'rein', 'slaps', 'zapped', 'boing', 'boost', 'size'];
+  const SLOW = 0.3; // sakte film i målgangen: farten på avspillingen rundt den første kula i mål
   // killfeed: kort tekst for hvert utfall (kommentatoren tar bare start og vinnere)
   const KILL = {
     k_vind: 'blåste ned i Juvet', k_ornes: 'tok Ørnes-luka', k_orna: 'tatt av ørna', k_glimt: 'slått ut av Glimt-hjulet',
     k_arm: 'slått ut av Glimt-armen', k_kant: 'utfor kanten', k_fast: 'satt fast', k_salt: 'tatt av Saltstraumen',
     k_ferje: 'rakk ikke ferga', k_rakett: 'skutt ut i verdensrommet', k_fisk: 'tørrfisk i trynet', k_sjef: 'tatt av Sjefen',
-    k_heis: 'kastet ut av heisen',
+    k_heis: 'kastet ut av heisen', k_tramp: 'spratt ut av løypa', k_kaffe: 'for mye kaffe', k_vifte: 'blåst ut av kontorvifta',
   };
 
   /* Løypa som er valgt for trekningen: en godkjent egen løype, ellers originalen (null) */
@@ -61,12 +65,18 @@
       this.el.kf.className = 'kfeed';
       this.el.kf.setAttribute('aria-live', 'polite');
       this.canvas.parentElement.appendChild(this.el.kf);
+      // klokke og status øverst i midten mens løpet går
+      this.el.clock = document.createElement('div');
+      this.el.clock.className = 'kclock';
+      this.el.clock.setAttribute('aria-hidden', 'true');
+      this.canvas.parentElement.appendChild(this.el.clock);
       this.cw = 0; this.ch = 0; this.dpr = 1;
       this.def = null; this.courseKey = '';
       this.C = P.course(1, null);
       this.cam = this.homeCam();
       this.token = 0; this.active = false; this.running = false; this.playing = false;
       this.t = 0; this.texts = []; this.time = 0; this.fb = new Map();
+      this.follow = null; this.idxOf = new Map(); this.splitT = {}; this.order = []; this.orderT = -1;
       this.stars = D.stars(42);
       this.resize();
       if ('ResizeObserver' in window) new ResizeObserver(() => this.resize()).observe(this.canvas);
@@ -126,6 +136,8 @@
         if (!quiet && Math.abs(this.leaderY - e.y) < 650 && this.once('zapFx', 0.12)) S().zap();
         return;
       }
+      if (e.type === 'split') { this.split(e, quiet); return; }
+      if (e.type === 'size' && m) m.r = e.r; // Kantina: stor eller liten (gjelder også når vi spoler)
       if (FUN.includes(e.type)) {
         if (!quiet && m && !m.state) this.fun(e, m);
         return;
@@ -188,7 +200,7 @@
       const fresh = () => { const k = `${e.type}:${e.i}`, last = this.fb.get(k); if (last != null && this.time - last < 10) return false; this.fb.set(k, this.time); return true; };
       if (e.type === 'launch') {
         if (this.once('launchFx', 0.3)) S().launch();
-        if (fresh()) this.feed(e.lift ? '🛗' : e.arm ? '🦾' : '💛', `${who} ${e.lift ? 'kastet til værs av heisen' : 'slått til værs'}`);
+        if (fresh()) this.feed(e.mag ? '🧲' : e.lift ? '🛗' : e.arm ? '🦾' : '💛', `${who} ${e.mag ? 'slynget av gårde fra magneten' : e.lift ? 'kastet til værs av heisen' : 'slått til værs'}`);
       } else if (e.type === 'rocket') {
         if (this.once('rocketFx', 0.25)) S().launch();
         if (fresh()) this.feed('🚀', `${who} skutt opp fra Andøya`);
@@ -207,7 +219,58 @@
         if (e.i === this.leader && fresh()) this.feed('🌨️', `${who} kjørte inn i slapset`);
       } else if (e.type === 'zapped') {
         if (fresh()) this.feed('👔', `${who} truffet av Sjefen`);
+      } else if (e.type === 'boing') {
+        if (this.once('boingFx', 0.18)) S().boing();
+        if (fresh()) this.feed('🤸', `${who} spratt på trampolina`);
+      } else if (e.type === 'boost') {
+        if (this.once('boostFx', 0.3)) S().launch();
+        this.fx.sparkles(e.x, e.y, 8, '#ffb46b');
+        if (fresh()) this.feed('☕', `${who} fikk et koffeinkick`);
+      } else if (e.type === 'size') {
+        if (this.once('sizeFx', 0.25)) S().pop();
+        const big = e.r > P.R, small = e.r < P.R;
+        if (fresh()) this.feed(big ? '🧇' : small ? '🥗' : '💧', `${who} ${big ? 'spiste vaffel og ble stor og tung' : small ? 'tok salaten og ble liten og lett' : 'drakk vann og ble seg selv igjen'}`);
       }
+    }
+    /* Mellomtid: hvem som var først gjennom, og hvor langt bak de to neste er */
+    split(e, quiet) {
+      const Sp = this.C.splits[e.q], m = this.mar[e.i];
+      if (!Sp || !m) return;
+      if (e.rank === 1) this.splitT[e.q] = e.t;
+      if (quiet || e.rank > 3) return;
+      const who = this.who(this.pax.get(m.no)), gap = e.t - (this.splitT[e.q] || e.t);
+      if (e.rank === 1) { S().pop(); this.feed('⏱️', `${who} først til <b>${u.esc(Sp.name)}</b>`, 'split'); }
+      else this.feed('⏱️', `${e.rank}. ${who} <span class="kf-no">+${u.nf.format(Math.round(gap * 10) / 10)} s</span>`, 'split');
+    }
+    /* Følg en kule: klikk på navnet i lista eller på kula. Klikk en gang til for å slippe */
+    setFollow(no) {
+      if (!this.running || !this.res) return;
+      this.follow = this.follow === no || no == null ? null : no;
+      this.pax.forEach((p) => { if (p.row) p.row.classList.toggle('is-follow', p.no === this.follow); });
+      const p = this.follow != null ? this.pax.get(this.follow) : null;
+      if (p) this.feed('📹', `Følger ${this.who(p)}`, 'lead');
+    }
+    followIdx() { // kula vi følger, så lenge den fortsatt er i løpet
+      if (this.follow == null) return -1;
+      const i = this.idxOf.get(this.follow);
+      return i != null && !this.mar[i].state ? i : -1;
+    }
+    /* Rekkefølgen akkurat nå blant dem som fortsatt er i løpet (regnes én gang per bilde) */
+    liveOrder() {
+      if (this.orderT === this.t) return this.order;
+      const live = [];
+      for (let i = 0; i < this.n; i++) if (!this.mar[i].state) live.push([this.left(i), i]);
+      live.sort((a, b) => a[0] - b[0]);
+      this.order = live.map((q) => q[1]); this.orderT = this.t;
+      return this.order;
+    }
+    // sakte film: avspillingen bremser idet den første kula går i mål
+    slowK() {
+      if (!this.res || !Number.isFinite(this.firstFinT)) return 1;
+      const a = this.firstFinT - 0.5, b = this.firstFinT + 0.25, edge = 0.15;
+      if (this.t <= a - edge || this.t >= b + edge) return 1;
+      const k = this.t < a ? (a - this.t) / edge : this.t > b ? (this.t - b) / edge : 0;
+      return SLOW + (1 - SLOW) * k;
     }
     raceName() { return this.courseName ? `«${this.courseName}»` : 'Keiservarden Grand Prix'; }
     setRow(p, icon, out) { if (!p || !p.row) return; p.row.querySelector('.px-st').textContent = icon; if (out) p.row.classList.add('is-out'); }
@@ -285,6 +348,11 @@
           }
         }
       }
+      const fi = this.res ? this.followIdx() : -1;
+      if (fi >= 0 && this.t >= P.GATE_T - 0.4) { // du følger en kule: kameraet holder seg på den til den er i mål eller ute
+        const q = this.pos(fi, this.t);
+        if (q[1] > -50000) { tx = q[0]; ty = q[1] + 20; tvh = 600; }
+      }
       const k = 1 - Math.exp(-dt * 2.6);
       this.cam.x += (tx - this.cam.x) * k; this.cam.y += (ty - this.cam.y) * k; this.cam.vh += (tvh - this.cam.vh) * k;
       const vw = this.cam.vh * (this.cw / Math.max(1, this.ch));
@@ -295,7 +363,7 @@
       if (!this.active || !this.cw) return;
       const dt = Math.min(0.06, dtReal / 1000);
       this.time += dt;
-      if (this.playing) this.advance(d / 1000);
+      if (this.playing) this.advance((d / 1000) * this.slowK());
       this.updateCamera(dt);
       this.draw();
       this.fx.update(dtReal);
@@ -312,7 +380,57 @@
       ctx.setTransform(dpr * s, 0, 0, dpr * s, -v.x * s * dpr, -v.y * s * dpr);
       D.scene(ctx, this.C, v, this.res ? this.t : this.time, this.time, { flash: this.res ? (b) => this.bumpHit(b) : null, cage: this.rec && this.rec.leftBehind });
       this.drawMarbles();
+      this.drawTags(1 / s);
       this.drawTexts();
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      this.drawHud(v);
+    }
+    /* Navnelapper over de tre fremste og kula du følger */
+    drawTags(px) {
+      if (!this.res || this.t < P.GATE_T + 0.8 || !this.running) return;
+      const order = this.liveOrder(), done = this.finished.length, fi = this.followIdx();
+      const show = order.slice(0, Math.max(0, 3 - done));
+      if (fi >= 0 && !show.includes(fi)) show.push(fi);
+      for (let k = show.length - 1; k >= 0; k--) { // lederen tegnes sist, øverst
+        const i = show[k], [x, y] = this.pos(i, this.t);
+        if (y < -50000) continue;
+        const p = this.pax.get(this.mar[i].no), name = p.name.length > 18 ? p.name.slice(0, 17) + '…' : p.name;
+        D.tag(this.ctx, x, y - this.mar[i].rv, name, p.color, px, done + order.indexOf(i) + 1);
+      }
+    }
+    /* Klokke og status øverst, sakte film-merke og minikart (skjermkoordinater) */
+    drawHud(v) {
+      if (!this.res || !this.running) return;
+      const { ctx } = this, cw = this.cw, ch = this.ch;
+      const order = this.liveOrder(), dots = [], fi = this.followIdx();
+      for (const i of order) {
+        const q = this.pos(i, this.t);
+        if (q[1] < -50000) continue;
+        const p = this.pax.get(this.mar[i].no);
+        dots.push({ x: q[0], y: q[1], color: p.color, big: i === fi || i === this.leader, ring: i === fi ? '#fff' : '#5ef2b5' });
+      }
+      // minikartet toner ut når kameraet går til målgangen (der ville det ligget oppå mål og by)
+      const fade = fi >= 0 ? 1 : u.clamp((this.firstFinT - 1 - this.t) / 0.6, 0, 1);
+      if (fade > 0) D.minimap(ctx, this.C, cw, ch, v, dots, { top: 70, alpha: fade });
+      // klokka: tiden siden porten åpnet, og hvor mange som er igjen (bare når teksten endrer seg)
+      const tt = Math.max(0, this.t - P.GATE_T);
+      const clock = `<b>${this.t >= P.GATE_T ? `${(Math.floor(tt * 10) / 10).toFixed(1).replace('.', ',')} s` : 'Klar …'}</b><span>${order.length} i løypa · ${this.finished.length} i mål · ${this.out} ute</span>`;
+      if (clock !== this.clockTxt) { this.clockTxt = clock; this.el.clock.innerHTML = clock; }
+      ctx.textBaseline = 'middle';
+      if (this.playing && this.slowK() < 0.9) { // sakte film i målgangen
+        ctx.textAlign = 'center'; ctx.font = 'italic 900 24px Fraunces, Georgia, serif';
+        ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(4,10,20,.8)'; ctx.strokeText('SAKTE FILM', cw / 2, 86);
+        ctx.fillStyle = '#ffe08a'; ctx.fillText('SAKTE FILM', cw / 2, 86);
+      }
+      if (fi >= 0 && cw >= 700) { // hvem kameraet følger
+        const p = this.pax.get(this.follow), label = `📹 Følger ${p.name} · klikk for å slippe`;
+        ctx.font = '600 12.5px "Schibsted Grotesk", sans-serif'; ctx.textAlign = 'center';
+        const fw = ctx.measureText(label).width + 22;
+        ctx.fillStyle = 'rgba(4,10,20,.66)'; ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect((cw - fw) / 2, ch - 44, fw, 28, 14); else ctx.rect((cw - fw) / 2, ch - 44, fw, 28);
+        ctx.fill();
+        ctx.fillStyle = '#fff'; ctx.fillText(label, cw / 2, ch - 29);
+      }
     }
     bumpHit(b) { return this.mar.some((m, i) => m.bumpT != null && this.t - m.bumpT < 0.15 && Math.hypot(this.pos(i, this.t)[0] - b.x, this.pos(i, this.t)[1] - b.y) < 60); }
     drawMarbles() {
@@ -330,7 +448,8 @@
         const rank = m.state === 'fin' ? this.finished.indexOf(i) + 1 : 0;
         const ring = rank && rank <= this.W ? ['#ffd34d', '#dfe6ee', '#e0a070'][rank - 1] || '#ffd34d' : (i === this.leader && !m.state ? '#5ef2b5' : null);
         if (m.cause !== 'k_orna') { const [px, py] = this.pos(i, Math.max(0, this.t - 0.1)); D.trail(this.ctx, px, py, x, y, out ? '#6b7480' : p.color); }
-        D.ball(this.ctx, x, y, out ? '#6b7480' : p.color, p.label, ang, out ? 0.55 : 1, ring);
+        m.rv += (m.r - m.rv) * 0.25; // Kantina: vokser og krymper mykt
+        D.ball(this.ctx, x, y, out ? '#6b7480' : p.color, p.label, ang, out ? 0.55 : 1, i === this.followIdx() ? '#ffffff' : ring, m.rv);
       }
     }
     drawTexts() {
@@ -370,10 +489,16 @@
       outs.sort((a, b) => this.res.tDone[b] - this.res.tDone[a]);
       const order = this.finished.concat(live, outs);
       const frag = document.createDocumentFragment();
+      // luka bak lederen: hvor mye lenger de har igjen til mål (anslått fra de usynlige sjekkpunktene)
+      const l0 = live.length ? left.get(live[0]) : 0, gaps = this.playing && this.t > P.GATE_T + 1.5;
       order.forEach((i, k) => {
         const p = this.pax.get(this.mar[i].no);
         if (!p.row) return;
         p.row.querySelector('.px-no').textContent = `${k + 1}.`;
+        if (!this.mar[i].state) {
+          const gap = left.get(i) - l0, st = p.row.querySelector('.px-st');
+          st.innerHTML = gaps && i !== live[0] && gap > 0.05 && gap < 60 ? `<small class="px-gap">+${u.nf.format(Math.round(gap * 10) / 10)}</small>` : '';
+        }
         frag.appendChild(p.row);
       });
       this.el.pax.appendChild(frag);
@@ -430,7 +555,9 @@
       this.res = res; this.n = res.n; this.C = res.C;
       this.courseName = draw.course ? draw.course.name : null;
       this.W = Math.min(draw.winners.length, this.n);
-      this.mar = ticketOf.map((no) => ({ no, state: null, cause: null, bumpT: null }));
+      this.mar = ticketOf.map((no) => ({ no, state: null, cause: null, bumpT: null, r: P.R, rv: P.R }));
+      this.idxOf = new Map(this.mar.map((m, i) => [m.no, i]));
+      this.follow = null; this.splitT = {}; this.order = []; this.orderT = -1;
       this.pax = new Map();
       draw.tickets.forEach((t) => { const label = t.label || u.pad(t.no); this.pax.set(t.no, { no: t.no, name: t.name, label, color: u.colorFor(t.name), ini: label, alive: true, row: null }); });
       const ff = res.events.find((e) => e.type === 'finish');
@@ -516,9 +643,11 @@
     }
     showEnd() {
       const d = this.rec;
-      const ws = d.winners.map((no, k) => ({ p: this.pax.get(no), rank: k + 1 }));
+      // tida fra porten åpnet til kula var i mål
+      const time = (k) => { const i = this.finished[k]; return i != null && this.res.tDone[i] > 0 ? ` · ${u.nf.format(Math.round((this.res.tDone[i] - P.GATE_T) * 10) / 10)} s` : ''; };
+      const ws = d.winners.map((no, k) => ({ p: this.pax.get(no), rank: k + 1, time: time(k) }));
       const podOrder = ws.length >= 3 ? [ws[1], ws[0], ws[2]].concat(ws.slice(3)) : (ws.length === 2 ? [ws[1], ws[0]] : ws);
-      const pods = podOrder.map(({ p, rank }) => `<div class="pod p${rank <= 3 ? rank : 'n'}"><div class="pod-av" style="background:${p.color}">${u.esc(p.label)}</div><div class="pod-name">${u.esc(p.name)}</div><div class="pod-tix">kule ${u.esc(p.label)}</div><div class="pod-block">${rank}</div></div>`).join('');
+      const pods = podOrder.map(({ p, rank, time: tm }) => `<div class="pod p${rank <= 3 ? rank : 'n'}"><div class="pod-av" style="background:${p.color}">${u.esc(p.label)}</div><div class="pod-name">${u.esc(p.name)}</div><div class="pod-tix">kule ${u.esc(p.label)}${tm}</div><div class="pod-block">${rank}</div></div>`).join('');
       const badge = this.mode === 'demo' ? '<span class="ov-badge">Prøveløp</span>' : (this.mode === 'replay' ? '<span class="ov-badge">Reprise</span>' : '');
       this.el.end.innerHTML = `<div class="ov-card">${badge}<p class="ov-kicker">${this.courseName ? `${u.esc(this.courseName)} · ` : 'Bodø havn · '}målgang · ${u.esc(u.dfLong.format(new Date(d.date)))}</p>
         <h3 class="ov-title">Først ned <em>${this.courseName ? 'til havna!' : 'Keiservarden!'}</em></h3>
@@ -550,6 +679,25 @@
       this.el.start.addEventListener('change', (e) => {
         const sel = e.target.closest('[data-course]');
         if (sel && mine()) Store.setCourse(sel.value); // Store varsler → renderStart → ny løype tegnes
+      });
+      // følg en kule: klikk på navnet i lista …
+      this.el.pax.addEventListener('click', (e) => {
+        const row = e.target.closest('.px[data-no]');
+        if (row && mine() && this.running) this.setFollow(+row.dataset.no);
+      });
+      // … eller på selve kula (klikk ved siden av for å slippe)
+      this.canvas.addEventListener('click', (e) => {
+        if (!mine() || !this.running || !this.res || !this.cw) return;
+        const r = this.canvas.getBoundingClientRect(), v = this.view(), k = v.w / this.cw;
+        const wx = v.x + (e.clientX - r.left) * k, wy = v.y + (e.clientY - r.top) * k;
+        let best = -1, bd = 34 * k;
+        for (let i = 0; i < this.n; i++) {
+          if (this.mar[i].state) continue;
+          const q = this.pos(i, this.t), d = Math.hypot(q[0] - wx, q[1] - wy);
+          if (d < bd) { bd = d; best = i; }
+        }
+        if (best >= 0) this.setFollow(this.mar[best].no);
+        else if (this.follow != null) this.setFollow(null);
       });
     }
     busy(msg) { this.el.start.innerHTML = `<div class="ov-card"><p class="ov-kicker">Keiservarden</p><h3 class="ov-title">${msg}</h3></div>`; this.el.start.hidden = false; }

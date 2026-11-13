@@ -271,3 +271,14 @@
 .ov-course-pick select { max-width: min(280px, 52vw); padding: 8px 12px; border: 0; border-radius: 999px; background: var(--paper); color: var(--ink); font-family: var(--ff-ui); font-size: 14px; font-weight: 700; letter-spacing: 0; text-transform: none; cursor: pointer; }
 .ov-course-note { flex-basis: 100%; margin: 0; font-size: 12.5px; color: var(--sun); }
 @media (max-width: 640px) { .ov-course { gap: 6px; margin-bottom: 12px; } .ov-course .btn { padding: 8px 12px; font-size: 13px; } }
+.px-gap { font-family: var(--ff-mono); font-size: 11.5px; font-weight: 500; color: var(--muted); font-variant-numeric: tabular-nums; }
+.stage[data-game="keiser"].is-running .px { cursor: pointer; }
+.stage[data-game="keiser"].is-running .px:hover { background: rgba(255, 255, 255, .08); }
+.px.is-follow { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .6); background: rgba(255, 255, 255, .1); }
+.kf-row.is-split { border-left-color: #ffe08a; }
+.kclock { position: absolute; left: 50%; top: max(14px, 2.6cqh); z-index: 5; display: none; align-items: center; gap: 12px; transform: translateX(-50%); padding: 6px 14px; border-radius: 999px; background: rgba(4, 10, 20, .74); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); font-size: max(12px, 1.1cqw); color: var(--muted); white-space: nowrap; pointer-events: none; }
+.kclock b { min-width: 4.6em; font-family: var(--ff-mono); font-size: 1.25em; color: var(--sun); font-variant-numeric: tabular-nums; }
+.stage[data-game="keiser"].is-running .kclock { display: flex; }
+@media (max-width: 900px) { .kclock span { display: none; } .kclock b { min-width: 0; } }
+@media (max-width: 640px) { .kclock { left: auto; right: 10px; top: 56px; transform: none; } }
+.stage[data-game="keiser"].is-running .keiser-canvas { cursor: pointer; }
