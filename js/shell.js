@@ -61,6 +61,7 @@
           <label class="field"><span class="field-label">Antall vinnere</span><input class="field-input" type="number" name="winners" min="1" max="10" step="1" required></label>
           <label class="field"><span class="field-label">Trekningstid (valgfritt)</span><input class="field-input" type="text" name="drawTime" maxlength="20" placeholder="F.eks. 14:00"></label>
           <label class="field field-wide"><span class="field-label">Vipps til (valgfritt)</span><input class="field-input" type="text" name="vipps" maxlength="60" placeholder="F.eks. Daniel · 123 45 678"></label>
+          <label class="check field-wide"><input type="checkbox" name="noNums"><span>Ett lodd per person, uten bingotall<small>Ingen trenger å velge nummer – navnet er loddet. Gjelder hele siden, og numrene folk har fra før blir liggende til du slår det av igjen.</small></span></label>
           <label class="check field-wide"><input type="checkbox" name="uniqueWinners"><span>Én person kan bare vinne én gang per trekning</span></label>
         </div>
         <div class="dlg-foot">
@@ -75,16 +76,26 @@
       <div class="toasts" id="toasts" aria-live="polite"></div>`);
     const dlg = $('#settingsDlg');
     const form = $('#settingsForm');
+    // uten bingotall er det alltid ett lodd per person – feltet låses på 1 og husker tallet fra før
+    const syncMax = () => {
+      const off = form.noNums.checked;
+      form.maxPerPerson.disabled = off;
+      form.maxPerPerson.value = off ? 1 : Store.settings.maxNums;
+    };
+    form.noNums.addEventListener('change', syncMax);
     $('#settingsBtn').addEventListener('click', () => {
       const st = Store.settings;
-      form.price.value = st.price; form.maxPerPerson.value = st.maxPerPerson; form.winners.value = st.winners;
+      form.price.value = st.price; form.winners.value = st.winners;
       form.drawTime.value = st.drawTime; form.vipps.value = st.vipps; form.uniqueWinners.checked = st.uniqueWinners;
+      form.noNums.checked = st.noNums;
+      syncMax();
       dlg.returnValue = '';
       dlg.showModal();
     });
     dlg.addEventListener('close', () => {
       if (dlg.returnValue !== 'save') return;
-      Store.setSettings({ price: form.price.value, maxPerPerson: form.maxPerPerson.value, winners: form.winners.value, drawTime: form.drawTime.value, vipps: form.vipps.value, uniqueWinners: form.uniqueWinners.checked });
+      const noNums = form.noNums.checked;
+      Store.setSettings({ price: form.price.value, maxPerPerson: noNums ? 1 : form.maxPerPerson.value, winners: form.winners.value, drawTime: form.drawTime.value, vipps: form.vipps.value, uniqueWinners: form.uniqueWinners.checked, noNums });
       u.toast('Innstillingene er lagret.');
     });
     $('#wipeBtn').addEventListener('click', async () => {
@@ -102,11 +113,12 @@
     renderPill();
   }
 
-  /* «Ny passasjer»-skjema (påmelding og passasjerer): navn + selvvalgte nummer, ett per lodd */
+  /* «Ny passasjer»-skjema (påmelding og passasjerer): navn + selvvalgte nummer, ett per lodd.
+     Uten bingotall er det bare navnet. */
   function bindAddForm(form, numsBox, note) {
-    const max = () => Store.settings.maxPerPerson;
+    const max = () => (Store.settings.noNums ? 0 : Store.settings.maxPerPerson);
     const inputs = () => Array.from(numsBox.querySelectorAll('input'));
-    const hint = 'Skriv inn numrene personen har valgt selv – ett per lodd. Lodd 2 kan stå tomt.';
+    const hint = () => (Store.settings.noNums ? 'Uten bingotall: navnet er loddet, ett per person.' : `Skriv inn numrene personen har valgt selv – ett per lodd.${max() > 1 ? ' Lodd 2 kan stå tomt.' : ''}`);
     const renderNums = () => {
       const vals = inputs().map((i) => i.value);
       numsBox.innerHTML = Array.from({ length: max() }, (_, i) => `<label class="field add-num"><span class="field-label">Lodd ${i + 1}</span><input class="field-input" name="n${i}" type="text" inputmode="numeric" maxlength="5" placeholder="nr." value="${esc(vals[i] || '')}"></label>`).join('');
@@ -124,7 +136,7 @@
         return false;
       });
       note.className = 'add-note' + (msg ? ' bad' : '');
-      note.textContent = msg || (seen.length ? `Får lodd ${u.joinNames(seen.map(String))}.` : hint);
+      note.textContent = msg || (seen.length ? `Får lodd ${u.joinNames(seen.map(String))}.` : hint());
     };
     numsBox.addEventListener('input', check);
     form.addEventListener('submit', (e) => {
@@ -134,9 +146,11 @@
       if (!res.ok) { u.toast(res.msg); return; }
       const p = res.person;
       const got = p.nums.filter(Boolean);
+      const noNums = Store.settings.noNums;
       const wantPaid = form.paid && form.paid.checked;
-      const paid = wantPaid && got.length ? Store.setPaid(p.id, true).ok : false;
-      if (!got.length) u.toast(`${p.name} er lagt til – velg nummer før betalingen kan bekreftes.`);
+      const paid = wantPaid && (got.length || noNums) ? Store.setPaid(p.id, true).ok : false;
+      if (noNums) u.toast(`${p.name} er lagt til${paid ? ' – betalt ✓' : '.'}`);
+      else if (!got.length) u.toast(`${p.name} er lagt til – velg nummer før betalingen kan bekreftes.`);
       else u.toast(`${p.name} er lagt til med lodd ${u.joinNames(got.map(String))}${paid ? ' – betalt ✓' : '.'}`);
       form.reset();
       renderNums();
@@ -145,7 +159,7 @@
     });
     renderNums();
     check();
-    Store.subscribe(() => { if (inputs().length !== max()) { renderNums(); check(); } });
+    Store.subscribe(() => { if (inputs().length !== max()) { renderNums(); check(); } else if (!inputs().length) check(); });
   }
 
   renderHeader();

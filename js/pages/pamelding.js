@@ -20,12 +20,13 @@
   }
   function row(p) {
     const st = Store.settings;
+    const noNums = st.noNums; // uten bingotall: ett lodd, ingen nummer å fylle inn
     const sum = p.tickets * st.price;
     const nums = Store.ticketNums(p);
-    const missing = nums.some((n) => !n);
-    const seg = Array.from({ length: st.maxPerPerson }, (_, i) => `<button type="button" data-t="${i + 1}" class="${i + 1 === p.tickets ? 'on' : ''}" aria-pressed="${i + 1 === p.tickets}" aria-label="${i + 1} lodd">${i + 1}</button>`).join('');
-    const numHtml = nums.map((n, i) => (n ? `<span class="tn">${n}</span>` : `<input class="tn-in" data-i="${i}" type="text" inputmode="numeric" maxlength="5" placeholder="nr." aria-label="Nummer for lodd ${i + 1} til ${esc(p.name)}">`)).join('<span class="tn-sep">·</span>');
-    const badge = nums[0] || p.nums.find(Boolean) || '?';
+    const missing = !noNums && nums.some((n) => !n);
+    const seg = noNums ? '' : `<div class="seg" role="group" aria-label="Antall lodd for ${esc(p.name)}">${Array.from({ length: st.maxPerPerson }, (_, i) => `<button type="button" data-t="${i + 1}" class="${i + 1 === p.tickets ? 'on' : ''}" aria-pressed="${i + 1 === p.tickets}" aria-label="${i + 1} lodd">${i + 1}</button>`).join('')}</div>`;
+    const numHtml = noNums ? '' : `<div class="ci-nums"><span class="tn-lbl">Lodd</span>${nums.map((n, i) => (n ? `<span class="tn">${n}</span>` : `<input class="tn-in" data-i="${i}" type="text" inputmode="numeric" maxlength="5" placeholder="nr." aria-label="Nummer for lodd ${i + 1} til ${esc(p.name)}">`)).join('<span class="tn-sep">·</span>')}</div>`;
+    const badge = noNums ? esc(u.initials(p.name)) : (nums[0] || p.nums.find(Boolean) || '?');
     const pay = p.paid
       ? `<button type="button" class="pay on" data-pay aria-pressed="true"><span class="pay-ico">✓</span> Betalt ${sum} kr</button>`
       : (missing
@@ -33,8 +34,8 @@
         : `<button type="button" class="pay" data-pay aria-pressed="false">Bekreft betalt <span class="pay-sum">${sum} kr</span></button>`);
     return `<li class="ci${p.paid ? ' is-paid' : ''}${missing ? ' is-missing' : ''}${p.id === justPaid ? ' just-paid' : ''}" data-id="${p.id}">
       <span class="ci-num${badge === '?' ? ' is-q' : ''}">${badge}</span>
-      <div class="ci-info"><b>${esc(p.name)}</b><div class="ci-nums"><span class="tn-lbl">Lodd</span>${numHtml}</div></div>
-      <div class="ci-ctrls"><div class="seg" role="group" aria-label="Antall lodd for ${esc(p.name)}">${seg}</div>${pay}</div>
+      <div class="ci-info"><b>${esc(p.name)}</b>${numHtml}</div>
+      <div class="ci-ctrls">${seg}${pay}</div>
     </li>`;
   }
   function list() {

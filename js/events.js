@@ -264,8 +264,10 @@
   /* ---------- Trekning ---------- */
   function createDraw(people, settings, opts = {}) {
     const tickets = [];
+    // Uten bingotall har alle ett lodd uten nummer – da merkes loddet med initialene
+    const noNums = !!settings.noNums;
     // lodd-nummer: det hver passasjer har valgt selv, ett per lodd (f.eks. 7 og 70)
-    people.forEach((p) => { const nums = p.nums || []; for (let i = 0; i < p.tickets; i++) tickets.push({ no: tickets.length + 1, name: u.cleanName(p.name), k: u.normName(p.name), label: nums[i] > 0 ? String(nums[i]) : '' }); });
+    people.forEach((p) => { const nums = noNums ? [] : p.nums || []; for (let i = 0; i < p.tickets; i++) tickets.push({ no: tickets.length + 1, name: u.cleanName(p.name), k: u.normName(p.name), label: noNums ? u.initials(p.name) : nums[i] > 0 ? String(nums[i]) : '' }); });
     tickets.forEach((t) => { if (!t.label) t.label = u.pad(t.no); });
     const order = u.shuffle(tickets.map((t) => t.no)); // kryptografisk stokking – dette ER trekningen
     const uniq = settings.uniqueWinners !== false;
@@ -293,15 +295,16 @@
       const t = tickets.find((x) => x.k === u.normName(opts.amuletName));
       if (t) amulet = { name: t.name, no: t.no };
     }
-    // Keiservarden fyller inn hendelsene fra fysikk-simuleringen etterpå
-    const beats = opts.game === 'draugen' ? buildDraugenBeats(elim, u.mulberry32(seed), amulet && amulet.no) : opts.game === 'keiser' ? [] : buildBeats(elim, u.mulberry32(seed));
+    // Keiservarden fyller inn hendelsene fra fysikk-simuleringen etterpå, Trommelen har ingen
+    const beats = opts.game === 'draugen' ? buildDraugenBeats(elim, u.mulberry32(seed), amulet && amulet.no) : opts.game === 'keiser' || opts.game === 'trommel' ? [] : buildBeats(elim, u.mulberry32(seed));
     return {
       id: u.uid('d'), date: new Date().toISOString(), game: opts.game || 'hurtigbat', demo: !!opts.demo,
       price: settings.price, winnersCount: winners.length, pot: tickets.length * settings.price,
-      people: people.map((p) => ({ name: u.cleanName(p.name), nums: (p.nums || []).slice(0, p.tickets), tickets: p.tickets })),
+      people: people.map((p) => ({ name: u.cleanName(p.name), nums: noNums ? [] : (p.nums || []).slice(0, p.tickets), tickets: p.tickets })),
       tickets: tickets.map((t) => ({ no: t.no, name: t.name, label: t.label })),
-      leftBehind: (opts.leftBehind || []).map((p) => ({ name: u.cleanName(p.name), nums: (p.nums || []).filter(Boolean) })),
+      leftBehind: (opts.leftBehind || []).map((p) => ({ name: u.cleanName(p.name), nums: noNums ? [] : (p.nums || []).filter(Boolean) })),
       amulet, winners, elim, seed, beats,
+      ...(noNums ? { noNums: true } : {}),
     };
   }
 

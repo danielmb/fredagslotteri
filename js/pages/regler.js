@@ -10,11 +10,13 @@
     const W = st.winners;
     const rules = [
       `Ett lodd koster <b>${st.price} kr</b>. Betales med Vipps til ${st.vipps ? `<b>${esc(st.vipps)}</b>` : 'arrangøren'} før avgang.`,
-      `Maks <b>${st.maxPerPerson} lodd</b> per person.<small>Grådighet straffes av havet.</small>`,
-      'Alle har faste lodd-nummer som de har valgt selv – ett per lodd.<small>Har du valgt 7 og 70, er det dine nummer hver fredag.</small>',
+      ...(st.noNums
+        ? ['<b>Ett lodd</b> per person, uten bingotall – navnet ditt er loddet.<small>Ingen nummer å huske denne gangen.</small>']
+        : [`Maks <b>${st.maxPerPerson} lodd</b> per person.<small>Grådighet straffes av havet.</small>`,
+          'Alle har faste lodd-nummer som de har valgt selv – ett per lodd.<small>Har du valgt 7 og 70, er det dine nummer hver fredag.</small>']),
       'Den som tar imot betalingen, bekrefter den før båten går.<small>Ikke bekreftet? Da blir du igjen på kaia i Sandnessjøen. Båten venter ikke.</small>',
       W === 1 ? 'Den <b>ene</b> som kommer seg helskinnet til Bodø, vinner.' : `De <b>${u.numberWord(W)}</b> som kommer seg helskinnet til Bodø, vinner. Førstemann i land velger premie først.`,
-      st.uniqueWinners ? 'Én person kan bare vinne én gang per trekning.<small>Har du to lodd, er det andre et reservehjerte.</small>' : 'Har du flere lodd, kan du vinne flere ganger.<small>I teorien.</small>',
+      ...(st.noNums ? [] : [st.uniqueWinners ? 'Én person kan bare vinne én gang per trekning.<small>Har du to lodd, er det andre et reservehjerte.</small>' : 'Har du flere lodd, kan du vinne flere ganger.<small>I teorien.</small>']),
       'Vinnerne trekkes med kryptografisk tilfeldighet idet båten legger fra kai, og låses i skipsloggen.<small>Det som skjer underveis, er ren underholdning.</small>',
       'Premiene er flasker med <b>urelatert innhold</b>.<small>Fredagslotteriet har ingenting med vin å gjøre.</small>',
       'Klager rettes skriftlig til ørna.',

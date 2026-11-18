@@ -415,7 +415,7 @@
         await w(U().walk(a, -330 - (rank - 1) * gap, 520, -12));
         a.tag(shortName(p.name), `${rank}. PLASS`, (rank % 2 === 0) ? 40 : 0);
         this.markWinner(p, rank);
-        this.el.ev.innerHTML = `<div class="evcard is-final" style="--ec:#ffe08a"><div class="ec-ico">${['🥇', '🥈', '🥉'][rank - 1] || '🏁'}</div><div><div class="ec-meta">${rank}. plass · lodd ${u.esc(p.label)}</div><h3 class="ec-title">${u.esc(p.name)}</h3><p class="ec-text">${rank === 1 ? 'Velger premie først. Premien er, som kjent, urelatert.' : 'Kom seg helskinnet til Bodø.'}</p></div></div>`;
+        this.el.ev.innerHTML = `<div class="evcard is-final" style="--ec:#ffe08a"><div class="ec-ico">${['🥇', '🥈', '🥉'][rank - 1] || '🏁'}</div><div><div class="ec-meta">${rank}. plass${d.noNums ? '' : ` · lodd ${u.esc(p.label)}`}</div><h3 class="ec-title">${u.esc(p.name)}</h3><p class="ec-text">${rank === 1 ? 'Velger premie først. Premien er, som kjent, urelatert.' : 'Kom seg helskinnet til Bodø.'}</p></div></div>`;
         S().pop();
         if (rank === 1) { S().fanfare(); this.fireworks(3); this.fx.confetti(200); } else S().ding();
         await w(Eng.wait(rank === 1 ? 900 : 1500));
@@ -479,7 +479,7 @@
       const el = this.el.end;
       const ws = d.winners.map((no, k) => ({ p: this.pax.get(no), rank: k + 1 }));
       const podOrder = ws.length >= 3 ? [ws[1], ws[0], ws[2]].concat(ws.slice(3)) : (ws.length === 2 ? [ws[1], ws[0]] : ws);
-      const pods = podOrder.map(({ p, rank }) => `<div class="pod p${rank <= 3 ? rank : 'n'}"><div class="pod-av" style="background:${p.color}">${u.esc(p.ini)}</div><div class="pod-name">${u.esc(p.name)}</div><div class="pod-tix">lodd ${u.esc(p.label)}</div><div class="pod-block">${rank}</div></div>`).join('');
+      const pods = podOrder.map(({ p, rank }) => `<div class="pod p${rank <= 3 ? rank : 'n'}"><div class="pod-av" style="background:${p.color}">${u.esc(p.ini)}</div><div class="pod-name">${u.esc(p.name)}</div><div class="pod-tix">${d.noNums ? `${rank}. plass` : `lodd ${u.esc(p.label)}`}</div><div class="pod-block">${rank}</div></div>`).join('');
       const badge = this.mode === 'demo' ? '<span class="ov-badge">Prøvetur</span>' : (this.mode === 'replay' ? '<span class="ov-badge">Reprise</span>' : '');
       el.innerHTML = `<div class="ov-card">${badge}<p class="ov-kicker">Ankommet Bodø · ${u.esc(u.dfLong.format(new Date(d.date)))}</p>
         <h3 class="ov-title">Gratulerer, <em>helter!</em></h3>

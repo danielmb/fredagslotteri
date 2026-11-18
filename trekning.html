@@ -9,8 +9,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,100..900,0..100,0..1;1,9..144,100..900,0..100,0..1&family=JetBrains+Mono:wght@400;500;700&family=Schibsted+Grotesk:ital,wght@0,400..900;1,400..900&display=swap">
-<link rel="stylesheet" href="css/base.css?v=17">
-<link rel="stylesheet" href="css/stage.css?v=17">
+<link rel="stylesheet" href="css/base.css?v=19">
+<link rel="stylesheet" href="css/stage.css?v=19">
 </head>
 <body data-page="trekning">
 <div class="grain" aria-hidden="true"></div>
@@ -21,7 +21,8 @@
     <div class="game-tabs" role="tablist" aria-label="Velg spill">
       <button type="button" role="tab" class="game-tab is-active" data-game="hurtigbat" aria-selected="true"><span class="gt-ico">⛴</span><span><b>Hurtigbåten til Bodø</b><small>Hovedspillet · ca. 2 min</small></span></button>
       <button type="button" role="tab" class="game-tab" data-game="draugen" aria-selected="false"><span class="gt-ico">🦑</span><span><b>Draugen</b><small>Lofotfisket · ca. 2 min</small></span></button>
-      <button type="button" role="tab" class="game-tab game-tab-new" data-game="keiser" aria-selected="false"><span class="gt-ico">🏔️</span><span><b>Keiservarden GP</b><small>Fysikk-kuleløp · ca. 1 min</small></span></button>
+      <button type="button" role="tab" class="game-tab" data-game="keiser" aria-selected="false"><span class="gt-ico">🏔️</span><span><b>Keiservarden GP</b><small>Fysikk-kuleløp · ca. 1 min</small></span></button>
+      <button type="button" role="tab" class="game-tab game-tab-new" data-game="trommel" aria-selected="false"><span class="gt-ico">🎡</span><span><b>Premiehjulet</b><small>Én vinner om gangen · du styrer</small></span></button>
       <button type="button" role="tab" class="game-tab" data-game="lyn" aria-selected="false"><span class="gt-ico">⚡</span><span><b>Avgangstavla</b><small>Lyntrekning · 15 sek</small></span></button>
     </div>
   </div>
@@ -35,6 +36,8 @@
         <canvas class="keiser-canvas" id="keiserCanvas" aria-hidden="true"></canvas>
         <canvas class="fx keiser-fx" id="keiserFx" aria-hidden="true"></canvas>
         <canvas class="fx draugen-fx" id="draugenFx" aria-hidden="true"></canvas>
+        <canvas class="trommel-canvas" id="trommelCanvas" aria-hidden="true"></canvas>
+        <canvas class="fx trommel-fx" id="trommelFx" aria-hidden="true"></canvas>
 
         <div class="hud-top">
           <div class="route" id="route" aria-hidden="true"></div>
@@ -65,28 +68,29 @@
         </div>
       </aside>
     </div>
-    <p class="fair-note">Vinnerne trekkes med kryptografisk tilfeldighet idet båten legger fra kai, og låses i skipsloggen med en gang. Resten er ren underholdning.</p>
+    <p class="fair-note" id="fairNote">Vinnerne trekkes med kryptografisk tilfeldighet idet båten legger fra kai, og låses i skipsloggen med en gang. Resten er ren underholdning.</p>
   </div>
 </main>
 
 <footer class="footer" id="footer"></footer>
-<script src="js/util.js?v=17" defer></script>
-<script src="js/store.js?v=17" defer></script>
-<script src="js/events.js?v=17" defer></script>
-<script src="js/art.js?v=17" defer></script>
-<script src="js/audio.js?v=17" defer></script>
-<script src="js/fx.js?v=17" defer></script>
-<script src="js/voyage.js?v=17" defer></script>
-<script src="js/anims.js?v=17" defer></script>
-<script src="js/game.js?v=17" defer></script>
-<script src="js/draugen-art.js?v=17" defer></script>
-<script src="js/draugen.js?v=17" defer></script>
-<script src="js/draugen-anims.js?v=17" defer></script>
-<script src="js/keiser-physics.js?v=17" defer></script>
-<script src="js/keiser-draw.js?v=17" defer></script>
-<script src="js/keiser.js?v=17" defer></script>
-<script src="js/lyn.js?v=17" defer></script>
-<script src="js/shell.js?v=17" defer></script>
-<script src="js/pages/trekning.js?v=17" defer></script>
+<script src="js/util.js?v=19" defer></script>
+<script src="js/store.js?v=19" defer></script>
+<script src="js/events.js?v=19" defer></script>
+<script src="js/art.js?v=19" defer></script>
+<script src="js/audio.js?v=19" defer></script>
+<script src="js/fx.js?v=19" defer></script>
+<script src="js/voyage.js?v=19" defer></script>
+<script src="js/anims.js?v=19" defer></script>
+<script src="js/game.js?v=19" defer></script>
+<script src="js/draugen-art.js?v=19" defer></script>
+<script src="js/draugen.js?v=19" defer></script>
+<script src="js/draugen-anims.js?v=19" defer></script>
+<script src="js/keiser-physics.js?v=19" defer></script>
+<script src="js/keiser-draw.js?v=19" defer></script>
+<script src="js/keiser.js?v=19" defer></script>
+<script src="js/lyn.js?v=19" defer></script>
+<script src="js/trommel.js?v=19" defer></script>
+<script src="js/shell.js?v=19" defer></script>
+<script src="js/pages/trekning.js?v=19" defer></script>
 </body>
 </html>

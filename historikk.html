@@ -9,8 +9,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,100..900,0..100,0..1;1,9..144,100..900,0..100,0..1&family=JetBrains+Mono:wght@400;500;700&family=Schibsted+Grotesk:ital,wght@0,400..900;1,400..900&display=swap">
-<link rel="stylesheet" href="css/base.css?v=17">
-<link rel="stylesheet" href="css/pages.css?v=17">
+<link rel="stylesheet" href="css/base.css?v=19">
+<link rel="stylesheet" href="css/pages.css?v=19">
 </head>
 <body data-page="historikk">
 <div class="grain" aria-hidden="true"></div>
@@ -29,6 +29,7 @@
           <h2>Trekninger</h2>
           <div class="hist-actions">
             <button class="btn btn-small btn-ghost" id="manualBtn" type="button">+ Tidligere trekning</button>
+            <button class="btn btn-small btn-ghost" id="oldBtn" type="button">Fra Fredagstrekningen</button>
             <button class="btn btn-small btn-ghost" id="exportBtn" type="button">Last ned backup</button>
             <button class="btn btn-small btn-ghost" id="importBtn" type="button">Last opp backup</button>
             <input type="file" id="importFile" accept="application/json,.json" hidden>
@@ -48,6 +49,24 @@
             <button class="btn btn-primary btn-small" type="submit">Lagre i loggen</button>
           </div>
         </form>
+        <div class="card manual-form" id="oldBox" hidden>
+          <h3>Fra den gamle Fredagstrekningen</h3>
+          <p>Navnene og trekningene ligger ikke i selve Fredagstrekningen-fila. De ligger lagret i nettleseren der fila ble brukt.</p>
+          <div class="old-found" id="oldFound" hidden>
+            <span id="oldFoundText"></span>
+            <button class="btn btn-small btn-aurora" type="button" id="oldTake">Hent inn</button>
+          </div>
+          <ol class="old-steps">
+            <li>Åpne den gamle fila (for eksempel <i>Fredagstrekningen.html</i>) i samme nettleser og på samme PC som sist.</li>
+            <li>Gå til fanen <b>Historikk</b> der, og trykk <b>Lagre sikkerhetskopi</b>. Da lastes det ned en fil som begynner med <i>fredagstrekningen-</i> og slutter på <i>.json</i>.</li>
+            <li>Trykk <b>Velg sikkerhetskopi</b> her, og velg den fila.</li>
+          </ol>
+          <p class="old-note">Navnene havner i passasjerregisteret med loddnumrene sine, og trekningene havner i skipsloggen. Den som sto over med alle loddene sine, blir satt på pause. Det som står her fra før, blir ikke endret, bortsett fra at folk uten nummer får numrene sine fra fila. Henter du inn den samme fila to ganger, blir ingenting lagt inn dobbelt.</p>
+          <div class="manual-btns">
+            <button class="btn btn-ghost btn-small" type="button" id="oldCancel">Lukk</button>
+            <button class="btn btn-primary btn-small" type="button" id="oldPick">Velg sikkerhetskopi</button>
+          </div>
+        </div>
         <ol class="timeline" id="timeline"></ol>
         <div class="empty" id="histEmpty"><b>Loggen er blank.</b>Ingen trekninger ennå. Havet venter.</div>
       </div>
@@ -61,10 +80,10 @@
 </main>
 
 <footer class="footer" id="footer"></footer>
-<script src="js/util.js?v=17" defer></script>
-<script src="js/store.js?v=17" defer></script>
-<script src="js/events.js?v=17" defer></script>
-<script src="js/shell.js?v=17" defer></script>
-<script src="js/pages/historikk.js?v=17" defer></script>
+<script src="js/util.js?v=19" defer></script>
+<script src="js/store.js?v=19" defer></script>
+<script src="js/events.js?v=19" defer></script>
+<script src="js/shell.js?v=19" defer></script>
+<script src="js/pages/historikk.js?v=19" defer></script>
 </body>
 </html>

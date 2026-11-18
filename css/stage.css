@@ -282,3 +282,36 @@
 @media (max-width: 900px) { .kclock span { display: none; } .kclock b { min-width: 0; } }
 @media (max-width: 640px) { .kclock { left: auto; right: 10px; top: 56px; transform: none; } }
 .stage[data-game="keiser"].is-running .keiser-canvas { cursor: pointer; }
+
+/* ---------- Trommelen (én vinner om gangen) ---------- */
+.trommel-canvas, .trommel-fx, .tr-bar { display: none; }
+.trommel-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.stage[data-game="trommel"] .trommel-canvas, .stage[data-game="trommel"] .trommel-fx { display: block; }
+.stage[data-game="trommel"] #sceneSvg, .stage[data-game="trommel"] #fxCanvas, .stage[data-game="trommel"] .route { display: none; }
+.stage[data-game="trommel"] .scene { background: radial-gradient(70% 62% at 31% 100%, #13305a 0%, #081a33 48%, #030915 100%); }
+.stage[data-game="trommel"] .sky { inset: 0 0 58% 0; opacity: .5; }
+.stage[data-game="trommel"] .hud-top { justify-content: flex-end; }
+.stage[data-game="trommel"] .announce { top: 24%; }
+.stage[data-game="trommel"] .tr-bar:not([hidden]) { display: flex; }
+.tr-bar { position: absolute; left: 50%; bottom: max(14px, 2.6cqh); z-index: 6; width: min(94%, 780px); transform: translateX(-50%); flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 18px; padding: 12px 12px 12px 22px; border-radius: 22px; border: 1px solid rgba(255, 255, 255, .14); background: rgba(4, 10, 20, .82); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); box-shadow: 0 30px 60px -20px rgba(0, 0, 0, .8); animation: trIn .45s var(--ease-out) both; }
+@keyframes trIn { from { opacity: 0; transform: translate(-50%, 14px); } }
+.tr-msg { flex: 1 1 260px; min-width: 0; font-size: clamp(15px, 1.7cqw, 21px); font-weight: 600; line-height: 1.3; }
+.tr-msg b { color: var(--sun); }
+.tr-msg small { display: block; margin-top: 3px; font-family: var(--ff-mono); font-size: 11.5px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.tr-btns { display: flex; flex-wrap: wrap; gap: 8px; }
+.tr-btns .btn { padding: 12px 20px; font-size: 15px; }
+/* hvem hjulet står på akkurat nå (lyser i lista mens det snurrer) */
+.px.is-cur { background: rgba(94, 242, 181, .2); box-shadow: inset 0 0 0 1px rgba(94, 242, 181, .65); transition: none; }
+/* velg hjul eller trommel i startbildet */
+.ov-style { display: inline-flex; gap: 2px; margin: 0 0 20px; padding: 4px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, .16); background: rgba(3, 9, 20, .55); }
+.ov-style button { padding: 9px 16px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); font-size: 15px; font-weight: 700; }
+.ov-style button.on { background: var(--paper); color: var(--ink); }
+.ov-style button:not(.on):hover { color: var(--text); }
+.tr-wait::after { content: ""; display: inline-block; width: 1.4em; text-align: left; animation: trDots 1.2s steps(1) infinite; }
+@keyframes trDots { 0% { content: ""; } 25% { content: "."; } 50% { content: ".."; } 75% { content: "..."; } }
+@media (max-width: 640px) {
+  .tr-bar { width: calc(100% - 20px); bottom: 10px; padding: 10px 10px 10px 14px; border-radius: 16px; }
+  .tr-msg small { display: none; }
+  .tr-btns { width: 100%; }
+  .tr-btns .btn { flex: 1; padding: 10px 12px; font-size: 14px; }
+}

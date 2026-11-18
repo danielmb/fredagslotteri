@@ -5,10 +5,14 @@
   const u = FL.u, Store = FL.Store, Ev = FL.Events;
   const { $, esc } = u;
   const MEDAL = ['🥇', '🥈', '🥉'];
-  const GAME = { hurtigbat: 'Hurtigbåten', draugen: 'Draugen', keiser: 'Keiservarden GP', lyn: 'Avgangstavla', manuell: 'Manuelt registrert' };
+  const GAME = { hurtigbat: 'Hurtigbåten', draugen: 'Draugen', keiser: 'Keiservarden GP', trommel: 'Premiehjulet', lyn: 'Avgangstavla', manuell: 'Manuelt registrert' };
   const isVoyage = (h) => h.game === 'hurtigbat' || h.game === 'draugen' || h.game === 'keiser';
   const LEFT = { draugen: ['👻', 'Mannskap hos Draugen'], keiser: ['🚧', 'Satt fast i startporten'] };
   const GOAL = { draugen: 'Kom frem til Henningsvær', keiser: 'Først ned til Bodø havn' };
+  // trekninger hentet inn fra den gamle Fredagstrekningen-fila
+  const OLD_MODE = { wheel: 'Lykkehjulet', slot: 'Navnetromla', drum: 'Kulemaskinen', hurtig: 'Hurtigruta i uvær', gp: 'Fredags-GP' };
+  const isOld = (h) => h.src === 'fredagstrekningen';
+  const gameLabel = (h) => (isOld(h) ? `Fredagstrekningen${OLD_MODE[h.mode] ? ` · ${OLD_MODE[h.mode]}` : ''}` : GAME[h.game] || 'Trekning');
 
   function renderStats(s) {
     const lead = s.leaders[0];
@@ -20,11 +24,16 @@
       + tile('Farligste fare', top ? `${top.icon} ${esc(top.title)}` : '—', top ? `${s.causes[s.topCause]} ofre` : 'Havet venter');
   }
   function winnerLine(h, i, name) {
-    const lab = h.game !== 'manuell' ? ` <small>(${esc(Store.ticketLabel(h, h.winners[i]))})</small>` : '';
+    const no = h.game === 'manuell' ? (h.winnerNos && h.winnerNos[i] ? u.pad(h.winnerNos[i]) : '') : h.noNums ? '' : Store.ticketLabel(h, h.winners[i]);
+    const lab = no ? ` <small>(${esc(no)})</small>` : '';
     return `<span>${MEDAL[i] || '🏁'} ${esc(name)}${lab}</span>`;
   }
   function tripLog(h) {
     let html = '';
+    if (isOld(h)) {
+      const who = h.participantCount ? ` fra ${h.participantCount} ${h.participantCount === 1 ? 'deltaker' : 'deltakere'}` : '';
+      html += `<li><span>📥</span><span>Hentet inn fra den gamle Fredagstrekningen${h.ticketCount ? `: ${h.ticketCount} lodd${who}` : ''}.</span></li>`;
+    }
     if (h.leftBehind && h.leftBehind.length) {
       const [ico, lbl] = LEFT[h.game] || ['🧳', 'Igjen på kaia'];
       html += `<li><span>${ico}</span><span>${lbl} (ikke betalt): ${h.leftBehind.map((p) => esc(p.name)).join(', ')}</span></li>`;
@@ -49,7 +58,7 @@
       return `<li class="trip" data-id="${h.id}">
         <div class="trip-head">
           <div class="trip-date"><b>${d.getDate()}</b><small>${esc(u.dfMonth.format(d).replace('.', ''))}</small></div>
-          <div><div class="trip-meta">${esc(u.dfLong.format(d))} · ${GAME[h.game] || 'Trekning'}${h.course && h.course.name ? ` · «${esc(h.course.name)}»` : ''}${tix ? ` · ${tix} lodd` : ''}</div>
+          <div><div class="trip-meta">${esc(u.dfLong.format(d))} · ${esc(gameLabel(h))}${h.course && h.course.name ? ` · «${esc(h.course.name)}»` : ''}${tix ? ` · ${tix} lodd` : ''}</div>
           <div class="trip-winners">${names.map((n, i) => winnerLine(h, i, n)).join('') || '<span>Ingen vinnere registrert</span>'}</div></div>
           <div class="trip-pot">${h.pot ? u.kr(h.pot) : '—'}<small>i potten</small></div>
         </div>
@@ -67,7 +76,7 @@
       const medals = [e.gold ? `🥇${e.gold}` : '', e.silver ? `🥈${e.silver}` : '', e.bronze ? `🥉${e.bronze}` : ''].filter(Boolean).join(' ');
       const sub = [medals, e.tickets ? `${e.tickets} lodd` : '', fav ? `typisk: ${Ev.EVENTS[fav].icon}` : ''].filter(Boolean).join(' · ');
       const reg = Store.people.find((p) => u.normName(p.name) === u.normName(e.name));
-      return `<li class="lb"><span class="lb-rank">${i + 1}</span><span class="av" style="background:${u.colorFor(e.name)}">${reg && reg.nums[0] ? reg.nums[0] : esc(u.initials(e.name))}</span><div class="lb-txt"><div class="lb-name">${esc(e.name)}</div><div class="lb-sub">${sub}</div></div><span class="lb-wins">${e.wins}</span></li>`;
+      return `<li class="lb"><span class="lb-rank">${i + 1}</span><span class="av" style="background:${u.colorFor(e.name)}">${reg && reg.nums[0] && !Store.settings.noNums ? reg.nums[0] : esc(u.initials(e.name))}</span><div class="lb-txt"><div class="lb-name">${esc(e.name)}</div><div class="lb-sub">${sub}</div></div><span class="lb-wins">${e.wins}</span></li>`;
     }).join('');
   }
   function render() {
@@ -75,6 +84,7 @@
     renderStats(s);
     renderTimeline();
     renderLeader(s);
+    renderOld();
   }
 
   /* ---- Handlinger ---- */
@@ -88,6 +98,7 @@
   $('#manualBtn').addEventListener('click', () => {
     form.hidden = !form.hidden;
     if (form.hidden) return;
+    $('#oldBox').hidden = true;
     const W = Store.settings.winners;
     $('#manualWinners').innerHTML = Array.from({ length: W }, (_, i) => `<label class="field"><span class="field-label">${MEDAL[i] || ''} ${i + 1}. plass</span><input class="field-input" type="text" name="w${i}" maxlength="40" placeholder="Navn" list="nameList"></label>`).join('');
     $('#nameList').innerHTML = Store.people.map((p) => `<option value="${esc(p.name)}">`).join('');
@@ -108,16 +119,66 @@
     u.toast('Lagt inn i skipsloggen.');
   });
   $('#exportBtn').addEventListener('click', () => { u.download(`fredagslotteriet-backup-${new Date().toISOString().slice(0, 10)}.json`, Store.exportData()); u.toast('Backup lastet ned.'); });
+  function importReport(r) {
+    const parts = [`${r.added} ${r.added === 1 ? 'trekning' : 'trekninger'}`, `${r.newPeople} ${r.newPeople === 1 ? 'passasjer' : 'passasjerer'}`];
+    const msg = !r.added && !r.newPeople && !r.gotNums ? 'Ingenting nytt i fila.'
+      : `${r.old ? 'Hentet fra Fredagstrekningen:' : 'La til'} ${parts.join(' og ')}${r.gotNums ? `. ${r.gotNums} fikk loddnumrene sine` : ''}.`;
+    u.toast(msg, 4500);
+  }
   $('#importBtn').addEventListener('click', () => $('#importFile').click());
   $('#importFile').addEventListener('change', async (e) => {
     const f = e.target.files && e.target.files[0];
     e.target.value = '';
     if (!f) return;
+    const text = await f.text();
+    // Selve Fredagstrekningen-fila har ingen navn i seg – vis hvor de faktisk ligger
+    if (/^\s*</.test(text)) {
+      if (/fredagstrekningen/i.test(text)) { showOld(); u.toast('Det er selve programfila. Navnene ligger i nettleseren – se stegene under.', 6000); } else u.toast('Fila kunne ikke leses som backup.');
+      return;
+    }
     try {
-      const r = Store.importData(JSON.parse(await f.text()));
-      u.toast(r.added || r.newPeople ? `La til ${r.added} ${r.added === 1 ? 'trekning' : 'trekninger'} og ${r.newPeople} passasjerer.` : 'Ingenting nytt i fila.');
+      const r = Store.importData(JSON.parse(text));
+      importReport(r);
+      if (r.old) $('#oldBox').hidden = true;
     } catch (err) { u.toast('Fila kunne ikke leses som backup.'); }
   });
+
+  /* ---- Fra den gamle Fredagstrekningen ---- */
+  // Det som ikke allerede står her: navn som mangler og trekninger som ikke er hentet før
+  function oldNews() {
+    const found = Store.oldAppData();
+    if (!found) return null;
+    const have = new Set(Store.history.map((h) => h.id));
+    const people = found.people.filter((p) => !Store.people.some((x) => u.normName(x.name) === u.normName(p.name))).length;
+    const draws = found.history.filter((h) => !have.has(h.id)).length;
+    return people || draws ? { found, people, draws } : null;
+  }
+  function renderOld() {
+    const news = oldNews();
+    $('#oldFound').hidden = !news;
+    $('#oldBtn').classList.toggle('btn-aurora', !!news);
+    $('#oldBtn').classList.toggle('btn-ghost', !news);
+    if (!news) return;
+    const bits = [news.people && `${news.people} navn`, news.draws && `${news.draws} ${news.draws === 1 ? 'trekning' : 'trekninger'}`].filter(Boolean);
+    $('#oldFoundText').innerHTML = `Fant Fredagstrekningen i denne nettleseren, med <b>${bits.join(' og ')}</b> som ikke står her ennå.`;
+  }
+  function showOld() {
+    $('#oldBox').hidden = false;
+    form.hidden = true;
+    renderOld();
+    $('#oldBox').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+  $('#oldBtn').addEventListener('click', () => { if ($('#oldBox').hidden) showOld(); else $('#oldBox').hidden = true; });
+  $('#oldCancel').addEventListener('click', () => { $('#oldBox').hidden = true; });
+  $('#oldPick').addEventListener('click', () => $('#importFile').click());
+  $('#oldTake').addEventListener('click', () => {
+    const news = oldNews();
+    if (!news) return;
+    importReport(Store.importData(news.found.raw));
+    $('#oldBox').hidden = true;
+  });
+  // den gamle fila kan være åpen i en annen fane
+  window.addEventListener('storage', (e) => { if (e.key === 'fredagstrekningen.v1') renderOld(); });
 
   render();
   Store.subscribe(render);

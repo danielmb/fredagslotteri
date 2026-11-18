@@ -14,10 +14,12 @@
     if (e.docks) bits.push(`🧳 ${e.docks} på kaia`);
     return bits.join(' · ');
   }
-  const missHtml = (p) => (p.nums.some(Boolean) ? '' : '<span class="reg-miss">Mangler nummer</span>');
+  // uten bingotall trenger ingen nummer
+  const lacks = (p) => !Store.settings.noNums && !p.nums.some(Boolean);
+  const missHtml = (p) => (lacks(p) ? '<span class="reg-miss">Mangler nummer</span>' : '');
   function row(p, stats) {
-    const max = Store.settings.maxPerPerson;
-    const nums = Array.from({ length: max }, (_, i) => `<label class="reg-numwrap"><span>Lodd ${i + 1}</span><input class="field-input reg-num" data-i="${i}" type="text" inputmode="numeric" maxlength="5" value="${p.nums[i] || ''}" placeholder="nr." aria-label="Lodd ${i + 1} for ${esc(p.name)}"></label>`).join('');
+    const max = Store.settings.noNums ? 0 : Store.settings.maxPerPerson;
+    const nums = Array.from({ length: max }, (_, i) =>`<label class="reg-numwrap"><span>Lodd ${i + 1}</span><input class="field-input reg-num" data-i="${i}" type="text" inputmode="numeric" maxlength="5" value="${p.nums[i] || ''}" placeholder="nr." aria-label="Lodd ${i + 1} for ${esc(p.name)}"></label>`).join('');
     return `<li class="reg${p.active ? '' : ' is-paused'}" data-id="${p.id}">
       <div class="reg-main">
         <input class="field-input reg-name" type="text" maxlength="40" value="${esc(p.name)}" aria-label="Navn">
@@ -33,10 +35,13 @@
   function render() {
     const people = Store.people;
     const stats = Store.stats();
+    const noNums = Store.settings.noNums;
+    $('.page-lede').textContent = noNums ? 'Alle står her fra uke til uke. Uten bingotall er navnet loddet – ett per person.' : 'Alle står her fra uke til uke – med lodd-numrene de har valgt selv, ett per lodd.';
+    $('.reg-head p').textContent = `Endre ${noNums ? 'navn' : 'nummer eller navn'} direkte i lista. Sett folk på pause hvis de ikke er med en stund.`;
     $('#regList').innerHTML = people.map((p) => row(p, stats)).join('');
     $('#regEmpty').hidden = people.length > 0;
     const act = people.filter((p) => p.active).length;
-    const miss = people.filter((p) => !p.nums.some(Boolean)).length;
+    const miss = people.filter(lacks).length;
     $('#regCount').textContent = people.length ? `(${act}${act !== people.length ? ` aktive av ${people.length}` : ''})` : '';
     const mn = $('#regMissing');
     mn.hidden = !miss;
@@ -47,7 +52,7 @@
     const li = document.querySelector(`.reg[data-id="${id}"]`);
     if (!p || !li) return render();
     li.querySelector('.reg-flag').innerHTML = missHtml(p);
-    const miss = Store.people.filter((x) => !x.nums.some(Boolean)).length;
+    const miss = Store.people.filter(lacks).length;
     const mn = $('#regMissing');
     mn.hidden = !miss;
     mn.textContent = `${miss} ${miss === 1 ? 'passasjer mangler' : 'passasjerer mangler'} nummer. Fyll inn numrene folk har valgt.`;

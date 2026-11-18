@@ -140,6 +140,8 @@ code { font-family: var(--ff-mono); font-size: .9em; }
 .field-wide { grid-column: 1 / -1; }
 .check { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 12px; color: var(--muted); cursor: pointer; }
 .check input { width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--aurora); flex: none; }
+.check small { display: block; margin-top: 2px; font-size: 13.5px; line-height: 1.45; color: var(--dim); }
+.field-input:disabled { opacity: .5; cursor: not-allowed; }
 .dlg-foot { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px; margin-top: 10px; }
 .dlg-btns { display: flex; gap: 10px; justify-content: flex-end; }
 .dlg-small { width: min(440px, calc(100vw - 32px)); }

@@ -5,10 +5,10 @@
   const u = FL.u;
   const KEY = 'fredagslotteriet:v1'; // samme nøkkel hele veien – eldre data migreres automatisk
   const VERSION = 3;
-  const DEFAULTS = { price: 30, maxPerPerson: 2, winners: 3, uniqueWinners: true, sound: true, vipps: '', drawTime: '' };
+  const DEFAULTS = { price: 30, maxPerPerson: 2, winners: 3, uniqueWinners: true, sound: true, vipps: '', drawTime: '', noNums: false };
 
   const ORIGINAL_COURSE = 'keiservarden';
-  const blank = () => ({ v: VERSION, settings: { ...DEFAULTS }, people: [], history: [], courses: [], courseId: ORIGINAL_COURSE });
+  const blank = () => ({ v: VERSION, settings: normSettings(), people: [], history: [], courses: [], courseId: ORIGINAL_COURSE });
   /* Egne Keiservarden-løyper fra løypedesigneren. Delene vaskes av fysikkmotoren når de brukes –
      her sjekkes bare formen, så ingenting går tapt på sider som ikke laster fysikken. */
   function normCourse(c) {
@@ -23,14 +23,20 @@
   const toNum = (v) => { const s = String(v == null ? '' : v).trim(); if (!/^\d+$/.test(s)) return 0; const n = parseInt(s, 10); return n > 0 && n <= 99999 ? n : 0; };
   const trimNums = (arr) => { while (arr.length && !arr[arr.length - 1]) arr.pop(); return arr; };
 
-  /* Hver passasjer har selvvalgte lodd-nummer, ett per lodd (f.eks. 7 og 70) */
+  /* Hver passasjer har selvvalgte lodd-nummer (bingotall), ett per lodd (f.eks. 7 og 70).
+     Uten bingotall (settings.noNums) har alle ett lodd, og ingen trenger nummer. */
   const ticketNums = (p) => Array.from({ length: p.tickets }, (_, i) => p.nums[i] || 0);
-  const missingCount = (p) => ticketNums(p).filter((n) => !n).length;
+  const missingCount = (p, st = state.settings) => (st.noNums ? 0 : ticketNums(p).filter((n) => !n).length);
 
   function normSettings(st = {}) {
+    const noNums = st.noNums === true;
+    // husk hvor mange lodd som var lov med bingotall, så det kommer tilbake når valget slås av igjen
+    const maxNums = intIn(noNums ? st.maxNums : st.maxPerPerson, 1, 4, DEFAULTS.maxPerPerson);
     return {
       price: intIn(st.price, 1, 1000, DEFAULTS.price),
-      maxPerPerson: intIn(st.maxPerPerson, 1, 4, DEFAULTS.maxPerPerson),
+      maxPerPerson: noNums ? 1 : maxNums,
+      maxNums,
+      noNums,
       winners: intIn(st.winners, 1, 10, DEFAULTS.winners),
       uniqueWinners: st.uniqueWinners !== false,
       sound: st.sound !== false,
@@ -74,8 +80,59 @@
         if (h.game === 'manuell') h.winnerNames.forEach((n) => add({ name: n }, []));
       });
     }
-    out.people.forEach((p) => { if (p.paid && missingCount(p)) p.paid = false; });
+    out.people.forEach((p) => { if (p.paid && missingCount(p, out.settings)) p.paid = false; });
     return out;
+  }
+
+  /* ---- Den gamle «Fredagstrekningen» (én HTML-fil, før denne nettsiden) ----
+     Den lagret alt i nettleseren under FT_KEY, og «Lagre sikkerhetskopi» der gir hele tilstanden som JSON:
+     people [{ name, numbers: [{ no, on }] }] og history [{ id, date, tickets, participants, price, mode, results: [{ place, no, name }] }].
+     Den kom med eksempelnavn som lå igjen til man trykket «Fjern eksemplene» (sample: true). */
+  const FT_KEY = 'fredagstrekningen.v1';
+  const FT_SAMPLE = new Set(['Anders Berg', 'Berit Haugen', 'Camilla Lie', 'David Nilsen', 'Elin Dahl', 'Fredrik Moe', 'Guro Strand',
+    'Henrik Aas', 'Ingrid Solberg', 'Jonas Eide', 'Kari Lunde', 'Lars Vik', 'Maja Holm', 'Nils Brekke'].map(u.normName));
+  const FT_MODES = ['wheel', 'slot', 'drum', 'hurtig', 'gp'];
+  function isOldApp(s) {
+    if (!s || typeof s !== 'object' || s.app === 'fredagslotteriet' || s.settings) return false;
+    return 'onePerPerson' in s
+      || (Array.isArray(s.people) && s.people.some((p) => p && Array.isArray(p.numbers)))
+      || (Array.isArray(s.history) && s.history.some((h) => h && Array.isArray(h.results)));
+  }
+  function fromOldApp(s) {
+    const sample = s.sample !== false;
+    const people = (Array.isArray(s.people) ? s.people : [])
+      .filter((p) => p && u.cleanName(p.name) && !(sample && FT_SAMPLE.has(u.normName(p.name))))
+      .map((p) => {
+        // versjon 1 delte ut nummer automatisk, så bare versjon 2 har numre folk har valgt selv
+        const ns = (s.v === 2 && Array.isArray(p.numbers) ? p.numbers : []).filter((n) => n && Number.isInteger(n.no) && n.no > 0);
+        const on = ns.filter((n) => n.on !== false), off = ns.filter((n) => n.on === false);
+        // lodd som «står over» kommer sist, så de ikke blir med før noen velger flere lodd
+        return { name: p.name, nums: on.concat(off).map((n) => n.no), tickets: Math.max(1, on.length || ns.length), active: !ns.length || on.length > 0 };
+      });
+    const history = (Array.isArray(s.history) ? s.history : [])
+      .filter((h) => h && Array.isArray(h.results) && h.results.some((r) => r && r.name) && h.date && !isNaN(new Date(h.date)))
+      .map((h) => {
+        const res = h.results.filter((r) => r && u.cleanName(r.name)).sort((a, b) => (a.place || 0) - (b.place || 0));
+        const tickets = Math.max(0, parseInt(h.tickets, 10) || 0);
+        const price = Math.max(0, Number(h.price) || 0);
+        return {
+          id: 'ft_' + String(h.id || new Date(h.date).getTime()).slice(0, 40), date: new Date(h.date).toISOString(),
+          game: 'manuell', src: 'fredagstrekningen', mode: FT_MODES.includes(h.mode) ? h.mode : null,
+          winnerNames: res.map((r) => u.cleanName(r.name)), winnerNos: res.map((r) => (Number.isInteger(r.no) && r.no > 0 ? r.no : 0)),
+          ticketCount: tickets, participantCount: Math.max(0, parseInt(h.participants, 10) || 0), pot: tickets * price, price, people: null,
+        };
+      });
+    return { v: VERSION, settings: { price: Number(s.price) > 0 ? s.price : undefined }, people, history };
+  }
+  // Data fra den gamle fila i denne nettleseren (bare synlig når begge er åpnet fra samme sted, f.eks. som filer i Chrome/Edge)
+  function oldAppData() {
+    try {
+      const raw = localStorage.getItem(FT_KEY);
+      const s = raw && JSON.parse(raw);
+      if (!isOldApp(s)) return null;
+      const d = fromOldApp(s);
+      return d.people.length || d.history.length ? { raw: s, people: d.people, history: d.history } : null;
+    } catch (e) { return null; }
   }
 
   let state = blank();
@@ -111,9 +168,15 @@
     subscribe(fn) { subs.add(fn); return () => subs.delete(fn); },
 
     setSettings(patch) {
-      state.settings = normSettings({ ...state.settings, ...patch });
+      const prev = state.settings;
+      const next = { ...prev, ...patch };
+      if (prev.noNums && patch.noNums === false && !('maxPerPerson' in patch)) next.maxPerPerson = prev.maxNums;
+      state.settings = normSettings(next);
       const m = state.settings.maxPerPerson;
-      state.people.forEach((p) => { p.tickets = Math.min(p.tickets, m); });
+      state.people.forEach((p) => {
+        p.tickets = Math.min(p.tickets, m);
+        if (p.paid && missingCount(p)) p.paid = false; // bingotall slått på igjen, men nummer mangler
+      });
       commit();
     },
 
@@ -206,8 +269,11 @@
       return { ok: true };
     },
     resetPaid() { state.people.forEach((p) => { p.paid = false; }); commit(); },
-    participants() { return Store.active.filter((p) => p.paid && !missingCount(p)).map((p) => ({ id: p.id, name: p.name, nums: ticketNums(p), tickets: p.tickets })); },
-    leftBehind() { return Store.active.filter((p) => !p.paid).map((p) => ({ name: p.name, nums: p.nums.filter(Boolean) })); },
+    participants() {
+      const no = state.settings.noNums;
+      return Store.active.filter((p) => p.paid && !missingCount(p)).map((p) => ({ id: p.id, name: p.name, nums: no ? [] : ticketNums(p), tickets: no ? 1 : p.tickets }));
+    },
+    leftBehind() { return Store.active.filter((p) => !p.paid).map((p) => ({ name: p.name, nums: state.settings.noNums ? [] : p.nums.filter(Boolean) })); },
     totals() {
       const price = state.settings.price;
       const act = Store.active;
@@ -218,6 +284,8 @@
 
     /* ---- Historikk ---- */
     addRecord(rec) { state.history.unshift(rec); state.history.sort((a, b) => new Date(b.date) - new Date(a.date)); commit(); },
+    // Trommelen legger til én vinner om gangen i samme trekning
+    updateRecord(id, patch) { const h = state.history.find((x) => x.id === id); if (!h) return null; Object.assign(h, patch); commit(); return h; },
     removeRecord(id) { state.history = state.history.filter((h) => h.id !== id); commit(); },
     getRecord(id) { return state.history.find((h) => h.id === id); },
     lastRecord() { return state.history.find((h) => !h.demo) || null; },
@@ -274,24 +342,31 @@
     },
 
     exportData() { return JSON.stringify({ app: 'fredagslotteriet', exported: new Date().toISOString(), ...state }, null, 2); },
+    isOldApp, oldAppData,
     importData(obj) {
-      const inc = normalize(obj);
+      const old = isOldApp(obj);
+      const inc = normalize(old ? fromOldApp(obj) : obj);
       const fresh = !state.history.length && !state.people.length;
       if (fresh) state.settings = inc.settings;
       const have = new Set(state.history.map((h) => h.id));
       let added = 0;
       inc.history.forEach((h) => { if (!have.has(h.id)) { state.history.push(h); added++; } });
       state.history.sort((a, b) => new Date(b.date) - new Date(a.date));
-      let newPeople = 0;
+      let newPeople = 0, gotNums = 0;
       inc.people.forEach((p) => {
-        if (state.people.some((x) => u.normName(x.name) === u.normName(p.name))) return;
         const nums = trimNums(p.nums.map((n) => (n && !Store.numOwner(n) ? n : 0)));
+        const ex = state.people.find((x) => u.normName(x.name) === u.normName(p.name));
+        if (ex) {
+          // står allerede på lista uten nummer: få numrene fra fila, men ikke rør noe annet
+          if (!ex.nums.some(Boolean) && nums.some(Boolean)) { ex.nums = nums; gotNums++; }
+          return;
+        }
         state.people.push({ ...p, id: u.uid('p'), nums, paid: false });
         newPeople++;
       });
       inc.courses.forEach((c) => { if (!state.courses.some((x) => x.id === c.id)) state.courses.push(c); });
       commit();
-      return { added, newPeople };
+      return { added, newPeople, gotNums, old };
     },
     wipe() { state = blank(); commit(); },
   };
