@@ -14,7 +14,7 @@
   const page = document.body.dataset.page || 'hjem';
 
   function nextLabel() {
-    const f = u.nextFriday();
+    const f = Store.nextDraw();
     const today = u.sameDay(f, new Date());
     const time = Store.settings.drawTime ? ` kl. ${Store.settings.drawTime}` : '';
     return { text: (today ? 'i dag' : u.dfShort.format(f)) + time, long: (today ? 'i dag' : u.dfLong.format(f).replace(/ \d{4}$/, '')) + time, today };
@@ -60,6 +60,12 @@
           <label class="field"><span class="field-label">Maks lodd per person</span><input class="field-input" type="number" name="maxPerPerson" min="1" max="4" step="1" required></label>
           <label class="field"><span class="field-label">Antall vinnere</span><input class="field-input" type="number" name="winners" min="1" max="10" step="1" required></label>
           <label class="field"><span class="field-label">Trekningstid (valgfritt)</span><input class="field-input" type="text" name="drawTime" maxlength="20" placeholder="F.eks. 14:00"></label>
+          <label class="field"><span class="field-label">Hvor ofte</span><select class="field-input" name="schedule">
+            <option value="weekly">Hver fredag</option><option value="even">Fredag i partallsuker</option><option value="odd">Fredag i oddetallsuker</option><option value="last">Siste fredag i måneden</option>
+          </select><small class="field-hint" id="scheduleHint"></small></label>
+          <label class="field"><span class="field-label">Juletema (Hurtigbåten)</span><select class="field-input" name="jul">
+            <option value="auto">Automatisk i desember</option><option value="on">Alltid på</option><option value="off">Av</option>
+          </select><small class="field-hint">Snø, julelys og julefarer på ruten.</small></label>
           <label class="field field-wide"><span class="field-label">Vipps til (valgfritt)</span><input class="field-input" type="text" name="vipps" maxlength="60" placeholder="F.eks. Daniel · 123 45 678"></label>
           <label class="check field-wide"><input type="checkbox" name="noNums"><span>Ett lodd per person, uten bingotall<small>Ingen trenger å velge nummer – navnet er loddet. Gjelder hele siden, og numrene folk har fra før blir liggende til du slår det av igjen.</small></span></label>
           <label class="check field-wide"><input type="checkbox" name="uniqueWinners"><span>Én person kan bare vinne én gang per trekning</span></label>
@@ -83,19 +89,27 @@
       form.maxPerPerson.value = off ? 1 : Store.settings.maxNums;
     };
     form.noNums.addEventListener('change', syncMax);
+    // vis neste trekningsdato for valget, så det er lett å se om partall eller oddetall er riktig
+    const syncSchedule = () => {
+      const d = Store.nextDraw(new Date(), form.schedule.value);
+      $('#scheduleHint').textContent = `Neste: ${u.sameDay(d, new Date()) ? 'i dag' : u.dfShort.format(d)} (uke ${u.isoWeek(d)})`;
+    };
+    form.schedule.addEventListener('change', syncSchedule);
     $('#settingsBtn').addEventListener('click', () => {
       const st = Store.settings;
       form.price.value = st.price; form.winners.value = st.winners;
       form.drawTime.value = st.drawTime; form.vipps.value = st.vipps; form.uniqueWinners.checked = st.uniqueWinners;
       form.noNums.checked = st.noNums;
+      form.schedule.value = st.schedule; form.jul.value = st.jul;
       syncMax();
+      syncSchedule();
       dlg.returnValue = '';
       dlg.showModal();
     });
     dlg.addEventListener('close', () => {
       if (dlg.returnValue !== 'save') return;
       const noNums = form.noNums.checked;
-      Store.setSettings({ price: form.price.value, maxPerPerson: noNums ? 1 : form.maxPerPerson.value, winners: form.winners.value, drawTime: form.drawTime.value, vipps: form.vipps.value, uniqueWinners: form.uniqueWinners.checked, noNums });
+      Store.setSettings({ price: form.price.value, maxPerPerson: noNums ? 1 : form.maxPerPerson.value, winners: form.winners.value, drawTime: form.drawTime.value, vipps: form.vipps.value, uniqueWinners: form.uniqueWinners.checked, noNums, schedule: form.schedule.value, jul: form.jul.value });
       u.toast('Innstillingene er lagret.');
     });
     $('#wipeBtn').addEventListener('click', async () => {

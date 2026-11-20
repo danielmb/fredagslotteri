@@ -4,6 +4,8 @@ Nettside for fredagslotteriet i Bodø – med spillene «Hurtigbåten til Bodø�
 
 - **Påmelding:** den som tar imot betalingen, krysser av folk på en fast liste. Alle har lodd-nummer (bingotall) de har valgt selv (f.eks. 7 og 70), ett per lodd. Den som ikke er bekreftet betalt når båten går, blir igjen på kaia.
 
+  Under Innstillinger velger du også **hvor ofte dere trekker**: hver fredag, fredag i partallsuker, fredag i oddetallsuker eller siste fredag i måneden. «Neste avgang» øverst på siden følger valget, og under valget står neste dato.
+
   Under Innstillinger kan du velge **«Ett lodd per person, uten bingotall»**. Da trenger ingen å velge nummer – navnet er loddet, og kulene og båtene merkes med initialene. Valget gjelder hele siden. Numrene folk har fra før blir liggende, og maks antall lodd kommer tilbake når du slår det av igjen.
 - **Trekning:** fem måter å trekke på:
   - Hurtigbåten til Bodø (hovedspillet)
@@ -13,6 +15,10 @@ Nettside for fredagslotteriet i Bodø – med spillene «Hurtigbåten til Bodø�
   - Avgangstavla (lyntrekning)
 
   Vinnerne trekkes alltid kryptografisk og låses i skipsloggen før spillet vises.
+
+  **Premierekkefølgen trekkes én og én.** Når de overlevende er fremme i Bodø (Hurtigbåten) eller Henningsvær (Draugen), legges kortene deres på bordet med navnet opp. De snus og stokkes, så alle kan prøve å følge sitt eget, og et lys hopper mellom kortene og stopper på ett: 1. plass. Vinneren går i land og henter premien, og alt står stille til du trykker «Trekk 2. plass» (eller mellomrom). Da stokkes kortene som er igjen, og neste trekkes. Den siste trenger ingen trekning – «Neste: 3. plass» sender vedkommende i land. ⏭ hopper over stokkingen, og 2× og 4× gjør den raskere. I Keiservarden avgjør målgangen rekkefølgen.
+
+  **Julebåten (desember):** Hele desember går Hurtigbåten med juletema: snø, julelys og stjerne på båten, nisseluer på passasjerene og juletre på kaiene og i Bodø. Ruten får egne farer: Nissen tar folk med i sleden, gløgg, lutefisk, juletreet som velter, mistelteinen i byssa, pakket inn og sendt med postbåten, snøballkrig, Rudolf, snøfokk, julebord og julemarked ved kai, og slemmelista ved Polarsirkelen. Under Innstillinger kan juletemaet også settes til «Alltid på» eller «Av». Juletrekninger er merket 🎄 i skipsloggen, og repriser vises med det temaet de ble trukket med.
 
   **Premiehjulet** er for når premiene skal deles ut underveis. Hvert lodd er et like stort felt på hjulet, med nummer og navn. Du trykker, hjulet snurrer fort og bremser lenge, og de siste navnene tikker sakte forbi pekeren mens navnet den står på vises stort ved siden av (og lyser i lista). Hjulet stopper ofte helt ytterst i vinnerens felt – så vidt over fra naboen, eller rett før neste – for å gjøre det spennende. Det er bare teater: vinneren er trukket før hjulet begynner å snurre. Vil dere heller ha en glasstrommel der én kule suges opp, velger dere «Trommel» i startbildet. Etter hver vinner står alt stille til du har gitt bort premien og trykker på «Snurr for neste vinner» (eller mellomrom). Hver vinner trekkes i det øyeblikket du trykker, og låses i skipsloggen med en gang. Første som trekkes, velger premie først. Er det flere premier enn planlagt, kan du trekke én til, og du kan avslutte når som helst. Har noen flere lodd og bare kan vinne én gang, tas de andre loddene deres ut av hjulet (eller trommelen). Lukker du siden midt i, kan trekningen fortsettes samme dag.
 

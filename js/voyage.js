@@ -97,7 +97,7 @@
       <g id="sFar"></g>
       <g id="sBack"></g>
       <g id="sNear"></g>
-      <g id="sBoat"><g id="sWake">${A.boatWake()}</g>${A.boatBack()}<g id="sDeck"></g><g>${A.boatRails()}</g></g>
+      <g id="sBoat"><g id="sWake">${A.boatWake()}</g>${A.boatBack()}${A.boatXmas()}<g id="sDeck"></g><g>${A.boatRails()}</g></g>
       <g data-f="1" data-drift="10">${A.frontWave(VW, WATER - 2)}</g>
       <g data-f="1" data-drift="16">${A.waveLines(505, { y0: 656, y1: 890, rows: 13 })}</g>
       <g id="sWorld"></g>

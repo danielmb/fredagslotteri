@@ -12,7 +12,7 @@
   // trekninger hentet inn fra den gamle Fredagstrekningen-fila
   const OLD_MODE = { wheel: 'Lykkehjulet', slot: 'Navnetromla', drum: 'Kulemaskinen', hurtig: 'Hurtigruta i uvær', gp: 'Fredags-GP' };
   const isOld = (h) => h.src === 'fredagstrekningen';
-  const gameLabel = (h) => (isOld(h) ? `Fredagstrekningen${OLD_MODE[h.mode] ? ` · ${OLD_MODE[h.mode]}` : ''}` : GAME[h.game] || 'Trekning');
+  const gameLabel = (h) => (isOld(h) ? `Fredagstrekningen${OLD_MODE[h.mode] ? ` · ${OLD_MODE[h.mode]}` : ''}` : h.jul ? '🎄 Julebåten' : GAME[h.game] || 'Trekning');
 
   function renderStats(s) {
     const lead = s.leaders[0];

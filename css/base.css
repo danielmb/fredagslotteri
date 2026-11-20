@@ -75,6 +75,9 @@ code { font-family: var(--ff-mono); font-size: .9em; }
 .field-input:focus { border-color: var(--aurora); box-shadow: 0 0 0 4px rgba(94, 242, 181, .15); }
 .field-input::placeholder { color: var(--dim); }
 .field-input.shake { animation: inputShake .4s; border-color: var(--red); }
+select.field-input { cursor: pointer; }
+select.field-input option { background: var(--bg-2); color: var(--text); }
+.field-hint { display: block; margin-top: 7px; font-size: 13px; color: var(--muted); }
 @keyframes inputShake { 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }
 .seg { display: flex; padding: 3px; border-radius: 999px; background: rgba(15, 27, 41, .08); }
 .seg button { min-width: 34px; padding: 6px 11px; border: 0; border-radius: 999px; background: transparent; font-family: var(--ff-mono); font-size: 13px; font-weight: 700; color: var(--ink-2); }

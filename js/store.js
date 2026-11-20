@@ -5,7 +5,9 @@
   const u = FL.u;
   const KEY = 'fredagslotteriet:v1'; // samme nøkkel hele veien – eldre data migreres automatisk
   const VERSION = 3;
-  const DEFAULTS = { price: 30, maxPerPerson: 2, winners: 3, uniqueWinners: true, sound: true, vipps: '', drawTime: '', noNums: false };
+  const DEFAULTS = { price: 30, maxPerPerson: 2, winners: 3, uniqueWinners: true, sound: true, vipps: '', drawTime: '', noNums: false, schedule: 'weekly', jul: 'auto' };
+  const SCHEDULES = ['weekly', 'even', 'odd', 'last']; // hver fredag, partallsuker, oddetallsuker, siste fredag i måneden
+  const JUL = ['auto', 'on', 'off']; // juletema i Hurtigbåten: automatisk i desember, alltid, aldri
 
   const ORIGINAL_COURSE = 'keiservarden';
   const blank = () => ({ v: VERSION, settings: normSettings(), people: [], history: [], courses: [], courseId: ORIGINAL_COURSE });
@@ -42,6 +44,8 @@
       sound: st.sound !== false,
       vipps: u.cleanName(st.vipps || '').slice(0, 60),
       drawTime: u.cleanName(st.drawTime || '').slice(0, 20),
+      schedule: SCHEDULES.includes(st.schedule) ? st.schedule : DEFAULTS.schedule,
+      jul: JUL.includes(st.jul) ? st.jul : DEFAULTS.jul,
     };
   }
   function validRecord(h) {
@@ -166,6 +170,10 @@
     get active() { return state.people.filter((p) => p.active).sort(byNum); },
     get history() { return state.history; },
     subscribe(fn) { subs.add(fn); return () => subs.delete(fn); },
+    /* Juletema i Hurtigbåten: automatisk hele desember, eller slått på/av i innstillingene */
+    julActive(date = new Date()) { const j = state.settings.jul; return j === 'on' || (j === 'auto' && date.getMonth() === 11); },
+    /* Neste trekningsfredag etter innstillingen «Hvor ofte» */
+    nextDraw(from = new Date(), schedule = state.settings.schedule) { return u.nextFriday(from, schedule); },
 
     setSettings(patch) {
       const prev = state.settings;

@@ -14,6 +14,7 @@
       this.worldOffset = () => 0; // skjermX = verdenX + offset
       this.camera = null; // valgfritt: () => ({ x, y, w, h }) når scenen zoomer
       this.cw = 0; this.ch = 0;
+      this.snow = 0; this.snowAcc = 0; // snøfnugg per sekund (juletema)
       this.resize();
       if ('ResizeObserver' in window) new ResizeObserver(() => this.resize()).observe(canvas);
     }
@@ -60,9 +61,20 @@
       this.add({ x, y, kind: 'flash', life: 0.35, size: 90, color: c2 });
     }
     clear() { this.parts = []; }
+    /* Snø som faller hele tiden (juletema). Fyller skjermen med en gang, så det ikke starter tomt. */
+    flake(y) {
+      const sz = 1 + Math.random() * 2.6, vy = 24 + sz * 13 + Math.random() * 16;
+      this.add({ x: Math.random() * (VW + 360), y, vx: -24 - Math.random() * 46, vy, life: (VH + 40 - y) / vy, size: sz, kind: 'snow', color: '#fff', rot: Math.random() * 6 });
+    }
+    setSnow(rate) {
+      this.snow = rate; this.snowAcc = 0;
+      this.parts = this.parts.filter((p) => p.kind !== 'snow');
+      for (let i = 0; i < rate * 12; i++) this.flake(Math.random() * VH);
+    }
     update(dtMs) {
       const dt = Math.min(0.05, dtMs / 1000);
       const { ctx } = this;
+      if (this.snow > 0) { this.snowAcc += dt * this.snow; while (this.snowAcc >= 1) { this.snowAcc -= 1; this.flake(-10); } }
       let { s, ox, oy } = this.map;
       if (this.camera && this.cw) { // følg SVG-kameraet (viewBox) når scenen zoomer
         const c = this.camera();
@@ -86,7 +98,11 @@
         const t = p.age / p.life;
         const x = p.world ? p.x + wo : p.x;
         ctx.globalAlpha = Math.max(0, 1 - t * t);
-        if (p.kind === 'streak') { // regn
+        if (p.kind === 'snow') {
+          ctx.globalAlpha = 0.5 + p.size * 0.12;
+          ctx.fillStyle = p.color;
+          ctx.beginPath(); ctx.arc(x + Math.sin(p.age * 1.7 + p.rot) * 9, p.y, p.size, 0, Math.PI * 2); ctx.fill();
+        } else if (p.kind === 'streak') { // regn
           ctx.globalAlpha = 0.55 * (1 - t);
           ctx.strokeStyle = p.color; ctx.lineWidth = p.size;
           ctx.beginPath(); ctx.moveTo(x, p.y); ctx.lineTo(x - p.vx * 0.022, p.y - p.vy * 0.022); ctx.stroke();

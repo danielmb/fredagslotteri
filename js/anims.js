@@ -234,10 +234,10 @@
       await Eng.wait(600);
     },
 
-    async wrongboat(vg, actors, beat) {
-      if (FL.Events.PORT_NAME[beat.place]) return Anims.ashore(vg, actors, beat, { leave: true });
+    async wrongboat(vg, actors, beat, opt = {}) {
+      if (FL.Events.PORT_NAME[beat.place] && !opt.sign) return Anims.ashore(vg, actors, beat, { leave: true });
       const from = VW + 320, to = -420, dur = 5200, sc = 0.62, y = 618;
-      const boat = vg.ship(A.smallBoat(['TRÆNA', 'MOSKENES', 'LOVUND'][beat.t % 3]), { layer: 'near', y, scale: sc, from, to, dur });
+      const boat = vg.ship(A.smallBoat(opt.sign || ['TRÆNA', 'MOSKENES', 'LOVUND'][beat.t % 3]), { layer: 'near', y, scale: sc, from, to, dur });
       const tLand = ((from - (BOAT_X - 60)) / (from - to)) * dur;
       await Eng.wait(Math.max(0, tLand - 800));
       await Promise.all(actors.map(async (a, i) => {
@@ -249,7 +249,7 @@
         a.x = off / sc; a.y = -52; a.s = 1; a.r = 0; a.apply();
       }));
       const p = { x: boat.o.x, y: y - 90 };
-      vg.pop('Feil båt!', p.x, p.y - 40, { size: 34, color: '#5ef2b5', life: 900 });
+      vg.pop(opt.pop || 'Feil båt!', p.x, p.y - 40, { size: 34, color: '#5ef2b5', life: 900 });
       await Eng.wait(700);
     },
 
@@ -368,6 +368,102 @@
       await Eng.tween(2100, (q) => { s.x = x0 + q * 1500; s.apply(); if (k++ % 6 === 0) vg.fx.splash(s.x - 16, s.y - 2, 4, true); }, E.in);
       s.remove();
     },
+
+    /* ---------- Juletema (desember) ---------- */
+    async sleigh(vg, actors) { // Nissen svinger innom i sleden og tar med seg passasjeren
+      const a = actors[0];
+      const p = screen(vg, a);
+      const K = 0.8, seat = { x: -26 * K, y: -14 * K }; // der passasjeren sitter i sleden
+      const s = vg.prop(A.sleigh(), 'sky', VW + 360, 110);
+      s.s = K; s.apply();
+      S().bells();
+      vg.pop('HO HO HO!', VW - 300, 180, { size: 56, color: '#ff6b6b', rot: -6, life: 1500 });
+      const P0 = { x: VW + 360, y: 110 }, P1 = { x: p.x - seat.x, y: p.y - seat.y }, C = { x: p.x + 460, y: p.y - 30 };
+      await Eng.tween(1500, (t) => { const q = 1 - t; s.x = q * q * P0.x + 2 * q * t * C.x + t * t * P1.x; s.y = q * q * P0.y + 2 * q * t * C.y + t * t * P1.y; s.apply(); }, E.inOut);
+      vg.sc.move(a, 'sky');
+      s.el.parentNode.insertBefore(a.el, s.el); // passasjeren sitter bak slede-kanten
+      S().bells();
+      vg.pop('HOPP OPP!', p.x + 30, p.y - 120, { size: 40, color: '#f3ecdf', rot: 6 });
+      const Q0 = { x: s.x, y: s.y }, Q1 = { x: -460, y: -220 }, D = { x: p.x - 240, y: p.y - 40 };
+      await Eng.tween(1800, (t) => {
+        const q = 1 - t;
+        s.x = q * q * Q0.x + 2 * q * t * D.x + t * t * Q1.x; s.y = q * q * Q0.y + 2 * q * t * D.y + t * t * Q1.y; s.r = -t * 12; s.apply();
+        a.x = s.x + seat.x; a.y = s.y + seat.y; a.r = s.r + Math.sin(t * 12) * 4; a.apply();
+      }, E.in);
+      s.remove(); a.remove();
+    },
+
+    async xmastree(vg, actors) { // juletreet på dekk velter og feier passasjeren over bord
+      const a = actors[0];
+      // treets rot ligger i dreiepunktet (0, -28), så det velter rundt stammen
+      const t = vg.prop(`<g transform="translate(0 -28)">${A.xmasTree(100)}</g>`, a.layer, a.x + 42, a.y + 28, a.mark);
+      t.o = 0; t.apply();
+      await tw(t, { o: 1 }, 300);
+      S().wind();
+      const p = screen(vg, a);
+      vg.pop('KNIRK …', p.x + 60, p.y - 130, { size: 34, color: '#c9ebd3', rot: -6, life: 900 });
+      await wobble(t, 800, 7, 2);
+      await tw(t, { r: -96 }, 520, E.in);
+      S().thud(); vg.shake();
+      vg.fx.sparkles(p.x, p.y - 40, 22, '#ffd54a');
+      vg.pop('KRASJ!', p.x, p.y - 100, { size: 58, color: '#7ee08a' });
+      const s = await fallIntoSea(vg, a, { dx: -70, h: 60, spin: -200 });
+      swimAway(s);
+      await tw(t, { o: 0 }, 700);
+      t.remove();
+    },
+
+    async gift(vg, actors, beat) { // pakket inn som julegave og sendt med postbåten
+      const COL = ['#d62828', '#1f7a3d', '#2a5bd7'];
+      await Promise.all(actors.map(async (a, i) => {
+        await Eng.wait(i * 200);
+        const p = screen(vg, a);
+        vg.fx.sparkles(p.x, p.y - 30, 18, '#ffd54a');
+        S().sparkle();
+        a.setArt(A.gift(COL[(beat.t + i) % COL.length]));
+        vg.pop('PAKKET!', p.x, p.y - 100, { size: 40, color: '#ffd54a', rot: -6 });
+        await wobble(a, 600, 6, 2);
+      }));
+      await Anims.wrongboat(vg, actors, beat, { sign: 'POSTEN', pop: 'Til Vadsø!' });
+    },
+
+    async snowball(vg, actors) { // snøballkrig: hver passasjer får to kast, det andre treffer
+      S().whoosh();
+      vg.pop('SNØBALLKRIG!', VW / 2 + 60, 260, { size: 64, color: '#e2eefb', rot: -4, life: 1300 });
+      await Promise.all(actors.map(async (a, i) => {
+        await Eng.wait(i * 240);
+        for (let k = 0; k < 2; k++) {
+          const p = screen(vg, a);
+          const b = vg.prop(A.snowball(), 'sky', VW + 40, rnd(240, 420));
+          const x0 = b.x, y0 = b.y, tx = p.x + (k ? 2 : rnd(50, 90)), ty = p.y - (k ? 44 : 86);
+          await Eng.tween(520, (t) => { b.x = lerp(x0, tx, t); b.y = lerp(y0, ty, t) - Math.sin(t * Math.PI) * 120; b.r = t * 300; b.apply(); }, E.linear);
+          vg.fx.sparkles(b.x, b.y, 14, '#ffffff');
+          b.remove();
+          if (k) { S().thud(); vg.pop('PANG!', p.x, p.y - 96, { size: 40, color: '#ffffff' }); } else S().flap();
+        }
+        a.addClass('frozen');
+        await wobble(a, 420, 12, 2);
+        const s = await fallIntoSea(vg, a, { dx: -60 - i * 22, h: 60, spin: -200 });
+        swimAway(s);
+      }));
+    },
+
+    async rudolf(vg, actors) { // Rudolf hopper over båten, og passasjerene ryker over bord
+      S().bells();
+      const d = vg.prop(`<g transform="scale(1.5)">${A.deer(0, true)}</g>`, 'sky', VW + 140, WATER - 150);
+      vg.pop('RUDOLF!', BOAT_X + 140, 280, { size: 66, color: '#ff6b6b', rot: -5, life: 1300 });
+      const x0 = VW + 140, x1 = -240, dur = 2000;
+      const run = Eng.tween(dur, (t) => { d.x = lerp(x0, x1, t); d.y = WATER - 150 - Math.sin(t * Math.PI) * 150 - Math.abs(Math.sin(t * Math.PI * 7)) * 16; d.apply(); }, E.linear);
+      await Promise.all(actors.map((a) => tw(a, { r: 14 }, 500)));
+      const over = ((x0 - (BOAT_X - 120)) / (x0 - x1)) * dur; // når Rudolf er over akterdekket
+      await Eng.wait(Math.max(0, over - 500));
+      S().thud();
+      await Promise.all(actors.map(async (a, i) => { await Eng.wait(i * 120); const s = await fallIntoSea(vg, a, { dx: -60 - i * 30, h: 70, spin: -160 }); swimAway(s); }));
+      await run;
+      d.remove();
+    },
+
+    julebord(vg, actors, beat) { return Anims.ashore(vg, actors, beat, { leave: true }); }, // går i land og inn på festen
   };
 
   Anims.util = { tw, walk, hop, wobble, fadeOut, lieDown, toAftDeck, fallIntoSea, swimAway };

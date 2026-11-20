@@ -23,6 +23,7 @@
         start: u.$('#startOverlay', stage), end: u.$('#endOverlay', stage), sideBody: u.$('.side-body', stage),
       };
       this.token = 0; this.running = false; this.active = false; this.skipping = false;
+      this.stokk = FL.Stokk.of(stage);
       this.progress = 0; this.storm = 0.4; this.dawn = 0; this.time = 0; this.rainAcc = 0;
       this.boats = []; this.byNo = new Map(); this.L = 12000; this.henn = null; this.bodoMark = null;
       this.build();
@@ -244,6 +245,7 @@
     activate() { this.active = true; this.idle(); }
     deactivate() { this.abort(); this.active = false; }
     idle() {
+      this.stokk.clear();
       this.clear();
       this.buildRoute();
       this.tickRoute();
@@ -367,7 +369,7 @@
       S().storm(false);
       this.announce('Soloppgang', 'Mørketida er over · Henningsvær i sikte', 2800);
       await w(Promise.all([this.sailTo(1), Eng.tween(3400, (p) => { this.dawn = p; this.storm = 0.4 * (1 - p); }, E.inOut)]));
-      await w(FL.DAnims.finale(this, d));
+      await w(FL.DAnims.finale(this, d, w));
       this.finish();
     }
     finish() {
@@ -376,6 +378,7 @@
       this.showEnd();
     }
     skip() {
+      if (this.stokk.busy) { this.stokk.hurry(); return; }
       if (!this.running || this.skipping || this.beatIdx >= this.draw.beats.length) return;
       this.skipping = true;
       Eng.speed = 8;

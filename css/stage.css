@@ -66,6 +66,12 @@
   .speed button { padding: 6px 8px; font-size: 11.5px; }
 }
 
+/* Juletema (Hurtigbåten i desember): pynten på båten vises bare da, og lyspærene blinker */
+.scene:not(.is-jul) .xmas { display: none; }
+.bulb { animation: bulb 1.6s ease-in-out infinite alternate; }
+@keyframes bulb { from { opacity: 1; } to { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .bulb { animation: none; } }
+
 /* SVG-detaljer som bare brukes i spillet */
 .tag-txt { font: 700 13px var(--ff-ui); }
 .tag-rank { font: 700 10px var(--ff-mono); letter-spacing: .14em; }
@@ -193,6 +199,39 @@
 .side-empty { padding: 26px 12px; text-align: center; font-size: 14px; color: var(--dim); }
 .stage:fullscreen .px { font-size: 16px; padding: 9px 12px; }
 .stage:fullscreen .lg { font-size: 15px; }
+
+/* ---------- Premierekkefølgen: vinnernes kort stokkes, og én trekkes om gangen ---------- */
+.stokk { position: absolute; inset: 0; z-index: 6; overflow: hidden; pointer-events: none; }
+.scene.is-stokk .hud-top { z-index: 7; } /* ⏭, fart og fullskjerm synes over kortene */
+.sk-dim { position: absolute; inset: 0; background: radial-gradient(90% 85% at 50% 55%, rgba(4, 11, 21, .84), rgba(4, 11, 21, .96)); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); animation: skIn .5s ease both; transition: opacity .45s ease; }
+.sk-head { position: absolute; left: 0; right: 0; display: flex; flex-direction: column; align-items: center; gap: calc(var(--fs) * .16); padding: 0 16px; text-align: center; transition: opacity .45s ease; }
+.sk-head small { font-family: var(--ff-mono); font-size: max(10px, calc(var(--fs) * .25)); letter-spacing: .24em; text-transform: uppercase; color: var(--aurora); }
+.sk-head b { font-family: var(--ff-display); font-weight: 800; font-size: var(--fs); line-height: 1; letter-spacing: -.03em; color: var(--text); font-variation-settings: "opsz" 144, "SOFT" 50; }
+.sk-head span { font-size: max(12px, calc(var(--fs) * .32)); color: #c7d4e0; }
+.sk-head.is-new b, .sk-head.is-new span { animation: skHead .5s var(--ease-out) both; }
+@keyframes skHead { from { opacity: 0; transform: translateY(10px); filter: blur(6px); } }
+@keyframes skIn { from { opacity: 0; } }
+.sk-card, .sk-pick { position: absolute; left: 0; top: 0; width: var(--cw); height: calc(var(--cw) * 1.4); }
+.sk-card { transform-origin: 0 0; perspective: calc(var(--cw) * 6); will-change: transform; }
+.sk-in { position: absolute; inset: 0; transform-style: preserve-3d; }
+.sk-face, .sk-back { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; border-radius: calc(var(--cw) * .1); -webkit-backface-visibility: hidden; backface-visibility: hidden; box-shadow: 0 10px 24px -10px rgba(0, 0, 0, .85); }
+.sk-face { gap: calc(var(--cw) * .06); padding: calc(var(--cw) * .2) calc(var(--cw) * .06) calc(var(--cw) * .06); background: linear-gradient(180deg, var(--pc) 0 calc(var(--cw) * .14), var(--paper) 0); color: var(--ink); }
+.sk-face b { font-family: var(--ff-mono); font-size: calc(var(--cw) * .32); font-weight: 800; line-height: 1; }
+.sk-face span { max-width: 100%; overflow: hidden; font-size: max(8px, calc(var(--cw) * .135)); font-weight: 700; line-height: 1.1; white-space: nowrap; text-overflow: ellipsis; }
+.stokk.is-small .sk-face span { display: none; }
+.sk-back { transform: rotateY(180deg); background: repeating-linear-gradient(45deg, rgba(255, 255, 255, .05) 0 2px, transparent 2px 7px), linear-gradient(160deg, #18315a, #0a1830); border: 1px solid rgba(255, 255, 255, .22); }
+.sk-back i { font-size: calc(var(--cw) * .3); font-style: normal; line-height: 1; opacity: .55; }
+/* Lyset som hopper mellom kortene og stopper på det som trekkes */
+.sk-pick { border-radius: calc(var(--cw) * .12); box-shadow: 0 0 0 max(3px, calc(var(--cw) * .05)) #ffe08a, 0 0 calc(var(--cw) * .6) rgba(246, 189, 71, .8); opacity: 0; transition: transform .1s ease-out, opacity .3s ease; }
+.stokk.is-picking .sk-pick { opacity: 1; }
+.stokk.is-won .sk-pick, .stokk.is-done .sk-dim, .stokk.is-done .sk-head { opacity: 0; }
+/* Knappen som venter til premien er hentet */
+.sk-next { position: absolute; right: max(14px, 2.2cqw); bottom: max(14px, 2.6cqh); z-index: 6; display: flex; flex-direction: column; align-items: flex-end; gap: 7px; animation: anIn .5s var(--ease-out) both; }
+.sk-next small { font-family: var(--ff-mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); text-shadow: 0 2px 10px rgba(0, 0, 0, .8); }
+@media (max-width: 640px) { .sk-next { left: 50%; right: auto; top: 54px; bottom: auto; align-items: center; transform: translateX(-50%); animation: none; } }
+/* Snudd: gull med medalje */
+.sk-face.is-win { background: linear-gradient(180deg, var(--pc) 0 calc(var(--cw) * .14), #fff1c4 0, #ffd36e); }
+.sk-fate { position: absolute; right: calc(var(--cw) * .05); bottom: calc(var(--cw) * .04); font-size: max(12px, calc(var(--cw) * .22)); font-style: normal; line-height: 1; }
 
 /* ---------- Avgangstavla (lyntrekning) ---------- */
 .stage[data-game="lyn"] .scene-svg, .stage[data-game="lyn"] .fx, .stage[data-game="lyn"] .sky, .stage[data-game="lyn"] .route, .stage[data-game="lyn"] #skipBtn, .stage[data-game="lyn"] .speed { visibility: hidden; }

@@ -379,7 +379,7 @@
     },
 
     /* Finalen: soloppgang, Henningsvær og Kraken med premien */
-    async finale(dg, d) {
+    async finale(dg, d, w = (p) => p) {
       const surv = d.winners.map((no, k) => ({ b: dg.byNo.get(no), p: dg.pax.get(no), rank: k + 1 })).filter((x) => x.b && !x.b.gone);
       const order = surv.slice().sort((a, b) => a.b.x - b.b.x);
       const n = order.length;
@@ -401,12 +401,16 @@
       const bottle = dg.prop(D.bottle(), 'fx');
       const armX = 1140, armY = SEA + 160;
       await Eng.tween(900, (t) => { place(arm, armX, armY, -0.55, 0.55 * t, -10); place(bottle, armX - 20, armY - 170 * t, 0.9); }, E.out);
-      for (let i = surv.length - 1; i >= 0; i--) {
+      // premierekkefølgen trekkes én og én, 1. plass først: kortene stokkes, Kraken deler ut,
+      // og alt venter til noen trykker før neste trekkes (w avbryter hvis spillet er stoppet imens)
+      for (let i = 0; i < surv.length; i++) {
         const { b, p, rank } = surv[i];
+        if (i > 0) await w(dg.stokk.next(surv.length - i > 1 ? `Trekk ${rank}. plass` : `Neste: ${rank}. plass`));
+        if (surv.length - i > 1) await w(dg.stokk.show(d, { pick: i, kicker: 'Henningsvær · premierekkefølgen', icon: '🦑' }));
         const tag = svgEl('g', { transform: 'translate(0 -36)' }, A.nameTag(shortName(p.name), `${rank}. PLASS`, rank % 2 === 0 ? 30 : 0));
         b.act.appendChild(tag);
         dg.markWinner(p, rank);
-        dg.el.ev.innerHTML = `<div class="evcard is-final" style="--ec:#ffe08a"><div class="ec-ico">${['🥇', '🥈', '🥉'][rank - 1] || '🏁'}</div><div><div class="ec-meta">${rank}. plass · færing ${u.esc(p.label)}</div><h3 class="ec-title">${u.esc(p.name)}</h3><p class="ec-text">${rank === 1 ? 'Kraken rekker frem premien. Innholdet er urelatert.' : 'Overlevde natta på Vestfjorden.'}</p></div></div>`;
+        dg.el.ev.innerHTML = `<div class="evcard is-final" style="--ec:#ffe08a"><div class="ec-ico">${['🥇', '🥈', '🥉'][rank - 1] || '🏁'}</div><div><div class="ec-meta">${rank}. plass · færing ${u.esc(p.label)}</div><h3 class="ec-title">${u.esc(p.name)}</h3><p class="ec-text">${rank === 1 ? 'Kraken rekker frem premien. Innholdet er urelatert.' : `Overlevde natta på Vestfjorden. Velger premie som nummer ${u.numberWord(rank)}.`}</p></div></div>`;
         dg.announce(`${rank}. plass`, '', 1500);
         const q = dg.sail(b);
         dg.fx.sparkles(q.x, q.y - 60, 24, rank === 1 ? '#ffe08a' : '#c8ffe6');

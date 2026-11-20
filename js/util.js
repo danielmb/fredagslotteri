@@ -61,10 +61,24 @@
   const dfLong = new Intl.DateTimeFormat('nb-NO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   const dfShort = new Intl.DateTimeFormat('nb-NO', { weekday: 'short', day: 'numeric', month: 'short' });
   const dfMonth = new Intl.DateTimeFormat('nb-NO', { month: 'short' });
-  function nextFriday(from = new Date()) {
+  /* ISO-ukenummer (uke 1 er uka med årets første torsdag) */
+  function isoWeek(date) {
+    const t = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    t.setUTCDate(t.getUTCDate() + 4 - (t.getUTCDay() || 7));
+    return Math.ceil(((t - Date.UTC(t.getUTCFullYear(), 0, 1)) / 86400000 + 1) / 7);
+  }
+  /* Neste trekningsfredag (i dag teller): hver fredag, i partallsuker, i oddetallsuker eller siste fredag i måneden */
+  function nextFriday(from = new Date(), schedule = 'weekly') {
     const d = new Date(from);
     d.setHours(12, 0, 0, 0);
     d.setDate(d.getDate() + ((5 - d.getDay() + 7) % 7));
+    const ok = (x) => {
+      if (schedule === 'even') return isoWeek(x) % 2 === 0;
+      if (schedule === 'odd') return isoWeek(x) % 2 === 1;
+      if (schedule === 'last') { const n = new Date(x); n.setDate(n.getDate() + 7); return n.getMonth() !== x.getMonth(); }
+      return true;
+    };
+    for (let i = 0; i < 10 && !ok(d); i++) d.setDate(d.getDate() + 7);
     return d;
   }
   const sameDay = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
@@ -116,5 +130,5 @@
     setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
   }
 
-  FL.u = { $, $$, esc, clamp, lerp, randInt, shuffle, mulberry32, hashStr, cleanName, normName, colorFor, initials, pad, joinNames, numberWord, nf, kr, dfLong, dfShort, dfMonth, nextFriday, sameDay, uid, toast, confirmDlg, countTo, download };
+  FL.u = { $, $$, esc, clamp, lerp, randInt, shuffle, mulberry32, hashStr, cleanName, normName, colorFor, initials, pad, joinNames, numberWord, nf, kr, dfLong, dfShort, dfMonth, isoWeek, nextFriday, sameDay, uid, toast, confirmDlg, countTo, download };
 })();

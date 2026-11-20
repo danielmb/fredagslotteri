@@ -21,6 +21,7 @@
         start: u.$('#startOverlay', stage), end: u.$('#endOverlay', stage), sideBody: u.$('.side-body', stage),
       };
       this.token = 0; this.userSpeed = 1; this.running = false; this.skipping = false; this._rp = -1; this.ports = {};
+      this.stokk = FL.Stokk.of(stage);
       this.bindControls();
       this.idle();
     }
@@ -48,8 +49,18 @@
     portMark(place) { return this.ports[place] || null; }
 
     /* ---------- Oppsett ---------- */
+    /* Juletema: snø, julelys på båten og nisseluer. Må settes før kaiene og figurene tegnes. */
+    setJul(on) {
+      this.jul = !!on;
+      FL.Art.jul = this.jul;
+      this.sceneEl.classList.toggle('is-jul', this.jul);
+      this.fx.setSnow(this.jul ? 22 : 0);
+    }
     idle() {
+      this.stokk.clear();
       this.sc.clearDynamic();
+      this.atQuay = true; // står klar ved kaia (ingen tur eller reprise vises)
+      this.setJul(Store.julActive());
       this.sc.travel = 0; this.sc.v = 0; this.sc.targetV = 0; this.sc.bx = FL.Engine.BOAT_X;
       this.L = 6000;
       this.sc.addMark(A.startPier(), 0, 1, PORT_Y, 640, 640);
@@ -66,6 +77,8 @@
     setup() {
       const d = this.draw, sc = this.sc;
       sc.clearDynamic();
+      this.atQuay = false;
+      this.setJul(d.jul); // repriser får det temaet de ble trukket med
       sc.travel = 0; sc.v = 0; sc.targetV = 0; sc.bx = FL.Engine.BOAT_X;
       this.L = Math.max(5600, (d.beats.length + 2) * 640);
       const L = this.L;
@@ -298,7 +311,7 @@
       S().unlock(); S().sea(true);
       const T = d.tickets.length, W = d.winners.length;
       this.announce('Ombord&shy;stigning', 'Sandnessjøen · kai 1', 2400);
-      this.infoCard('🎟️', 'Ombordstigning', `${T} lodd går om bord på MS Fredag. Bare <b>${u.numberWord(W)}</b> kommer frem til Bodø.`, this.mode === 'live' ? 'Trekningen er låst i skipsloggen' : (this.mode === 'demo' ? 'Prøvetur · lagres ikke' : 'Reprise'));
+      this.infoCard(d.jul ? '🎄' : '🎟️', d.jul ? 'Julebåten går' : 'Ombordstigning', `${T} lodd går om bord på MS Fredag. Bare <b>${u.numberWord(W)}</b> kommer frem til Bodø.`, this.mode === 'live' ? 'Trekningen er låst i skipsloggen' : (this.mode === 'demo' ? 'Prøvetur · lagres ikke' : 'Reprise'));
       await w(this.board());
       await w(Eng.wait(1300));
       const left = d.leftBehind || [];
@@ -309,7 +322,7 @@
         await w(Eng.wait(1600));
       }
       S().horn(1.3);
-      this.announce('Avgang!', 'Hold dæ fast', 1800);
+      this.announce('Avgang!', d.jul ? 'God jul, og hold dæ fast' : 'Hold dæ fast', 1800);
       this.leaveDocked();
       sc.targetV = CRUISE;
 
@@ -398,12 +411,16 @@
       S().horn(1.2);
       const W = d.winners.length;
       this.infoCard('🏁', 'Ankommet Bodø', W ? `${u.numberWord(W).replace(/^./, (c) => c.toUpperCase())} passasjer${W === 1 ? '' : 'er'} kom seg helskinnet frem. Hvem velger premie først?` : 'Ingen kom frem. Havet vant.', 'Bodø havn');
-      this.announce('Velkommen til <em>Bodø!</em>', 'Endestasjon', 2600);
+      this.announce('Velkommen til <em>Bodø!</em>', d.jul ? 'God jul fra endestasjonen' : 'Endestasjon', 2600);
       await w(Eng.tween(1400, (p) => { sc.bx = FL.Engine.BOAT_X + 260 * p; }, E.inOut));
       await w(Eng.wait(700));
-      const order = d.winners.map((no, k) => ({ p: this.pax.get(no), rank: k + 1 })).reverse();
+      // premierekkefølgen trekkes én og én, 1. plass først: kortene stokkes, vinneren går i land og henter premien,
+      // og alt venter til noen trykker før neste trekkes. Den første står lengst inne på kaia, så de neste ikke må forbi.
       const gap = Math.min(100, 470 / Math.max(1, W));
-      for (const { p, rank } of order) {
+      for (let k = 0; k < W; k++) {
+        const rank = k + 1, p = this.pax.get(d.winners[k]);
+        if (k > 0) await w(this.stokk.next(W - k > 1 ? `Trekk ${rank}. plass` : `Neste: ${rank}. plass`));
+        if (W - k > 1) await w(this.stokk.show(d, { pick: k, kicker: 'Bodø havn · premierekkefølgen', icon: '⛴' }));
         if (!p.actor) { let i = this.freeSlot('aft'); if (i < 0) i = 0; await w(this.spawnInSlot(p, i, true)); }
         const a = p.actor;
         if (p.slot != null) { this.slots[p.slot] = null; p.slot = null; }
@@ -412,13 +429,13 @@
         await w(U().walk(a, -276, Math.max(160, Math.abs(a.x + 276) * 7)));
         sc.move(a, 'mark', this.bodo);
         await w(U().hop(a, a.x - 26, -12, 16, 240));
-        await w(U().walk(a, -330 - (rank - 1) * gap, 520, -12));
+        await w(U().walk(a, -330 - (W - rank) * gap, 520, -12));
         a.tag(shortName(p.name), `${rank}. PLASS`, (rank % 2 === 0) ? 40 : 0);
         this.markWinner(p, rank);
-        this.el.ev.innerHTML = `<div class="evcard is-final" style="--ec:#ffe08a"><div class="ec-ico">${['🥇', '🥈', '🥉'][rank - 1] || '🏁'}</div><div><div class="ec-meta">${rank}. plass${d.noNums ? '' : ` · lodd ${u.esc(p.label)}`}</div><h3 class="ec-title">${u.esc(p.name)}</h3><p class="ec-text">${rank === 1 ? 'Velger premie først. Premien er, som kjent, urelatert.' : 'Kom seg helskinnet til Bodø.'}</p></div></div>`;
+        this.el.ev.innerHTML = `<div class="evcard is-final" style="--ec:#ffe08a"><div class="ec-ico">${['🥇', '🥈', '🥉'][rank - 1] || '🏁'}</div><div><div class="ec-meta">${rank}. plass${d.noNums ? '' : ` · lodd ${u.esc(p.label)}`}</div><h3 class="ec-title">${u.esc(p.name)}</h3><p class="ec-text">${rank === 1 ? 'Velger premie først. Premien er, som kjent, urelatert.' : `Velger premie som nummer ${u.numberWord(rank)}.`}</p></div></div>`;
         S().pop();
         if (rank === 1) { S().fanfare(); this.fireworks(3); this.fx.confetti(200); } else S().ding();
-        await w(Eng.wait(rank === 1 ? 900 : 1500));
+        await w(Eng.wait(rank === 1 ? 1600 : 1200));
       }
       this.fireworks(6);
       await w(Eng.wait(2400));
@@ -434,6 +451,7 @@
       this.showEnd();
     }
     skip() {
+      if (this.stokk.busy) { this.stokk.hurry(); return; }
       if (!this.running || this.skipping || this.beatIdx >= this.draw.beats.length) return;
       this.skipping = true;
       Eng.speed = 8;
@@ -450,6 +468,7 @@
     hideOverlay(el) { if (el.hidden) return; el.classList.add('fade-out'); setTimeout(() => { el.hidden = true; el.classList.remove('fade-out'); }, 480); }
     renderStart() {
       if (this.running) return;
+      if (this.atQuay && this.jul !== Store.julActive()) { this.idle(); return; } // juletema slått av eller på i innstillingene
       const t = Store.totals();
       const st = Store.settings;
       const el = this.el.start;
@@ -464,7 +483,7 @@
         const few = t.tickets <= W;
         const left = Store.leftBehind();
         const leftTxt = left.length ? `<p class="ov-warn">🧳 ${u.esc(u.joinNames(left.slice(0, 6).map((p) => p.name)))}${left.length > 6 ? ` og ${left.length - 6} til` : ''} har ikke betalt og blir igjen på kaia.</p>` : '';
-        html = `<div class="ov-card"><p class="ov-kicker">Kai 1 · Sandnessjøen · ${u.esc(u.dfLong.format(new Date()))}</p><h3 class="ov-title">Klar for <em>avgang</em></h3>
+        html = `<div class="ov-card"><p class="ov-kicker">Kai 1 · Sandnessjøen · ${u.esc(u.dfLong.format(new Date()))}</p><h3 class="ov-title">Klar for <em>${this.jul ? 'juleavgang' : 'avgang'}</em></h3>
           <p class="ov-sub">${few ? 'Færre lodd enn premier – alle kommer frem. Men turen tar vi likevel.' : `${t.tickets} lodd går om bord. Bare <b>${u.numberWord(Math.min(W, t.paidPeople))}</b> kommer seg helskinnet til Bodø.`}</p>
           <div class="ov-facts"><span><b>${t.paidPeople}</b> betalt</span><span><b>${t.tickets}</b> lodd</span><span><b>${u.kr(t.pot)}</b> i potten</span></div>
           <div class="ov-btns"><button class="btn btn-primary" type="button" data-act="go">⛴ Gå om bord</button><button class="btn btn-ghost" type="button" data-act="demo">Prøvetur først</button></div>
@@ -482,7 +501,7 @@
       const pods = podOrder.map(({ p, rank }) => `<div class="pod p${rank <= 3 ? rank : 'n'}"><div class="pod-av" style="background:${p.color}">${u.esc(p.ini)}</div><div class="pod-name">${u.esc(p.name)}</div><div class="pod-tix">${d.noNums ? `${rank}. plass` : `lodd ${u.esc(p.label)}`}</div><div class="pod-block">${rank}</div></div>`).join('');
       const badge = this.mode === 'demo' ? '<span class="ov-badge">Prøvetur</span>' : (this.mode === 'replay' ? '<span class="ov-badge">Reprise</span>' : '');
       el.innerHTML = `<div class="ov-card">${badge}<p class="ov-kicker">Ankommet Bodø · ${u.esc(u.dfLong.format(new Date(d.date)))}</p>
-        <h3 class="ov-title">Gratulerer, <em>helter!</em></h3>
+        <h3 class="ov-title">${d.jul ? 'God jul' : 'Gratulerer'}, <em>helter!</em></h3>
         <div class="podium">${pods}</div>
         <p class="ov-sub">Vinnerne velger premie i rekkefølge. Premiene er, som kjent, urelatert.</p>
         <div class="ov-btns">${this.mode === 'live' ? '<a class="btn btn-primary" href="historikk.html">Se skipsloggen</a>' : '<button class="btn btn-primary" type="button" data-act="close">Tilbake til kaia</button>'}
@@ -529,7 +548,7 @@
       const people = Store.participants();
       if (!people.length) { u.toast('Ingen har betalt ennå – bekreft betaling i påmeldingen.'); return; }
       S().unlock();
-      const draw = Ev.createDraw(people, Store.settings, { game: 'hurtigbat', leftBehind: Store.leftBehind() });
+      const draw = Ev.createDraw(people, Store.settings, { game: 'hurtigbat', leftBehind: Store.leftBehind(), jul: Store.julActive() });
       this.start(draw, 'live'); // låses i loggen med en gang, før animasjonen viser resultatet
       Store.addRecord(draw);
       Store.resetPaid(); // neste fredag starter alle som «ikke betalt» igjen
@@ -540,7 +559,7 @@
       const pool = u.shuffle(Array.from({ length: 99 }, (_, i) => i + 1));
       const people = u.shuffle(DEMO).slice(0, 14 + u.randInt(4)).map((n) => { const t = 1 + u.randInt(max); return { name: n, nums: pool.splice(0, t), tickets: t }; });
       const left = people.splice(0, 2 + u.randInt(3)).map((p) => ({ name: p.name, nums: p.nums }));
-      this.start(Ev.createDraw(people, Store.settings, { game: 'hurtigbat', demo: true, leftBehind: left }), 'demo');
+      this.start(Ev.createDraw(people, Store.settings, { game: 'hurtigbat', demo: true, leftBehind: left, jul: Store.julActive() }), 'demo');
     }
     replay(rec) { S().unlock(); this.start(rec, 'replay'); }
   }

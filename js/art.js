@@ -135,17 +135,23 @@
   /* ---------- Passasjerer (hodet viser lodd-nummeret) ---------- */
   const torso = (fill) => `<path class="fig-torso" d="M-12 0 L-12 -21 Q-12 -32 0 -32 Q12 -32 12 -21 L12 0 Z" fill="${fill}"/>`;
   const iniSize = (s) => { const n = String(s || '').length; return n >= 4 ? 7.5 : n === 3 ? 9.5 : 11.5; };
+  /* Nisselue (juletema): kanten ligger på y, tuppen henger mot høyre */
+  const santaHat = (y) => `<g class="fig-hat" transform="translate(0 ${y})"><path d="M-11 0 C-9 -12 1 -18 16 -14 C10 -10 9 -6 11 0 Z" fill="#d62828"/>`
+    + '<rect x="-13.5" y="-2" width="27" height="6.5" rx="3.2" fill="#f4f1ea"/><circle cx="16.5" cy="-14" r="4" fill="#f4f1ea"/></g>';
+  const julOn = () => !!(FL.Art && FL.Art.jul);
   function figure(p) {
     return torso(p.color) + '<path d="M-12 -9 H12" stroke="rgba(0,0,0,.16)" stroke-width="2.5"/>'
       + '<circle class="fig-head" cx="0" cy="-44" r="13" fill="#f3ecdf"/>'
-      + `<text class="fig-ini" x="0" y="-40" text-anchor="middle" fill="#0f1b29" style="font-size:${iniSize(p.ini)}px">${u.esc(p.ini)}</text>`;
+      + `<text class="fig-ini" x="0" y="-40" text-anchor="middle" fill="#0f1b29" style="font-size:${iniSize(p.ini)}px">${u.esc(p.ini)}</text>`
+      + (julOn() ? santaHat(-54) : '');
   }
   function swimmer(p) {
     return '<ellipse cx="0" cy="1" rx="27" ry="6" fill="none" stroke="#dcefff" stroke-opacity=".6" stroke-width="2"/>'
       + `<path class="fig-torso" d="M-10 2 Q-10 -8 0 -8 Q10 -8 10 2 Z" fill="${p.color}"/>`
       + '<path class="swim-arm" d="M9 -5 Q21 -18 17 -31" stroke="#f3ecdf" stroke-width="4.5" stroke-linecap="round" fill="none"/>'
       + '<circle class="fig-head" cx="0" cy="-18" r="12" fill="#f3ecdf"/>'
-      + `<text class="fig-ini" x="0" y="-14" text-anchor="middle" fill="#0f1b29" style="font-size:${iniSize(p.ini)}px">${u.esc(p.ini)}</text>`;
+      + `<text class="fig-ini" x="0" y="-14" text-anchor="middle" fill="#0f1b29" style="font-size:${iniSize(p.ini)}px">${u.esc(p.ini)}</text>`
+      + (julOn() ? santaHat(-27) : '');
   }
   function chef() {
     return torso('#ffffff') + '<path d="M-12 -14 H12" stroke="#cfd8de" stroke-width="2"/>'
@@ -195,7 +201,8 @@
       + win
       + '<path d="M-42 -158 L-36 -206 L12 -206 L18 -158 Z" fill="#c62828"/><path d="M-37 -206 L-36 -194 L12 -194 L12 -206 Z" fill="#111"/>'
       + '<rect x="120" y="-198" width="4" height="40" fill="#c9d3da"/><circle cx="122" cy="-202" r="3" fill="#fff"/>'
-      + '<path d="M-290 2 Q-420 6 -560 10 L-560 14 Q-420 12 -288 8 Z" fill="rgba(225,240,255,.3)"/>';
+      + '<path d="M-290 2 Q-420 6 -560 10 L-560 14 Q-420 12 -288 8 Z" fill="rgba(225,240,255,.3)"/>'
+      + (julOn() ? lights([[-250, -96], [210, -96]], { step: 16 }) + lights([[-200, -132], [150, -132]], { step: 16 }) + lights([[-280, -40], [-36, -206], [300, -26]], { step: 22, sag: 18 }) : '');
   }
   function smallBoat(sign) { // ser mot venstre
     let panes = '';
@@ -244,7 +251,8 @@
       + houses(r, -520, 480, -8, 11)
       + '<rect x="-130" y="-66" width="150" height="54" fill="#aaa69c"/><path d="M-138 -66 L-55 -92 L28 -66 Z" fill="#20242c"/>'
       + '<rect x="-118" y="-56" width="36" height="22" fill="#ffd27a" fill-opacity=".85"/><rect x="-74" y="-56" width="36" height="22" fill="#ffd27a" fill-opacity=".7"/><rect x="-30" y="-56" width="36" height="22" fill="#ffd27a" fill-opacity=".8"/>'
-      + pier(-470, 430) + lamp(-400) + lamp(-180) + lamp(150) + signBoard(330, name);
+      + pier(-470, 430) + lamp(-400) + lamp(-180) + lamp(150) + signBoard(330, name)
+      + (julOn() ? `<g transform="translate(80 -12)">${xmasTree(78)}</g>` + lights([[-400, -76], [-180, -76], [150, -76]], { step: 18, sag: 14 }) : '');
   }
   function startPier() { return port('Sandnessjøen', 991); }
   function globe() {
@@ -273,6 +281,8 @@
       + [640, 710, 780, 850].map((sx) => `<circle cx="${sx}" cy="-214" r="40" fill="url(#lampGlow)"/><rect x="${sx - 12}" y="-220" width="24" height="10" fill="#fff8d2"/>`).join('')
       + '<g transform="translate(-690 -12)" stroke="#5c6878" stroke-width="5" fill="none"><path d="M0 0 V-150 L120 -150 M0 -150 L-40 -150 M0 -130 L90 -150"/><path d="M110 -150 V-110" stroke-width="2"/></g>'
       + pier(-760, 760) + lamp(-640) + lamp(-250) + lamp(-60) + lamp(240) + lamp(600)
+      + (julOn() ? '<circle cx="-440" cy="-110" r="120" fill="url(#lampGlow)" opacity=".7"/>' + `<g transform="translate(-440 -12)">${xmasTree(210)}</g>`
+        + lights([[-640, -76], [-250, -76], [-60, -76], [240, -76], [600, -76]], { step: 20, sag: 18 }) : '')
       + '<g transform="translate(330 -24)"><rect x="-6" y="-12" width="232" height="10" fill="#3a404a"/>'
       + '<text x="110" y="-24" text-anchor="middle" font-family="Fraunces, Georgia, serif" font-weight="900" font-size="72" letter-spacing="6" fill="#fff6dc" stroke="#f6bd47" stroke-width="2" style="filter:drop-shadow(0 0 14px rgba(246,189,71,.75))">BODØ</text></g>';
   }
@@ -288,5 +298,74 @@
   const iceBlock = () => '<rect x="-24" y="-66" width="48" height="72" rx="8" fill="#cbeeff" fill-opacity=".35" stroke="#f2fbff" stroke-opacity=".85" stroke-width="2"/><path d="M-14 -56 L-4 -46 M8 -60 L16 -50" stroke="#fff" stroke-opacity=".8" stroke-width="2"/>';
   const ticket = () => '<rect x="-11" y="-7" width="22" height="14" rx="2" fill="#f3ecdf"/><rect x="-11" y="-7" width="6" height="14" fill="#ee4a2f"/>';
 
-  FL.Art = { ridge, mountainLayer, islands, stars, waveLines, frontWave, boatWake, boatBack, boatRails, figure, swimmer, chef, nameTag, eagle, gull, orca, liner, smallBoat, port, startPier, globe, bodo, heart, virus, bucket, iceBlock, ticket };
+  /* ---------- Jul (desember) ---------- */
+  const BULB = ['#ff4d4d', '#ffd54a', '#4fe08a', '#4fb4ff', '#ff8fd1'];
+  let bulbN = 0;
+  /* Lysslynge langs en linje av punkter; sag = hvor mye ledningen henger mellom punktene */
+  function lights(pts, { step = 18, sag = 0, r = 3 } = {}) {
+    let wire = '', bulbs = '';
+    for (let i = 0; i < pts.length - 1; i++) {
+      const [x0, y0] = pts[i], [x1, y1] = pts[i + 1];
+      const n = Math.max(1, Math.round(Math.hypot(x1 - x0, y1 - y0) / step));
+      const at = (t) => [x0 + (x1 - x0) * t, y0 + (y1 - y0) * t + sag * 4 * t * (1 - t)];
+      wire += (i ? '' : `M${f1(x0)} ${f1(y0)}`) + ` Q${f1((x0 + x1) / 2)} ${f1((y0 + y1) / 2 + sag * 2)} ${f1(x1)} ${f1(y1)}`;
+      for (let j = 0; j < n; j++) {
+        const [x, y] = at(j / n);
+        const k = bulbN++;
+        bulbs += `<circle class="bulb" cx="${f1(x)}" cy="${f1(y + r * 0.9)}" r="${r}" fill="${BULB[k % BULB.length]}" style="animation-delay:${f1(-((k * 0.37) % 1.6))}s"/>`;
+      }
+    }
+    return `<path d="${wire}" stroke="#1c2a38" stroke-width="1.2" fill="none"/>${bulbs}`;
+  }
+  const star = (x, y, s = 1) => `<path transform="translate(${x} ${y}) scale(${s})" d="M0 -10 L2.9 -3.1 L10 -3.1 L4.3 1.4 L6.4 8.6 L0 4.4 L-6.4 8.6 L-4.3 1.4 L-10 -3.1 L-2.9 -3.1 Z" fill="#ffd54a"/>`;
+  /* Juletre med kuler og stjerne; (0, 0) er midt under stammen, h = høyde */
+  function xmasTree(h = 92) {
+    const k = f1(h / 100);
+    const balls = [[-20, -20, 0], [8, -24, 1], [26, -16, 3], [-8, -44, 1], [14, -46, 0], [-26, -16, 1], [0, -30, 4], [-4, -68, 3], [8, -64, 1], [-14, -50, 2], [20, -36, 2]]
+      .map(([x, y, c]) => `<circle cx="${x}" cy="${y}" r="3.4" fill="${BULB[c]}"/>`).join('');
+    return `<g transform="scale(${k})"><rect x="-6" y="-12" width="12" height="12" fill="#6b4226"/>`
+      + '<path d="M-42 -12 L0 -50 L42 -12 Z" fill="#1d7238"/><path d="M-33 -38 L0 -72 L33 -38 Z" fill="#228343"/><path d="M-24 -62 L0 -90 L24 -62 Z" fill="#29954f"/>'
+      + '<path d="M-36 -18 Q0 -10 34 -26 M-26 -44 Q0 -36 26 -50 M-18 -66 Q0 -60 16 -72" stroke="#f3ecdf" stroke-opacity=".55" stroke-width="1.6" fill="none"/>'
+      + balls + star(0, -94, 1.1) + '</g>';
+  }
+  /* Reinsdyr som galopperer mot venstre; nesa (Rudolf) lyser */
+  function deer(x = 0, nose = false) {
+    return `<g transform="translate(${x} 0)"><path d="M-18 -26 L-30 -6 M-10 -24 L-4 -4 M14 -24 L22 -6 M20 -26 L34 -12" stroke="#5c3a1c" stroke-width="4" stroke-linecap="round"/>`
+      + '<ellipse cx="0" cy="-32" rx="26" ry="12" fill="#8b5a2b"/><path d="M-20 -38 L-30 -56 L-22 -60 L-12 -40 Z" fill="#8b5a2b"/>'
+      + '<ellipse cx="-34" cy="-60" rx="11" ry="7" fill="#9a6633"/><circle cx="-36" cy="-62" r="1.6" fill="#111"/>'
+      + '<path d="M-30 -66 L-34 -80 M-34 -76 L-40 -82 M-26 -66 L-20 -82 M-21 -78 L-15 -84" stroke="#e3d2b4" stroke-width="2.5" stroke-linecap="round" fill="none"/>'
+      + (nose ? '<circle cx="-45" cy="-59" r="9" fill="#ff3b3b" fill-opacity=".35"/><circle cx="-45" cy="-59" r="3.8" fill="#ff2a2a"/>' : '<circle cx="-45" cy="-59" r="2.6" fill="#3a2414"/>')
+      + '<path d="M24 -36 Q30 -40 32 -34" stroke="#f3ecdf" stroke-width="3" fill="none"/></g>';
+  }
+  /* Nissens slede med to reinsdyr, mot venstre. Passasjeren sitter foran i sleden, med føttene i (-26, -14) */
+  function sleigh() {
+    return deer(-250, true) + deer(-160)
+      + '<path d="M-224 -34 L-186 -33 M-134 -34 L-70 -28" stroke="#f6bd47" stroke-width="2" fill="none"/>'
+      + '<path d="M-90 8 Q-96 8 -94 -2 M-90 8 L58 8 Q70 8 70 -2" stroke="#f6bd47" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M-50 -8 V8 M30 -8 V8" stroke="#f6bd47" stroke-width="3"/>'
+      + '<path d="M46 -34 Q44 -62 58 -66 Q72 -60 68 -34 Z" fill="#8a5a2b"/><path d="M50 -60 Q58 -68 66 -60" stroke="#5c3a1c" stroke-width="2" fill="none"/>'
+      + '<path d="M18 -28 Q14 -58 32 -60 Q48 -58 46 -28 Z" fill="#c1121f"/><circle cx="30" cy="-70" r="10" fill="#f0cfb2"/><path d="M20 -68 Q30 -48 40 -68 Z" fill="#fff"/>'
+      + '<path d="M20 -76 Q26 -96 42 -90 Q34 -84 38 -76 Z" fill="#c1121f"/><rect x="18" y="-79" width="24" height="5" rx="2.5" fill="#fff"/><circle cx="43" cy="-90" r="3.5" fill="#fff"/>'
+      + '<path d="M20 -44 L-60 -32" stroke="#5c3a1c" stroke-width="1.6"/>'
+      + '<path d="M-66 -14 Q-80 -16 -82 -32 Q-74 -26 -62 -26 L54 -26 Q66 -26 66 -14 L66 -8 L-60 -8 Q-66 -8 -66 -14 Z" fill="#c1121f"/>'
+      + '<path d="M-62 -26 L54 -26" stroke="#f6bd47" stroke-width="2.5"/>';
+  }
+  /* Gavepapir rundt en passasjer (samme størrelse som figuren) */
+  function gift(c = '#d62828') {
+    return `<rect x="-17" y="-58" width="34" height="58" rx="3" fill="${c}"/><rect x="-3.5" y="-58" width="7" height="58" fill="#f6bd47"/><rect x="-17" y="-33" width="34" height="7" fill="#f6bd47"/>`
+      + '<path d="M0 -58 C-14 -74 -22 -60 0 -58 C22 -60 14 -74 0 -58 Z" fill="#f6bd47"/><rect x="-17" y="-58" width="34" height="58" rx="3" fill="none" stroke="rgba(0,0,0,.18)" stroke-width="2"/>';
+  }
+  const snowball = () => '<circle r="7" fill="#f7fbff"/><circle cx="-2.4" cy="-2.4" r="2.8" fill="#fff"/><path d="M-5 4 A7 7 0 0 0 6 3" stroke="#c9d9ea" stroke-width="2" fill="none"/>';
+  /* Julepynt på MS Fredag: lysslynger, stjerne i masta og et lite tre på brotaket */
+  function boatXmas() {
+    bulbN = 0;
+    return '<g class="xmas">'
+      + lights([[-160, -116], [-150, -122], [148, -122], [182, -108], [228, -62]], { step: 17 })
+      + lights([[-156, -141], [22, -141]], { step: 16, r: 2.6 })
+      + lights([[296, -42], [68, -206]], { step: 20, sag: 16 }) + lights([[68, -206], [-279, -124]], { step: 20, sag: 22 })
+      + `<g transform="translate(120 -158)">${xmasTree(30)}</g>`
+      + `<circle cx="68" cy="-224" r="16" fill="#ffd54a" fill-opacity=".22"/>${star(68, -224, 1.2)}`
+      + '</g>';
+  }
+
+  FL.Art = { ridge, mountainLayer, islands, stars, waveLines, frontWave, boatWake, boatBack, boatRails, figure, swimmer, chef, nameTag, eagle, gull, orca, liner, smallBoat, port, startPier, globe, bodo, heart, virus, bucket, iceBlock, ticket, lights, xmasTree, deer, sleigh, gift, snowball, boatXmas, jul: false };
 })();

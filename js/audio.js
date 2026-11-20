@@ -108,6 +108,15 @@
     hic() { if (!ensure()) return; const t = now(); const o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'square'; o.frequency.setValueAtTime(380, t); o.frequency.exponentialRampToValueAtTime(900, t + 0.08); env(g, t, 0.005, 0.1, 0.03, 0.06); o.connect(g).connect(master); o.start(t); o.stop(t + 0.2); },
     blub() { if (!ensure()) return; const t = now(); for (let i = 0; i < 4; i++) { const t0 = t + i * 0.14, o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(220 + i * 40, t0); o.frequency.exponentialRampToValueAtTime(700 + i * 80, t0 + 0.09); env(g, t0, 0.005, 0.2, 0.02, 0.07); o.connect(g).connect(master); o.start(t0); o.stop(t0 + 0.18); } },
     pop() { if (!ensure()) return; osc('sine', 660, now(), 0.08, 0.12); },
+    bells() { // sledebjeller: korte, høye klang i rytme
+      if (!ensure()) return;
+      const t = now();
+      [0, 0.11, 0.22, 0.38, 0.49, 0.6, 0.76, 0.87].forEach((dt, i) => {
+        const f = i % 3 === 2 ? 2350 : 2790;
+        osc('triangle', f, t + dt, 0.12, 0.05); osc('sine', f * 1.5, t + dt, 0.08, 0.025);
+        noise(t + dt, 0.05, { type: 'highpass', f0: 7000, f1: 5000, peak: 0.04 });
+      });
+    },
     love() { if (!ensure()) return; const t = now(); [659, 784, 988].forEach((fq, i) => osc('triangle', fq, t + i * 0.12, 0.25, 0.12)); },
     sick() { if (!ensure()) return; const t = now(); const o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'sawtooth'; o.frequency.setValueAtTime(220, t); o.frequency.linearRampToValueAtTime(110, t + 0.6); const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 600; env(g, t, 0.05, 0.14, 0.3, 0.3); o.connect(lp).connect(g).connect(master); o.start(t); o.stop(t + 0.8); },
     wind() { if (!ensure()) return; noise(now(), 1.6, { type: 'bandpass', f0: 400, f1: 1600, q: 2, peak: 0.3, a: 0.4 }); },

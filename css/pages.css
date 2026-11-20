@@ -184,6 +184,7 @@
 .tag { padding: 4px 8px; border: 1.5px solid currentColor; border-radius: 6px; }
 .tag-folk { color: var(--red); font-weight: 700; transform: rotate(-3deg); }
 .tag-bonus { color: var(--dim); }
+.tag-jul { color: #ff7b7b; font-weight: 700; }
 .hz-count { color: var(--dim); }
 .hz-count b { color: var(--text); }
 .tag-sagn { color: var(--aurora); }

@@ -150,6 +150,98 @@
         '{n} hoppet over bord i gult skjerf. Rakk neppe avspark, men ånden var der.'],
     },
   };
+  /* ---------- Julebåten: farene på ruten i desember (juletema i Hurtigbåten) ---------- */
+  Object.assign(EVENTS, {
+    nissen: {
+      jul: true, title: 'Nissen kom!', name: 'Nissen tok med seg passasjeren', icon: '🎅', anim: 'sleigh', color: 'rgba(214,40,40,.25)', ec: '#f6cccc',
+      desc: 'Han har en liste. Han har sjekket den to ganger. Han har plass i sleden.',
+      t: ['Nissen kom forbi i sleden og trengte en ekstra hjelpenisse. {n} sto nærmest.',
+        '{n} sto på snillelista. Premien var en tur til Nordpolen. Enveis.',
+        'Nissen tok feil av {n} og en sekk med pakker. Bjellene forsvant mot nord.'],
+    },
+    glogg: {
+      jul: true, title: 'Gløgg!', name: 'For mye gløgg', icon: '🍷', anim: 'drunk', group: 3, color: 'rgba(150,30,60,.25)', ec: '#f0c9d3',
+      desc: 'Varm, søt og mye sterkere enn den ser ut. Vinen er fortsatt urelatert.',
+      t: ['{n} tok «bare én kopp» gløgg i kiosken. Så åtte. Danset over rekka til «Nå er det jul igjen».',
+        '{n} fant ut at gløggen i kiosken var den sterke varianten. Gikk over bord i julestemning.'],
+      p: ['{n} sang «Musevisa» i høyttaleranlegget og ble satt i land i {p}.',
+        '{n} tok en kopp gløgg mot kulda. Så en til. Ble båret i land i {p}.'],
+      g: ['{n} startet gløggfest i salongen klokka ti på formiddagen. Ingen av dem så rekka.',
+        '{n} delte en kjele gløgg på akterdekk. Gangen tilbake var lengre enn de trodde.'],
+    },
+    lutefisk: {
+      jul: true, title: 'Lutefisk', name: 'Lutefisk fra kiosken', icon: '🐟', anim: 'seasick', color: 'rgba(220,210,170,.25)', ec: '#efe9cf',
+      desc: 'Enten elsker du det, eller så er det dette som skjer.',
+      t: ['{n} prøvde lutefisken fra kiosken. Konsistensen tok overhånd.',
+        'Det luktet lutefisk i hele salongen. {n} ga opp ved første bølge.'],
+      p: ['{n} spiste lutefisk i {p} og nektet å gå om bord igjen.',
+        '{n} gikk i land i {p} for å få frisk luft etter lutefisken. Ble der.'],
+    },
+    juletre: {
+      jul: true, title: 'Juletreet veltet', name: 'Juletreet på soldekket', icon: '🎄', anim: 'xmastree', color: 'rgba(40,150,80,.25)', ec: '#c9ebd3',
+      desc: 'Nordmannsgran, 2,5 meter, festet med én strips.',
+      t: ['Juletreet på soldekket var ikke surret fast. {n} ble feid over bord av en nordmannsgran.',
+        'Vinden tok juletreet. Juletreet tok {n}.',
+        '{n} skulle rette på stjerna i toppen. Treet hadde andre planer.'],
+    },
+    misteltein: {
+      jul: true, title: 'Under mistelteinen', name: 'Kysset under mistelteinen', icon: '🌿', anim: 'chef', color: 'rgba(223,79,134,.22)', ec: '#f5cddd',
+      desc: 'Det som skjer under mistelteinen, blir i byssa.',
+      t: ['{n} og kokken havnet under mistelteinen i byssa. Ingen har sett dem siden.',
+        '{n} skulle bare hente risengrynsgrøt. Kokken hadde hengt opp misteltein.'],
+    },
+    pakke: {
+      jul: true, title: 'Pakket inn', name: 'Sendt som julegave', icon: '🎁', anim: 'gift', color: 'rgba(200,60,60,.22)', ec: '#f4cfc9',
+      desc: 'Merket «Ikke åpne før jul». Ble ikke åpnet før jul.',
+      t: ['{n} sovnet ved juletreet og ble pakket inn av en ivrig hjelpenisse. Sendt med postbåten til Vadsø.',
+        'Mannskapet trodde {n} var en julegave og sendte hen videre med postbåten.',
+        '{n} fikk sløyfe på hodet og ble sendt som pakke. Ankommer etter jul.'],
+    },
+    snoball: {
+      jul: true, title: 'Snøballkrig!', name: 'Snøballkrig', icon: '❄️', anim: 'snowball', group: 4, color: 'rgba(200,225,255,.22)', ec: '#e2eefb',
+      desc: 'Startet som moro. Endte i havet.',
+      t: ['{n} startet snøballkrig med mannskapet. Mannskapet hadde snøkanon.',
+        '{n} fikk en snøball midt i fleisen og vaklet over rekka.'],
+      g: ['Snøballkrig på akterdekk! {n} tapte og havnet i havet.',
+        'Mannskapet fyrte løs med snøkanonen. {n} ble feid over bord.'],
+    },
+    rudolf: {
+      jul: true, title: 'Rudolf!', name: 'Rudolf tok snarveien', icon: '🦌', anim: 'rudolf', group: 3, color: 'rgba(160,100,60,.25)', ec: '#ecd8c6',
+      desc: 'Den røde nesa lyser opp veien. Den lyser også opp den som står i veien.',
+      t: ['Rudolf tok en snarvei over dekket. Den røde nesa blendet {n}, som gikk rett i havet.',
+        '{n} prøvde å klappe Rudolf. Rudolf var ikke i humør.'],
+      g: ['Rudolf og reinflokken tok snarveien over båten. {n} ble tråkket over bord.'],
+    },
+    snofokk: {
+      jul: true, title: 'Snøfokk', name: 'Snøfokk', icon: '🌨️', anim: 'wind', group: 3, color: 'rgba(190,210,235,.22)', ec: '#e1e9f3',
+      desc: 'Snø som kommer sidelengs. Helt vanlig desember i Bodø.',
+      t: ['Snøfokk på 28 m/s. {n} ble blåst av dekk sammen med julepynten.',
+        '{n} åpnet døra til soldekket midt i snøfokket. Det var en feil.'],
+      g: ['Snøfokket tok {n} og halve julepynten.'],
+    },
+    julebord: {
+      jul: true, title: 'Julebord', name: 'Julebord på land', icon: '🍽️', anim: 'julebord', group: 3, color: 'rgba(246,189,71,.22)', ec: '#f5e2b0',
+      desc: 'Ribbe, pinnekjøtt og taler som aldri tar slutt. Båten venter ikke.',
+      t: ['{n} dro på julebord og kom aldri tilbake.'],
+      p: ['{n} ble invitert på julebord i {p} og gikk i land «for én rett». Ribba var for god.',
+        '{n} hørte at det var pinnekjøtt på samfunnshuset i {p}. Båten ventet ikke.'],
+      g: ['{n} gikk på julebord i {p} sammen. De er ventet tilbake i januar.'],
+    },
+    julemarked: {
+      jul: true, title: 'Julemarked', name: 'Julemarked i Ørnes', icon: '🧦', anim: 'ashore', group: 3, color: 'rgba(214,40,40,.2)', ec: '#f6d2cc',
+      desc: 'Ullsokker, lefse og pepperkaker. Ørnes er fint. Ørnes er fortsatt ikke Bodø.',
+      t: ['{n} gikk på julemarked og ble der.'],
+      p: ['{n} gikk i land i {p} for å kjøpe ullsokker på julemarkedet. Båten ventet ikke.',
+        '{n} så lefsebua på julemarkedet i {p} og glemte alt annet.'],
+      g: ['{n} gikk på julemarkedet i {p} sammen. De selger nå lefse der.'],
+    },
+    slemmeliste: {
+      jul: true, title: 'Slemmelista', name: 'Sto på slemmelista', icon: '📜', anim: 'polar', color: 'rgba(159,214,255,.22)', ec: '#d3ecfb',
+      desc: 'Nissens kontrollør går om bord ved Polarsirkelen. Han har lista med.',
+      t: ['Ved Polarsirkelen kom nissens kontrollør om bord. {n} sto på slemmelista og ble satt på et isflak.',
+        '{n} krysset Polarsirkelen og ble sjekket mot slemmelista. Driver nå sørover på et isflak.'],
+    },
+  });
   /* ---------- Draugen: farene i Vestfjorden ---------- */
   Object.assign(EVENTS, {
     kraken: {
@@ -259,7 +351,22 @@
   const CORE_SEA = ['orna', 'tut', 'noro', 'kokken', 'trappa', 'overbord', 'drukning', 'full', 'svolvaer', 'sjosyk', 'feilrute'];
   const BONUS_SEA = ['maake', 'nordlys', 'vind', 'spekkhogger'];
   const GROUP_SEA = ['noro', 'vind', 'spekkhogger'];
-  const SHIP_EVENTS = ['tut', 'svolvaer'];
+  const SHIP_EVENTS = ['tut', 'svolvaer', 'pakke'];
+  /* Julebåten (desember): egne farer, pluss Hurtigruta og nordlyset, som hører desember til */
+  const ORDER_JUL = ['nissen', 'glogg', 'lutefisk', 'juletre', 'misteltein', 'pakke', 'snoball', 'rudolf', 'snofokk', 'julebord', 'julemarked', 'slemmeliste'];
+  const POOL = {
+    vanlig: {
+      core: CORE_SEA, bonus: BONUS_SEA, group: GROUP_SEA, ornes: 'ornes', polar: 'polar', glimt: true,
+      port: (size, ornes) => (size > 1 ? ['full', 'feilrute'] : ornes ? ['svolvaer', 'full', 'feilrute'] : ['feilrute', 'full', 'sjosyk']),
+      last: ['orna', 'orna', 'glimt', 'tut', 'overbord', 'kokken'],
+    },
+    jul: {
+      core: ['nissen', 'glogg', 'lutefisk', 'juletre', 'misteltein', 'pakke'], bonus: ['tut', 'nordlys', 'snofokk'], group: ['snoball', 'rudolf', 'snofokk'],
+      ornes: 'julemarked', polar: 'slemmeliste', glimt: false,
+      port: (size, ornes) => (size > 1 ? ['julebord', 'glogg'] : ornes ? ['julebord', 'glogg', 'lutefisk'] : ['julebord', 'lutefisk', 'glogg']),
+      last: ['nissen', 'nissen', 'juletre', 'rudolf', 'tut', 'misteltein'],
+    },
+  };
 
   /* ---------- Trekning ---------- */
   function createDraw(people, settings, opts = {}) {
@@ -296,7 +403,8 @@
       if (t) amulet = { name: t.name, no: t.no };
     }
     // Keiservarden fyller inn hendelsene fra fysikk-simuleringen etterpå, Trommelen har ingen
-    const beats = opts.game === 'draugen' ? buildDraugenBeats(elim, u.mulberry32(seed), amulet && amulet.no) : opts.game === 'keiser' || opts.game === 'trommel' ? [] : buildBeats(elim, u.mulberry32(seed));
+    const jul = !!opts.jul && (opts.game || 'hurtigbat') === 'hurtigbat'; // juletema: bare Hurtigbåten
+    const beats = opts.game === 'draugen' ? buildDraugenBeats(elim, u.mulberry32(seed), amulet && amulet.no) : opts.game === 'keiser' || opts.game === 'trommel' ? [] : buildBeats(elim, u.mulberry32(seed), jul ? POOL.jul : POOL.vanlig);
     return {
       id: u.uid('d'), date: new Date().toISOString(), game: opts.game || 'hurtigbat', demo: !!opts.demo,
       price: settings.price, winnersCount: winners.length, pot: tickets.length * settings.price,
@@ -305,6 +413,7 @@
       leftBehind: (opts.leftBehind || []).map((p) => ({ name: u.cleanName(p.name), nums: noNums ? [] : (p.nums || []).filter(Boolean) })),
       amulet, winners, elim, seed, beats,
       ...(noNums ? { noNums: true } : {}),
+      ...(jul ? { jul: true } : {}),
     };
   }
 
@@ -354,7 +463,7 @@
     return beats.filter((b) => b.v.length);
   }
 
-  function buildBeats(elim, rnd) {
+  function buildBeats(elim, rnd, P = POOL.vanlig) {
     const E = elim.length;
     if (!E) return [];
     const ri = (n) => Math.floor(rnd() * n);
@@ -408,7 +517,7 @@
     // velg hendelse for hver plass
     let bag = [];
     // folkets egne hendelser først, deretter bonus – ingen gjentakelser før posen er tom
-    const refill = () => { bag = u.shuffle(CORE_SEA, ri).concat(u.shuffle(BONUS_SEA, ri)); };
+    const refill = () => { bag = u.shuffle(P.core, ri).concat(u.shuffle(P.bonus, ri)); };
     refill();
     const fromBag = (ok) => {
       for (let tries = 0; tries < 2; tries++) {
@@ -423,14 +532,13 @@
     const beats = slots.map((s, i) => {
       let ev;
       const notPrev = (e) => e !== prev && !(SHIP_EVENTS.includes(e) && SHIP_EVENTS.includes(prev));
-      if (s.place === 'polar') ev = 'polar';
-      else if (s.place === 'ornes' && s.ord === 0) ev = 'ornes';
-      else if (s.place === 'ornes') ev = s.size > 1 ? ['full', 'feilrute'][ri(2)] : ['svolvaer', 'full', 'feilrute'][ri(3)];
-      else if (s.place === 'nesna') ev = s.size > 1 ? ['full', 'feilrute'][ri(2)] : ['feilrute', 'full', 'sjosyk'][ri(3)];
-      else if (s.size > 1) { const c = GROUP_SEA.filter(notPrev); ev = c[ri(c.length)] || 'noro'; }
-      else if (i === slots.length - 1) { const c = ['orna', 'orna', 'glimt', 'tut', 'overbord', 'kokken'].filter(notPrev); ev = c[ri(c.length)]; }
+      if (s.place === 'polar') ev = P.polar;
+      else if (s.place === 'ornes' && s.ord === 0) ev = P.ornes;
+      else if (s.place === 'ornes' || s.place === 'nesna') { const c = P.port(s.size, s.place === 'ornes'); ev = c[ri(c.length)]; }
+      else if (s.size > 1) { const c = P.group.filter(notPrev); ev = c[ri(c.length)] || P.group[0]; }
+      else if (i === slots.length - 1) { const c = P.last.filter(notPrev); ev = c[ri(c.length)]; }
       else ev = fromBag((e) => notPrev(e) && (s.place === 'final' || e !== 'glimt'));
-      if (s.place === 'final' && s.size === 1 && i !== slots.length - 1 && rnd() < 0.18 && notPrev('glimt')) ev = 'glimt';
+      if (P.glimt && s.place === 'final' && s.size === 1 && i !== slots.length - 1 && rnd() < 0.18 && notPrev('glimt')) ev = 'glimt';
       prev = ev;
       const v = elim.slice(victimIdx, victimIdx + s.size);
       victimIdx += s.size;
@@ -467,5 +575,5 @@
     { id: 'skrova', name: 'Skrova', type: 'marker', at: 0.8 },
     { id: 'henn', name: 'Henningsvær', type: 'end', at: 1 },
   ];
-  FL.Events = { EVENTS, ORDER, ORDER_DRAUGEN, ORDER_KEISER, ROUTE, ROUTE_DRAUGEN, AT, PORT_NAME, PLACE_LABEL, createDraw, eventText };
+  FL.Events = { EVENTS, ORDER, ORDER_JUL, ORDER_DRAUGEN, ORDER_KEISER, ROUTE, ROUTE_DRAUGEN, AT, PORT_NAME, PLACE_LABEL, createDraw, eventText };
 })();

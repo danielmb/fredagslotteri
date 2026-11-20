@@ -4,6 +4,7 @@
   const FL = window.FL;
   const u = FL.u, Store = FL.Store;
   const stage = document.getElementById('stage');
+  const stokk = FL.Stokk.of(stage);
   const voyage = new FL.Voyage(stage);
   const draugen = new FL.Draugen(stage);
   const keiser = new FL.Keiser(stage);
@@ -17,6 +18,7 @@
   const FAIR_TROMMEL = 'Hver vinner trekkes med kryptografisk tilfeldighet i det øyeblikket du trykker, og låses i skipsloggen med en gang. Hjulet og trommelen er ren underholdning.';
 
   function clearShared() {
+    stokk.clear();
     u.$('#startOverlay').hidden = true; u.$('#endOverlay').hidden = true;
     u.$('#evWrap').innerHTML = ''; u.$('#announce').innerHTML = '';
   }
@@ -25,7 +27,7 @@
     stage.dataset.game = g;
     u.$$('.game-tab[data-game]').forEach((t) => { const on = t.dataset.game === g; t.classList.toggle('is-active', on); t.setAttribute('aria-selected', on); });
     try { localStorage.setItem('fredagslotteriet:spill', g); } catch (e) { /* ikke viktig */ }
-    if (g !== 'hurtigbat') voyage.abort(true);
+    if (g !== 'hurtigbat') { voyage.abort(true); FL.Art.jul = false; } // juletemaet hører bare Hurtigbåten til (Draugen bruker de samme figurene)
     if (g !== 'draugen' && draugen.active) draugen.deactivate();
     if (g !== 'keiser' && keiser.active) keiser.deactivate();
     if (g !== 'trommel' && trommel.active) trommel.deactivate();
